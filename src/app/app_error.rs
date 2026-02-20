@@ -16,6 +16,8 @@ pub enum AppError {
     Io(#[from] std::io::Error),
     #[error("yaml error: {0}")]
     Yaml(#[from] serde_yaml::Error),
+    #[error("format error: {0}")]
+    Format(#[from] crate::storage::format::FormatError),
 }
 
 impl AppError {
@@ -46,7 +48,8 @@ impl AppError {
             | Self::NoTty
             | Self::InvalidTaskFile { .. }
             | Self::Io(_)
-            | Self::Yaml(_) => 1,
+            | Self::Yaml(_)
+            | Self::Format(_) => 1,
         }
     }
 }

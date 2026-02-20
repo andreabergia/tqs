@@ -131,9 +131,13 @@ Use layered modules:
 - Added parser and root-resolution unit tests, including Git-root detection.
 - Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
-4. Implement repository and ID generation.
-- Add collision and repository behavior tests.
-- Run gates.
+4. [x] Implement repository and ID generation.
+- Implemented ID generator with `word-word-xxxx` format using embedded wordlists (~256 adjectives, ~256 nouns).
+- Implemented TaskRepo with full CRUD operations (create, read, update, delete, list).
+- Added collision-safe ID generation with bounded retry attempts.
+- Added comprehensive tests for ID generation, collision handling, and repository behavior.
+- Added FormatError to AppError mapping for proper error handling.
+- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
 5. Implement `create` and `list` handlers.
 - Add integration tests for filtering/sorting/output.
