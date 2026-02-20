@@ -125,9 +125,11 @@ Use layered modules:
 - Added/expanded unit tests for task serde/status/transitions, keyword filtering, and error exit codes.
 - Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
-3. Implement storage root resolver and file format parsing.
-- Add parser/root-resolution tests.
-- Run gates.
+3. [x] Implement storage root resolver and file format parsing.
+- Implemented root resolution precedence: `--root` > `TQS_ROOT` > `<git-root>/todos` > `~/.tqs/todos` (with cwd fallback).
+- Implemented Markdown task format parser/renderer with YAML frontmatter validation and description body mapping.
+- Added parser and root-resolution unit tests, including Git-root detection.
+- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
 4. Implement repository and ID generation.
 - Add collision and repository behavior tests.
