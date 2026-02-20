@@ -114,9 +114,10 @@ Use layered modules:
 - Test deps: `assert_cmd`, `assert_fs`, `predicates`, `tempfile`
 
 ## Step-by-Step Execution (With Gates Every Step)
-1. Bootstrap crate and module skeleton.
-- Immediately add baseline tests and CI-quality commands.
-- Run gates.
+1. [x] Bootstrap crate and module skeleton.
+- Added Rust crate scaffold plus module layout: `app`, `cli`, `domain`, `storage`, `io`.
+- Added baseline unit/integration tests and CLI skeleton wiring.
+- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
 2. Implement domain types and central error model.
 - Add/expand unit tests.
