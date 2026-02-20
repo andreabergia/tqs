@@ -119,9 +119,11 @@ Use layered modules:
 - Added baseline unit/integration tests and CLI skeleton wiring.
 - Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
-2. Implement domain types and central error model.
-- Add/expand unit tests.
-- Run gates.
+2. [x] Implement domain types and central error model.
+- Expanded domain model with serde-ready `Task`/`TaskStatus` behavior and transitions.
+- Expanded `AppError` into a typed central error model with exit-code mapping.
+- Added/expanded unit tests for task serde/status/transitions, keyword filtering, and error exit codes.
+- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
 3. Implement storage root resolver and file format parsing.
 - Add parser/root-resolution tests.
