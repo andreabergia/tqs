@@ -97,3 +97,15 @@ pub fn print_tasks_verbose(tasks: &[Task]) {
         );
     }
 }
+
+pub fn print_task_detail(task: &Task) {
+    println!("ID: {}", task.id);
+    println!("Status: {}", task.status);
+    println!("Created at: {}", task.created_at);
+    println!("Summary: {}", task.summary);
+
+    if let Some(description) = &task.description {
+        println!();
+        println!("{description}");
+    }
+}

@@ -525,3 +525,204 @@ fn reopen_without_id_fails() {
         .failure()
         .stderr(contains("id is required"));
 }
+
+#[test]
+fn info_task_by_id() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to view")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("ID:"))
+        .stdout(contains("Status:"))
+        .stdout(contains("Created at:"))
+        .stdout(contains("Summary: Task to view"));
+}
+
+#[test]
+fn info_task_with_description() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task with description")
+        .arg("--description")
+        .arg("# Notes\n- First item\n- Second item")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("# Notes"))
+        .stdout(contains("First item"))
+        .stdout(contains("Second item"));
+}
+
+#[test]
+fn info_nonexistent_task_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .arg("nonexistent-task")
+        .assert()
+        .failure()
+        .stderr(contains("task not found"));
+}
+
+#[test]
+fn info_without_id_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .assert()
+        .failure()
+        .stderr(contains("id is required"));
+}
+
+#[test]
+fn delete_task_by_id() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to delete")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut delete_cmd = cargo_bin_cmd!("tqs");
+    delete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("delete")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("Deleted task:"));
+}
+
+#[test]
+fn delete_nonexistent_task_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut delete_cmd = cargo_bin_cmd!("tqs");
+    delete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("delete")
+        .arg("nonexistent-task")
+        .assert()
+        .failure()
+        .stderr(contains("task not found"));
+}
+
+#[test]
+fn delete_removes_file() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to delete")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut delete_cmd = cargo_bin_cmd!("tqs");
+    delete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("delete")
+        .arg(task_id)
+        .assert()
+        .success();
+
+    let task_file = temp.path().join(format!("{task_id}.md"));
+    assert!(!task_file.exists(), "task file should be removed");
+}
