@@ -1,7 +1,9 @@
 use clap::Parser;
 
 use crate::app::app_error::AppError;
+use crate::domain::task::TaskStatus;
 use crate::io::output;
+use crate::io::picker;
 use crate::storage::repo::TaskRepo;
 use crate::storage::root;
 
@@ -14,10 +16,27 @@ pub fn handle_reopen(
     Reopen { id }: Reopen,
     root: Option<std::path::PathBuf>,
 ) -> Result<(), AppError> {
-    let id = id.ok_or_else(|| AppError::usage("id is required for reopen command"))?;
-
     let storage_root = root::resolve_root(root);
     let repo = TaskRepo::new(storage_root);
+
+    let id = match id {
+        Some(id) => id,
+        None => {
+            let tasks = repo.list_filtered(TaskStatus::Closed)?;
+            if tasks.is_empty() {
+                output::print_info("No closed tasks available");
+                return Ok(());
+            }
+
+            match picker::pick_task(&tasks, "Select task to reopen")? {
+                Some(id) => id,
+                None => {
+                    output::print_info("Operation cancelled");
+                    return Ok(());
+                }
+            }
+        }
+    };
 
     let mut task = repo.read(&id)?;
 

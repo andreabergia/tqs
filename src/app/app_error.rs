@@ -18,6 +18,8 @@ pub enum AppError {
     Yaml(#[from] serde_yaml::Error),
     #[error("format error: {0}")]
     Format(#[from] crate::storage::format::FormatError),
+    #[error("dialoguer error: {0}")]
+    Dialoguer(#[from] dialoguer::Error),
 }
 
 impl AppError {
@@ -49,7 +51,8 @@ impl AppError {
             | Self::InvalidTaskFile { .. }
             | Self::Io(_)
             | Self::Yaml(_)
-            | Self::Format(_) => 1,
+            | Self::Format(_)
+            | Self::Dialoguer(_) => 1,
         }
     }
 }

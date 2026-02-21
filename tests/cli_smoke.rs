@@ -436,8 +436,8 @@ fn complete_without_id_fails() {
         .arg(temp.path())
         .arg("complete")
         .assert()
-        .failure()
-        .stderr(contains("id is required"));
+        .success()
+        .stdout(contains("No open tasks available"));
 }
 
 #[test]
@@ -522,8 +522,8 @@ fn reopen_without_id_fails() {
         .arg(temp.path())
         .arg("reopen")
         .assert()
-        .failure()
-        .stderr(contains("id is required"));
+        .success()
+        .stdout(contains("No closed tasks available"));
 }
 
 #[test]
@@ -632,8 +632,8 @@ fn info_without_id_fails() {
         .arg(temp.path())
         .arg("info")
         .assert()
-        .failure()
-        .stderr(contains("id is required"));
+        .success()
+        .stdout(contains("No tasks available"));
 }
 
 #[test]
@@ -725,4 +725,225 @@ fn delete_removes_file() {
 
     let task_file = temp.path().join(format!("{task_id}.md"));
     assert!(!task_file.exists(), "task file should be removed");
+}
+
+#[test]
+fn complete_without_id_in_non_tty_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to complete")
+        .assert()
+        .success();
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .assert()
+        .failure()
+        .stderr(contains("interactive selection requires a TTY"))
+        .stderr(contains("provide an id instead"));
+}
+
+#[test]
+fn complete_picker_with_open_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("First task")
+        .assert()
+        .success();
+
+    let mut cmd2 = cargo_bin_cmd!("tqs");
+    cmd2.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Second task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+
+    let first_task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .arg(first_task_id)
+        .assert()
+        .success()
+        .stdout(contains("Completed task:"));
+}
+
+#[test]
+fn complete_picker_with_no_open_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .assert()
+        .success()
+        .stdout(contains("No open tasks available"));
+}
+
+#[test]
+fn reopen_without_id_in_non_tty_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    std::fs::write(
+        temp.path().join("closed-task.md"),
+        "---\nid: closed-task\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Task to reopen\n---\n",
+    ).expect("closed task file should be written");
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("reopen")
+        .assert()
+        .failure()
+        .stderr(contains("interactive selection requires a TTY"))
+        .stderr(contains("provide an id instead"));
+}
+
+#[test]
+fn reopen_picker_with_closed_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    std::fs::write(
+        temp.path().join("closed-task.md"),
+        "---\nid: closed-task\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Task to reopen\n---\n",
+    ).expect("closed task file should be written");
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("reopen")
+        .arg("closed-task")
+        .assert()
+        .success()
+        .stdout(contains("Reopened task:"));
+}
+
+#[test]
+fn reopen_picker_with_no_closed_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Open task")
+        .assert()
+        .success();
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("reopen")
+        .assert()
+        .success()
+        .stdout(contains("No closed tasks available"));
+}
+
+#[test]
+fn info_without_id_in_non_tty_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to view")
+        .assert()
+        .success();
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .assert()
+        .failure()
+        .stderr(contains("interactive selection requires a TTY"))
+        .stderr(contains("provide an id instead"));
+}
+
+#[test]
+fn info_picker_with_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to view")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("ID:"))
+        .stdout(contains("Status:"))
+        .stdout(contains("Summary: Task to view"));
+}
+
+#[test]
+fn info_picker_with_no_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .assert()
+        .success()
+        .stdout(contains("No tasks available"));
 }
