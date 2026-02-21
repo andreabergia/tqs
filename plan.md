@@ -139,20 +139,21 @@ Use layered modules:
 - Implemented `create` command with summary and optional description.
 - Added CLI tests for create with/without description, missing summary error, and unique ID generation.
 
-6. Implement `list` handler with integration tests.
-- Add interactive and non-TTY behavior tests.
+6. [x] Implement `list` handler with integration tests.
 
-6. Implement shared picker + `complete`/`reopen`.
-- Add interactive and non-TTY behavior tests.
+7. Implement `complete`/`reopen` (no picker)
 
-7. Implement `info` and `delete`.
+8. Implement `info` and `delete` (no picker)
 - Add not-found and detail-output tests.
 
-8. Polish output and edge-case consistency.
+9. Implement shared picker
+- Add interactive and non-TTY behavior tests.
+
+10. Polish output and edge-case consistency.
 - Add regression tests for exit codes/streams/malformed files.
 - Run gates.
 
-9. Final pass.
+11. Final pass.
 - Confirm no open behavioral gaps against `tsq.md`.
 
 ## Test Plan
