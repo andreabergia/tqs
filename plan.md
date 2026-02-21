@@ -141,7 +141,7 @@ Use layered modules:
 
 6. [x] Implement `list` handler with integration tests.
 
-7. Implement `complete`/`reopen` (no picker)
+7. [x] Implement `complete`/`reopen` (no picker)
 
 8. Implement `info` and `delete` (no picker)
 - Add not-found and detail-output tests.

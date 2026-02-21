@@ -140,7 +140,8 @@ fn list_with_all_shows_all_tasks() {
         .clone();
 
     let stdout = String::from_utf8_lossy(&list_output);
-    let task_id = stdout.lines().next().unwrap().split('\t').next().unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
 
     let mut complete_cmd = cargo_bin_cmd!("tqs");
     complete_cmd
@@ -351,4 +352,176 @@ fn list_skips_malformed_files_with_warning() {
         .success()
         .stdout(contains("Valid task"))
         .stderr(contains("Warning"));
+}
+
+#[test]
+fn complete_task_by_id() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to complete")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("Completed task:"));
+}
+
+#[test]
+fn complete_already_closed_task() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    std::fs::write(
+        temp.path().join("closed-task.md"),
+        "---\nid: closed-task\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Already closed\n---\n",
+    ).expect("closed task file should be written");
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .arg("closed-task")
+        .assert()
+        .success()
+        .stdout(contains("already closed"));
+}
+
+#[test]
+fn complete_nonexistent_task_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .arg("nonexistent-task")
+        .assert()
+        .failure()
+        .stderr(contains("task not found"));
+}
+
+#[test]
+fn complete_without_id_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .assert()
+        .failure()
+        .stderr(contains("id is required"));
+}
+
+#[test]
+fn reopen_task_by_id() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    std::fs::write(
+        temp.path().join("closed-task.md"),
+        "---\nid: closed-task\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Task to reopen\n---\n",
+    ).expect("closed task file should be written");
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("reopen")
+        .arg("closed-task")
+        .assert()
+        .success()
+        .stdout(contains("Reopened task:"));
+}
+
+#[test]
+fn reopen_already_open_task() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Already open")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("reopen")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("already open"));
+}
+
+#[test]
+fn reopen_nonexistent_task_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("reopen")
+        .arg("nonexistent-task")
+        .assert()
+        .failure()
+        .stderr(contains("task not found"));
+}
+
+#[test]
+fn reopen_without_id_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("reopen")
+        .assert()
+        .failure()
+        .stderr(contains("id is required"));
 }
