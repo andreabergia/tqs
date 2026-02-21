@@ -113,23 +113,20 @@ Use layered modules:
 - `thiserror`
 - Test deps: `assert_cmd`, `assert_fs`, `predicates`, `tempfile`
 
-## Step-by-Step Execution (With Gates Every Step)
+## Step-by-Step Execution
 1. [x] Bootstrap crate and module skeleton.
 - Added Rust crate scaffold plus module layout: `app`, `cli`, `domain`, `storage`, `io`.
 - Added baseline unit/integration tests and CLI skeleton wiring.
-- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
 2. [x] Implement domain types and central error model.
 - Expanded domain model with serde-ready `Task`/`TaskStatus` behavior and transitions.
 - Expanded `AppError` into a typed central error model with exit-code mapping.
 - Added/expanded unit tests for task serde/status/transitions, keyword filtering, and error exit codes.
-- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
 3. [x] Implement storage root resolver and file format parsing.
 - Implemented root resolution precedence: `--root` > `TQS_ROOT` > `<git-root>/todos` > `~/.tqs/todos` (with cwd fallback).
 - Implemented Markdown task format parser/renderer with YAML frontmatter validation and description body mapping.
 - Added parser and root-resolution unit tests, including Git-root detection.
-- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
 4. [x] Implement repository and ID generation.
 - Implemented ID generator with `word-word-xxxx` format using embedded wordlists (~256 adjectives, ~256 nouns).
@@ -137,26 +134,25 @@ Use layered modules:
 - Added collision-safe ID generation with bounded retry attempts.
 - Added comprehensive tests for ID generation, collision handling, and repository behavior.
 - Added FormatError to AppError mapping for proper error handling.
-- Gates passed: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 
-5. Implement `create` and `list` handlers.
-- Add integration tests for filtering/sorting/output.
-- Run gates.
+5. [x] Implement `create` handler with integration tests.
+- Implemented `create` command with summary and optional description.
+- Added CLI tests for create with/without description, missing summary error, and unique ID generation.
+
+6. Implement `list` handler with integration tests.
+- Add interactive and non-TTY behavior tests.
 
 6. Implement shared picker + `complete`/`reopen`.
 - Add interactive and non-TTY behavior tests.
-- Run gates.
 
 7. Implement `info` and `delete`.
 - Add not-found and detail-output tests.
-- Run gates.
 
 8. Polish output and edge-case consistency.
 - Add regression tests for exit codes/streams/malformed files.
 - Run gates.
 
 9. Final pass.
-- Run full gates.
 - Confirm no open behavioral gaps against `tsq.md`.
 
 ## Test Plan
