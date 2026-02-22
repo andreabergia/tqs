@@ -1307,6 +1307,185 @@ fn test_fuzzy_command_del() {
 }
 
 #[test]
+fn test_alias_command_new() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task via alias")
+        .assert()
+        .success()
+        .stdout(contains("Created task:"));
+}
+
+#[test]
+fn test_alias_command_show() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task for show")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("show")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("Summary: Task for show"));
+}
+
+#[test]
+fn test_alias_command_done() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task to complete via alias")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("done")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("Completed task:"));
+}
+
+#[test]
+fn test_alias_command_open() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    std::fs::write(
+        temp.path().join("closed-task.md"),
+        "---\nid: closed-task\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Task to reopen\n---\n",
+    )
+    .expect("closed task file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("open")
+        .arg("closed-task")
+        .assert()
+        .success()
+        .stdout(contains("Reopened task:"));
+}
+
+#[test]
+fn test_alias_command_remove() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task to delete via alias")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("remove")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("Deleted task:"));
+}
+
+#[test]
+fn test_alias_command_rename() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task to move via alias")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("rename")
+        .arg(task_id)
+        .arg("renamed-via-alias")
+        .assert()
+        .success()
+        .stdout(contains("Moved task:"));
+}
+
+#[test]
 fn move_without_args_in_non_tty_fails() {
     let temp = TempDir::new().expect("temp dir should be created");
 

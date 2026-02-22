@@ -22,6 +22,14 @@ tqs info [id]                                 Show details
 tqs move [old_id] [new_id]                    Change task ID
 tqs delete <id>                               Delete task
 
+# Aliases (examples)
+tqs new [summary]                             Alias for create
+tqs show [id]                                 Alias for info
+tqs done [id]                                 Alias for complete
+tqs open [id]                                 Alias for reopen
+tqs remove <id>                               Alias for delete
+tqs rename [old_id] [new_id]                  Alias for move
+
 # Global options
 --root <path>                                 Override storage directory
 TQS_ROOT                                      Environment variable for storage
@@ -68,14 +76,23 @@ Commands support fuzzy matching - enter a subset of characters in order to match
 - `tqs d` or `tqs del` → `tqs delete`
 - `tqs m` or `tqs mov` → `tqs move`
 
-**Priority order** for ambiguous matches (e.g., `tqs c`):
-1. create
-2. list
-3. info
-4. complete
-5. reopen
-6. delete
-7. move
+Commands also support exact aliases (shell-style synonyms):
+
+- `tqs new` or `tqs add` → `tqs create`
+- `tqs ls` → `tqs list`
+- `tqs show` or `tqs view` → `tqs info`
+- `tqs done`, `tqs finish`, or `tqs close` → `tqs complete`
+- `tqs open` → `tqs reopen`
+- `tqs remove`, `tqs rm`, or `tqs del` → `tqs delete`
+- `tqs rename` or `tqs mv` → `tqs move`
+
+**Resolution behavior** (important for short inputs like `tqs c`):
+1. Exact canonical command (e.g. `create`)
+2. Exact alias (e.g. `new`)
+3. Prefix/fuzzy match on canonical commands
+4. Prefix/fuzzy match on aliases
+
+If a fuzzy/alias match is ambiguous across different commands, TQS leaves it unchanged and shows the normal unknown-command error so you can type a clearer command.
 
 **Examples:**
 ```bash
@@ -84,6 +101,12 @@ tqs l                    # List open tasks
 tqs cr "Buy groceries"   # Create a task
 tqs c <task-id>          # Create a task (create > complete)
 tqs i <task-id>          # Show task info
+
+# Aliases
+tqs new "Buy groceries"  # Create a task
+tqs show <task-id>       # Show task info
+tqs done <task-id>       # Complete a task
+tqs rename old-id new-id # Move/rename task ID
 
 # Works with flags and arguments
 tqs l --all              # List all tasks

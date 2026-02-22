@@ -14,6 +14,14 @@ tqs info [id]                Show task details
 tqs move [old_id] [new_id]   Change task ID
 tqs delete <id>              Delete a task
 
+# Aliases work too!
+tqs new [summary]            Alias for create
+tqs show <id>                Alias for info
+tqs done <id>                Alias for complete
+tqs open <id>                Alias for reopen
+tqs remove <id>              Alias for delete
+tqs rename <old> <new>       Alias for move
+
 # Fuzzy commands work too!
 tqs cr [summary]             Create (shorter)
 tqs l                        List
@@ -57,6 +65,11 @@ tqs list --closed
 tqs cr "Write documentation"
 tqs l
 tqs i <task-id>
+
+# Or aliases (shell-style)
+tqs new "Write documentation"
+tqs show <task-id>
+tqs done <task-id>
 ```
 
 ## Storage Location
