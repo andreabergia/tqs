@@ -19,6 +19,7 @@ tqs list bug fix                              Filter by keywords
 tqs complete [id]                             Mark as closed
 tqs reopen [id]                               Mark as open
 tqs info [id]                                 Show details
+tqs move <old_id> <new_id>                    Change task ID
 tqs delete <id>                               Delete task
 
 # Global options
@@ -201,6 +202,30 @@ tqs delete cobalt-urial-7f3a
 - Hard-deletes the task file
 - No confirmation prompt
 - Fails if task not found
+
+---
+
+### `move` - Change task ID
+
+```
+tqs move <old_id> <new_id>
+```
+
+**Arguments:**
+- `old_id` - Current task ID (required)
+- `new_id` - New task ID (required)
+
+**Examples:**
+```bash
+tqs move old-id new-id
+tqs move cobalt-urial-7f3a better-name-1234
+```
+
+**Behavior:**
+- Renames the task file and updates the ID in the task
+- Fails if old task ID does not exist
+- Fails if new task ID already exists
+- Preserves all other task properties (status, created_at, summary, description)
 
 ---
 
