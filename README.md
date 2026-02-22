@@ -4,6 +4,7 @@
 
 ```
 tqs create [summary]         Create a new task
+tqs create --id <id>         Create with custom ID
 tqs list [keywords]          List open tasks
 tqs list --all               List all tasks
 tqs list --closed            List closed tasks

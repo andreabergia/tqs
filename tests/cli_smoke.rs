@@ -38,6 +38,47 @@ fn create_task_with_description() {
 }
 
 #[test]
+fn create_task_with_explicit_id() {
+    let temp = TempDir::new().expect("temp dir should be created");
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("--id")
+        .arg("my-custom-task-id")
+        .arg("Buy groceries")
+        .assert()
+        .success()
+        .stdout(contains("Created task: my-custom-task-id"));
+}
+
+#[test]
+fn create_task_with_existing_id_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("--id")
+        .arg("duplicate-id")
+        .arg("First task")
+        .assert()
+        .success();
+
+    let mut cmd2 = cargo_bin_cmd!("tqs");
+    cmd2.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("--id")
+        .arg("duplicate-id")
+        .arg("Second task")
+        .assert()
+        .failure()
+        .stderr(contains("id 'duplicate-id' already exists"));
+}
+
+#[test]
 fn create_without_summary_or_description_in_non_tty_fails() {
     let temp = TempDir::new().expect("temp dir should be created");
     let mut cmd = cargo_bin_cmd!("tqs");

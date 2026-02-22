@@ -6,6 +6,7 @@
 # Creating tasks
 tqs create [summary]                          Create with summary
 tqs create "Task name" --description "..."    Create with description
+tqs create --id <id> "Task name"              Create with custom ID
 
 # Listing tasks
 tqs list [keywords]                           List open tasks (default)
@@ -57,7 +58,7 @@ Storage precedence: `--root` → `TQS_ROOT` → `<git-repo>/todos` → `~/.tqs/t
 ### `create` - Create a new task
 
 ```
-tqs create [summary] [--description <text>]
+tqs create [summary] [--description <text>] [--id <id>]
 ```
 
 **Arguments:**
@@ -65,11 +66,13 @@ tqs create [summary] [--description <text>]
 
 **Flags:**
 - `--description <text>` - Task description
+- `--id <id>` - Custom task ID (auto-generated if omitted)
 
 **Examples:**
 ```bash
 tqs create "Write documentation"
 tqs create "Fix bug" --description "The login page fails"
+tqs create --id my-task-id "Important task"
 ```
 
 **Interactive:**

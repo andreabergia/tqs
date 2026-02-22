@@ -14,6 +14,9 @@ use chrono::Utc;
 #[derive(Debug, Parser)]
 pub struct Create {
     #[arg(long)]
+    pub id: Option<String>,
+
+    #[arg(long)]
     pub description: Option<String>,
 
     pub summary: Option<String>,
@@ -21,6 +24,7 @@ pub struct Create {
 
 pub fn handle_create(
     Create {
+        id,
         summary,
         description,
     }: Create,
@@ -28,7 +32,22 @@ pub fn handle_create(
 ) -> Result<(), AppError> {
     let storage_root = root::resolve_root(root);
     let repo = TaskRepo::new(storage_root);
-    let generator = IdGenerator::new(|id| repo.id_exists(id));
+
+    let task_id = match id {
+        Some(provided_id) => {
+            if repo.id_exists(&provided_id) {
+                return Err(AppError::usage(&format!(
+                    "id '{}' already exists",
+                    provided_id
+                )));
+            }
+            provided_id
+        }
+        None => {
+            let generator = IdGenerator::new(|id| repo.id_exists(id));
+            generator.generate()
+        }
+    };
 
     let (summary, description) = match (summary, description) {
         (Some(s), d) => (s, d),
@@ -42,7 +61,7 @@ pub fn handle_create(
         }
     };
 
-    let task = Task::new(generator.generate(), Utc::now(), summary, description);
+    let task = Task::new(task_id, Utc::now(), summary, description);
     repo.create(&task)?;
 
     output::print_info(&format!("Created task: {}", task.id));
