@@ -401,14 +401,15 @@ mod exit_code {
     }
 
     #[test]
-    fn delete_without_id_exits_with_2() {
+    fn delete_without_id_with_no_tasks_shows_message() {
         let temp = TempDir::new().expect("temp dir should be created");
-        let mut cmd = cargo_bin_cmd!("tqs");
-        cmd.arg("--root")
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
             .arg(temp.path())
             .arg("delete")
             .assert()
-            .code(2);
+            .code(0)
+            .stdout(predicates::str::contains("No tasks available"));
     }
 
     #[test]
