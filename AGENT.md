@@ -1,23 +1,39 @@
 # AGENT.md
 
 ## Project
-`tqs` is a Rust terminal task queue CLI.  
-It manages tasks stored as Markdown files with YAML frontmatter.
+`tqs` - Rust terminal task queue CLI. Tasks stored as Markdown files with YAML frontmatter.
 
-## Scope (v1)
-- Implement CLI commands: `create`, `list`, `complete`, `reopen`, `info`, `delete`.
-- Support interactive picker flows where command behavior requires selection.
-- Enforce coherent CLI behavior for output streams, exit codes, and malformed-file handling.
-- Keep v1 focused on file-backed task management (no JSON output, editor integration, or daemon mode).
+## Features and architecture
+- CLI commands: `create`, `list`, `complete`, `reopen`, `info`, `delete`
+- Interactive picker flows for selections
+- Coherent CLI: output streams, exit codes, malformed-file handling
+- File-backed only (no JSON, editor integration, or daemon)
+- The codebase is organized into clear layers: CLI parsing, command handlers, domain logic, storage, and I/O
 
-## Core Commands
-- `cargo fmt --check` - check formatting
-- `cargo clippy -- -D warnings` - linter
+### Data Flow
+
+```
+CLI (args.rs)
+    ↓
+Handlers (handlers.rs)
+    ↓
+App Service (service.rs)
+    ↓
+Task Repository (repo.rs)
+    ↓
+Markdown Files (<root>/<id>.md)
+```
+
+## Commands
+- `cargo fmt --check` - formatting
+- `cargo clippy -- -D warnings` - lint
 - `cargo test` - tests
-- `cargo run -- <command>`
+- `cargo run -- <command>` - run
 
 ## Rules
-- We use Conventional Commits format.
-- Keep commit messages short and focused.
-- Always run tests, formatter, and linter before declaring a task "done".
-- When implementing a plan, split the work into multiple logical git commits.
+- Conventional Commits format
+- Keep commits short and focused
+- Run tests, fmt, clippy before marking done
+- Split work into logical commits
+- Keep docs updated
+
