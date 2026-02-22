@@ -11,7 +11,7 @@ tqs list --closed            List closed tasks
 tqs complete [id]            Mark task as closed
 tqs reopen [id]              Mark task as open
 tqs info [id]                Show task details
-tqs move <old_id> <new_id>   Change task ID
+tqs move [old_id] [new_id]   Change task ID
 tqs delete <id>              Delete a task
 
 # Fuzzy commands work too!

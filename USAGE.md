@@ -19,7 +19,7 @@ tqs list bug fix                              Filter by keywords
 tqs complete [id]                             Mark as closed
 tqs reopen [id]                               Mark as open
 tqs info [id]                                 Show details
-tqs move <old_id> <new_id>                    Change task ID
+tqs move [old_id] [new_id]                    Change task ID
 tqs delete <id>                               Delete task
 
 # Global options
@@ -245,18 +245,22 @@ tqs delete cobalt-urial-7f3a
 ### `move` - Change task ID
 
 ```
-tqs move <old_id> <new_id>
+tqs move [old_id] [new_id]
 ```
 
 **Arguments:**
-- `old_id` - Current task ID (required)
-- `new_id` - New task ID (required)
+- `old_id` - Current task ID (optional, opens interactive picker if omitted)
+- `new_id` - New task ID (optional, prompts for input if omitted)
 
 **Examples:**
 ```bash
 tqs move old-id new-id
 tqs move cobalt-urial-7f3a better-name-1234
+tqs move                              # Interactive picker and prompt
 ```
+
+**Interactive:**
+Without arguments, opens a fuzzy-select picker of all tasks for the old ID, then prompts for the new ID. Requires a TTY.
 
 **Behavior:**
 - Renames the task file and updates the ID in the task
@@ -292,6 +296,7 @@ Several commands support interactive mode when no ID is provided:
 - `complete` - Picker for open tasks
 - `reopen` - Picker for closed tasks
 - `info` - Picker for all tasks
+- `move` - Picker for old ID, prompt for new ID
 - `create` - Prompts for summary and description (optional)
 
 **TTY Requirement:**

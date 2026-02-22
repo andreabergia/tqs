@@ -1305,3 +1305,125 @@ fn test_fuzzy_command_del() {
         .success()
         .stdout(contains("Deleted task:"));
 }
+
+#[test]
+fn move_without_args_in_non_tty_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to move")
+        .assert()
+        .success();
+
+    let mut move_cmd = cargo_bin_cmd!("tqs");
+    move_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("move")
+        .assert()
+        .failure()
+        .stderr(contains("interactive input requires a TTY"));
+}
+
+#[test]
+fn move_picker_with_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to move")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+
+    let old_task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut move_cmd = cargo_bin_cmd!("tqs");
+    move_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("move")
+        .arg(old_task_id)
+        .arg("new-task-id")
+        .assert()
+        .success()
+        .stdout(contains("Moved task:"));
+}
+
+#[test]
+fn move_picker_with_no_tasks() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut move_cmd = cargo_bin_cmd!("tqs");
+    move_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("move")
+        .assert()
+        .success()
+        .stdout(contains("No tasks available"));
+}
+
+#[test]
+fn move_with_both_ids() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Original task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let old_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut move_cmd = cargo_bin_cmd!("tqs");
+    move_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("move")
+        .arg(old_id)
+        .arg("renamed-task")
+        .assert()
+        .success()
+        .stdout(contains("Moved task:"));
+
+    let mut list_cmd2 = cargo_bin_cmd!("tqs");
+    list_cmd2
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .stdout(contains("renamed-task"));
+}
