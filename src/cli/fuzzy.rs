@@ -1,3 +1,7 @@
+fn prefix_match(input: &str, target: &str) -> bool {
+    target.to_lowercase().starts_with(&input.to_lowercase())
+}
+
 pub fn fuzzy_match(input: &str, target: &str) -> bool {
     if input.is_empty() || target.is_empty() {
         return false;
@@ -59,9 +63,41 @@ pub fn expand_command(args: Vec<String>) -> Vec<String> {
 
     let first_arg = &args[command_index];
 
-    let matched_command = COMMANDS.iter().find(|&cmd| fuzzy_match(first_arg, cmd));
+    let prefix_matches: Vec<(&str, usize)> = COMMANDS
+        .iter()
+        .filter(|&&cmd| prefix_match(first_arg, cmd))
+        .map(|&cmd| (cmd, cmd.len()))
+        .collect();
 
-    if let Some(&cmd) = matched_command {
+    let matched_command = if !prefix_matches.is_empty() {
+        Some(
+            prefix_matches
+                .iter()
+                .min_by_key(|(_, len)| *len)
+                .map(|&(cmd, _)| cmd)
+                .unwrap(),
+        )
+    } else {
+        let fuzzy_matches: Vec<(&str, usize)> = COMMANDS
+            .iter()
+            .filter(|&&cmd| fuzzy_match(first_arg, cmd))
+            .map(|&cmd| (cmd, cmd.len()))
+            .collect();
+
+        if !fuzzy_matches.is_empty() {
+            Some(
+                fuzzy_matches
+                    .iter()
+                    .min_by_key(|(_, len)| *len)
+                    .map(|&(cmd, _)| cmd)
+                    .unwrap(),
+            )
+        } else {
+            None
+        }
+    };
+
+    if let Some(cmd) = matched_command {
         let mut expanded_args = args.clone();
         expanded_args[command_index] = cmd.to_string();
         expanded_args
@@ -151,6 +187,13 @@ mod tests {
         let args = vec!["tqs".to_string(), "c".to_string()];
         let expanded = expand_command(args);
         assert_eq!(expanded[1], "create");
+    }
+
+    #[test]
+    fn test_expand_command_m() {
+        let args = vec!["tqs".to_string(), "m".to_string()];
+        let expanded = expand_command(args);
+        assert_eq!(expanded[1], "move");
     }
 
     #[test]
