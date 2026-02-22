@@ -79,6 +79,28 @@ impl TaskRepo {
         Ok(())
     }
 
+    pub fn rename_task(&self, old_id: &str, new_id: &str) -> Result<(), AppError> {
+        let old_path = self.task_path(old_id);
+        let new_path = self.task_path(new_id);
+
+        if !old_path.exists() {
+            return Err(AppError::not_found(old_id));
+        }
+
+        if new_path.exists() {
+            return Err(AppError::message(format!(
+                "task with id {new_id} already exists"
+            )));
+        }
+
+        let mut task = self.read(old_id)?;
+        task.id = new_id.to_string();
+        let markdown = render_task_markdown(&task)?;
+        fs::write(&new_path, markdown)?;
+        fs::remove_file(&old_path)?;
+        Ok(())
+    }
+
     pub fn list(&self) -> Result<Vec<Task>, AppError> {
         let mut tasks = Vec::new();
 

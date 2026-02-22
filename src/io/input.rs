@@ -1,5 +1,5 @@
 use crate::app::app_error::AppError;
-use dialoguer::{theme::ColorfulTheme, Input};
+use dialoguer::{Input, theme::ColorfulTheme};
 use std::io::Read;
 
 fn has_tty() -> bool {
