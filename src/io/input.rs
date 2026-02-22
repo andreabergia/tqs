@@ -1,34 +1,52 @@
 use crate::app::app_error::AppError;
 use dialoguer::{theme::ColorfulTheme, Input};
+use std::io::Read;
+
+fn has_tty() -> bool {
+    dialoguer::console::Term::stderr().is_term()
+}
+
+fn is_test_mode() -> bool {
+    std::env::var("TQS_TEST_MODE").is_ok()
+}
 
 pub fn prompt_input(prompt: &str) -> Result<String, AppError> {
-    if !dialoguer::console::Term::stderr().is_term() {
+    if !has_tty() && !is_test_mode() {
         return Err(AppError::NoTty);
     }
 
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .interact()
-        .map_err(AppError::from)
+    if is_test_mode() {
+        eprintln!("{prompt}");
+        let mut line = String::new();
+        std::io::stdin()
+            .read_line(&mut line)
+            .map_err(AppError::Io)?;
+        Ok(line.trim().to_string())
+    } else {
+        let theme = ColorfulTheme::default();
+        Input::with_theme(&theme)
+            .with_prompt(prompt)
+            .interact()
+            .map_err(AppError::from)
+    }
 }
 
 pub fn prompt_multiline(prompt: &str) -> Result<Option<String>, AppError> {
-    if !dialoguer::console::Term::stderr().is_term() {
+    if !has_tty() && !is_test_mode() {
         return Err(AppError::NoTty);
     }
 
     eprintln!("{prompt}");
 
-    let mut lines = Vec::new();
-    for line in std::io::stdin().lines() {
-        lines.push(line.map_err(AppError::Io)?);
-    }
+    let mut buffer = String::new();
+    std::io::stdin()
+        .read_to_string(&mut buffer)
+        .map_err(AppError::Io)?;
 
-    let combined = lines.join("\n");
-    let description = if combined.trim().is_empty() {
+    let description = if buffer.trim().is_empty() {
         None
     } else {
-        Some(combined)
+        Some(buffer.trim().to_string())
     };
 
     Ok(description)

@@ -1,6 +1,6 @@
 use crate::app::app_error::AppError;
 use crate::domain::task::Task;
-use dialoguer::{FuzzySelect, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 
 pub fn pick_task(tasks: &[Task], prompt: &str) -> Result<Option<String>, AppError> {
     if tasks.is_empty() {

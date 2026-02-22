@@ -5,6 +5,7 @@ use clap::Parser;
 use crate::app::app_error::AppError;
 use crate::domain::id::IdGenerator;
 use crate::domain::task::Task;
+use crate::io::input;
 use crate::io::output;
 use crate::storage::repo::TaskRepo;
 use crate::storage::root;
@@ -29,11 +30,15 @@ pub fn handle_create(
     let repo = TaskRepo::new(storage_root);
     let generator = IdGenerator::new(|id| repo.id_exists(id));
 
-    let summary = match summary {
-        Some(s) => s,
-        None => {
-            eprintln!("Error: summary is required");
+    let (summary, description) = match (summary, description) {
+        (Some(s), d) => (s, d),
+        (None, Some(_)) => {
             return Err(AppError::usage("missing summary"));
+        }
+        (None, None) => {
+            let summary = input::prompt_input("Summary:")?;
+            let description = input::prompt_multiline("Description:")?;
+            (summary, description)
         }
     };
 

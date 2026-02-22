@@ -388,16 +388,16 @@ mod exit_code {
             .code(1);
     }
 
-    // Exit code 2: Usage errors
+    // Exit code 1: Operational errors
     #[test]
-    fn create_without_summary_exits_with_2() {
+    fn create_without_summary_exits_with_1() {
         let temp = TempDir::new().expect("temp dir should be created");
         let mut cmd = cargo_bin_cmd!("tqs");
         cmd.arg("--root")
             .arg(temp.path())
             .arg("create")
             .assert()
-            .code(2);
+            .code(1);
     }
 
     #[test]
@@ -578,8 +578,8 @@ mod stream_consistency {
             .arg("create")
             .assert()
             .failure()
-            .stderr(contains("summary is required"))
-            .stdout(contains("summary is required").not());
+            .stderr(contains("interactive input requires a TTY"))
+            .stdout(contains("interactive input requires a TTY").not());
     }
 
     #[test]
@@ -600,8 +600,8 @@ mod stream_consistency {
             .arg("complete")
             .assert()
             .failure()
-            .stderr(contains("interactive selection requires a TTY"))
-            .stdout(contains("interactive selection requires a TTY").not());
+            .stderr(contains("interactive input requires a TTY"))
+            .stdout(contains("interactive input requires a TTY").not());
     }
 
     #[test]

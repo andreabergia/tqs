@@ -38,7 +38,7 @@ fn create_task_with_description() {
 }
 
 #[test]
-fn create_without_summary_fails() {
+fn create_without_summary_or_description_in_non_tty_fails() {
     let temp = TempDir::new().expect("temp dir should be created");
     let mut cmd = cargo_bin_cmd!("tqs");
     cmd.arg("--root")
@@ -46,7 +46,7 @@ fn create_without_summary_fails() {
         .arg("create")
         .assert()
         .failure()
-        .stderr(contains("summary is required"));
+        .stderr(contains("interactive input requires a TTY"));
 }
 
 #[test]
@@ -76,6 +76,92 @@ fn create_generates_unique_id() {
         .collect();
 
     assert_eq!(md_files.len(), 2, "should create two task files");
+}
+
+#[test]
+fn create_interactive_with_summary_only() {
+    let temp = TempDir::new().expect("temp dir should be created");
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.env("TQS_TEST_MODE", "1")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .write_stdin("Test task\n\n")
+        .assert()
+        .success()
+        .stdout(contains("Created task:"));
+}
+
+#[test]
+fn create_interactive_with_summary_and_description() {
+    let temp = TempDir::new().expect("temp dir should be created");
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.env("TQS_TEST_MODE", "1")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .write_stdin("Write docs\nUser guide\nAPI docs\n")
+        .assert()
+        .success()
+        .stdout(contains("Created task:"));
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    let output = info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let info_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("info")
+        .arg(task_id)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let info_text = String::from_utf8_lossy(&info_output);
+    assert!(info_text.contains("User guide"));
+    assert!(info_text.contains("API docs"));
+}
+
+#[test]
+fn create_interactive_empty_description() {
+    let temp = TempDir::new().expect("temp dir should be created");
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.env("TQS_TEST_MODE", "1")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .write_stdin("Task\n\n")
+        .assert()
+        .success()
+        .stdout(contains("Created task:"));
+}
+
+#[test]
+fn create_interactive_whitespace_only_description() {
+    let temp = TempDir::new().expect("temp dir should be created");
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.env("TQS_TEST_MODE", "1")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .write_stdin("Task\n   \n  \n")
+        .assert()
+        .success()
+        .stdout(contains("Created task:"));
 }
 
 #[test]
@@ -746,8 +832,7 @@ fn complete_without_id_in_non_tty_fails() {
         .arg("complete")
         .assert()
         .failure()
-        .stderr(contains("interactive selection requires a TTY"))
-        .stderr(contains("provide an id instead"));
+        .stderr(contains("interactive input requires a TTY"));
 }
 
 #[test]
@@ -826,8 +911,7 @@ fn reopen_without_id_in_non_tty_fails() {
         .arg("reopen")
         .assert()
         .failure()
-        .stderr(contains("interactive selection requires a TTY"))
-        .stderr(contains("provide an id instead"));
+        .stderr(contains("interactive input requires a TTY"));
 }
 
 #[test]
@@ -891,8 +975,7 @@ fn info_without_id_in_non_tty_fails() {
         .arg("info")
         .assert()
         .failure()
-        .stderr(contains("interactive selection requires a TTY"))
-        .stderr(contains("provide an id instead"));
+        .stderr(contains("interactive input requires a TTY"));
 }
 
 #[test]

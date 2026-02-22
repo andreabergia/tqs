@@ -8,7 +8,7 @@ pub enum AppError {
     Usage(String),
     #[error("task not found: {id}")]
     NotFound { id: String },
-    #[error("interactive selection requires a TTY, provide an id instead")]
+    #[error("interactive input requires a TTY")]
     NoTty,
     #[error("invalid task file {path}: {reason}")]
     InvalidTaskFile { path: String, reason: String },
