@@ -143,15 +143,14 @@ Use layered modules:
 
 7. [x] Implement `complete`/`reopen` (no picker)
 
-8. Implement `info` and `delete` (no picker)
+8. [x] Implement `info` and `delete` (no picker)
 - Add not-found and detail-output tests.
 
-9. Implement shared picker
+9. [x] Implement shared picker
 - Add interactive and non-TTY behavior tests.
 
-10. Polish output and edge-case consistency.
+10. [x] Polish output and edge-case consistency.
 - Add regression tests for exit codes/streams/malformed files.
-- Run gates.
 
 11. Final pass.
 - Confirm no open behavioral gaps against `tsq.md`.
