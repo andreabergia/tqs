@@ -13,6 +13,12 @@ tqs reopen [id]              Mark task as open
 tqs info [id]                Show task details
 tqs move <old_id> <new_id>   Change task ID
 tqs delete <id>              Delete a task
+
+# Fuzzy commands work too!
+tqs cr [summary]             Create (shorter)
+tqs l                        List
+tqs i <id>                   Info
+tqs c [summary]              Create (create > complete)
 ```
 
 ## What is TQS?
@@ -46,6 +52,11 @@ tqs complete <task-id>
 
 # List completed tasks
 tqs list --closed
+
+# Or use fuzzy commands!
+tqs cr "Write documentation"
+tqs l
+tqs i <task-id>
 ```
 
 ## Storage Location

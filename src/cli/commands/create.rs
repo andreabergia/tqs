@@ -36,7 +36,7 @@ pub fn handle_create(
     let task_id = match id {
         Some(provided_id) => {
             if repo.id_exists(&provided_id) {
-                return Err(AppError::usage(&format!(
+                return Err(AppError::usage(format!(
                     "id '{}' already exists",
                     provided_id
                 )));

@@ -1071,3 +1071,237 @@ fn info_picker_with_no_tasks() {
         .success()
         .stdout(contains("No tasks available"));
 }
+
+#[test]
+fn test_fuzzy_command_cre() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Test task with fuzzy")
+        .assert()
+        .success()
+        .stdout(contains("Created task:"));
+}
+
+#[test]
+fn test_fuzzy_command_l() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Task to list")
+        .assert()
+        .success();
+
+    let mut cmd2 = cargo_bin_cmd!("tqs");
+    cmd2.arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .stdout(contains("Task to list"));
+}
+
+#[test]
+fn test_fuzzy_command_l_with_flags() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Open task")
+        .assert()
+        .success();
+
+    let mut cmd2 = cargo_bin_cmd!("tqs");
+    cmd2.arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .arg("--all")
+        .assert()
+        .success()
+        .stdout(contains("Open task"));
+}
+
+#[test]
+fn test_fuzzy_command_c() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("c")
+        .arg("Task with fuzzy c")
+        .assert()
+        .success()
+        .stdout(contains("Created task:"));
+}
+
+#[test]
+fn test_fuzzy_command_with_keywords() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Bug fix task")
+        .assert()
+        .success();
+
+    let mut cmd2 = cargo_bin_cmd!("tqs");
+    cmd2.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Feature task")
+        .assert()
+        .success();
+
+    let mut cmd3 = cargo_bin_cmd!("tqs");
+    cmd3.arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .arg("bug")
+        .assert()
+        .success()
+        .stdout(contains("Bug fix task"))
+        .stdout(contains("Feature task").not());
+}
+
+#[test]
+fn test_fuzzy_command_inf() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Task for info")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut info_cmd = cargo_bin_cmd!("tqs");
+    info_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("inf")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("ID:"))
+        .stdout(contains("Summary: Task for info"));
+}
+
+#[test]
+fn test_fuzzy_command_cmp() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Task to complete")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut complete_cmd = cargo_bin_cmd!("tqs");
+    complete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("cmp")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("Completed task:"));
+}
+
+#[test]
+fn test_fuzzy_command_opn() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    std::fs::write(
+        temp.path().join("closed-task.md"),
+        "---\nid: closed-task\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Task to reopen\n---\n",
+    ).expect("closed task file should be written");
+
+    let mut reopen_cmd = cargo_bin_cmd!("tqs");
+    reopen_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("opn")
+        .arg("closed-task")
+        .assert()
+        .success()
+        .stdout(contains("Reopened task:"));
+}
+
+#[test]
+fn test_fuzzy_command_del() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.arg("--root")
+        .arg(temp.path())
+        .arg("cr")
+        .arg("Task to delete")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut delete_cmd = cargo_bin_cmd!("tqs");
+    delete_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("del")
+        .arg(task_id)
+        .assert()
+        .success()
+        .stdout(contains("Deleted task:"));
+}

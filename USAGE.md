@@ -56,6 +56,43 @@ Storage precedence: `--root` → `TQS_ROOT` → `<git-repo>/todos` → `~/.tqs/t
 
 ## Commands
 
+### Fuzzy Command Matching
+
+Commands support fuzzy matching - enter a subset of characters in order to match:
+
+- `tqs cr` or `tqs crte` → `tqs create`
+- `tqs l` or `tqs ls` → `tqs list`
+- `tqs i` or `tqs inf` → `tqs info`
+- `tqs cmp` → `tqs complete`
+- `tqs opn` → `tqs reopen`
+- `tqs d` or `tqs del` → `tqs delete`
+- `tqs m` or `tqs mov` → `tqs move`
+
+**Priority order** for ambiguous matches (e.g., `tqs c`):
+1. create
+2. list
+3. info
+4. complete
+5. reopen
+6. delete
+7. move
+
+**Examples:**
+```bash
+# Shortest possible commands
+tqs l                    # List open tasks
+tqs cr "Buy groceries"   # Create a task
+tqs c <task-id>          # Create a task (create > complete)
+tqs i <task-id>          # Show task info
+
+# Works with flags and arguments
+tqs l --all              # List all tasks
+tqs l bug fix            # Filter by keywords
+tqs cr "Task" --id my-id # Create with custom ID
+```
+
+---
+
 ### `create` - Create a new task
 
 ```
