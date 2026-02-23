@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use crate::app::app_error::AppError;
-use crate::domain::id::IdGenerator;
+use crate::domain::id::{IdGenerator, validate_user_id};
 use crate::domain::task::Task;
 use crate::io::input;
 use crate::io::output;
@@ -35,6 +35,7 @@ pub fn handle_create(
 
     let (task_id, summary, description) = match (id, summary, description) {
         (Some(provided_id), Some(s), d) => {
+            validate_user_id(&provided_id)?;
             if repo.id_exists(&provided_id) {
                 return Err(AppError::usage(format!(
                     "id '{}' already exists",
@@ -57,6 +58,7 @@ pub fn handle_create(
                 let generator = IdGenerator::new(|id| repo.id_exists(id));
                 generator.generate()
             } else {
+                validate_user_id(&user_id)?;
                 if repo.id_exists(&user_id) {
                     return Err(AppError::usage(format!("id '{}' already exists", user_id)));
                 }
@@ -69,6 +71,7 @@ pub fn handle_create(
             return Err(AppError::usage("missing summary"));
         }
         (Some(provided_id), None, None) => {
+            validate_user_id(&provided_id)?;
             if repo.id_exists(&provided_id) {
                 return Err(AppError::usage(format!(
                     "id '{}' already exists",

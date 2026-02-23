@@ -1,6 +1,7 @@
 use crate::app::app_error::AppError;
 use crate::cli::commands::helpers;
 use crate::domain::filter::ListMode;
+use crate::domain::id::validate_user_id;
 use crate::io::output;
 use crate::storage::format::{parse_task_markdown, render_task_markdown};
 use clap::Parser;
@@ -103,6 +104,7 @@ pub fn handle_edit(Edit { id }: Edit, root: Option<PathBuf>) -> Result<(), AppEr
                         Ok(())
                     }
                     1 => {
+                        validate_user_id(&edited_task.id)?;
                         repo.rename_task_with_content(&id, &edited_task.id, &edited_content)?;
                         output::print_info(&format!("Renamed task: {} -> {}", id, edited_task.id));
                         Ok(())

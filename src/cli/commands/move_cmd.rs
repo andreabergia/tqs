@@ -5,6 +5,7 @@ use clap::Parser;
 use crate::app::app_error::AppError;
 use crate::cli::commands::helpers;
 use crate::domain::filter::ListMode;
+use crate::domain::id::validate_user_id;
 use crate::io::input;
 use crate::io::output;
 
@@ -35,6 +36,8 @@ pub fn handle_move(Move { old_id, new_id }: Move, root: Option<PathBuf>) -> Resu
         Some(id) => id,
         None => input::prompt_input("New task ID:")?,
     };
+
+    validate_user_id(&new_id)?;
 
     if repo.id_exists(&new_id) {
         return Err(AppError::usage(format!("id '{}' already exists", new_id)));

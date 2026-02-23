@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::app::app_error::AppError;
 use crate::domain::filter::{ListMode, matches_list_mode};
+use crate::domain::id::validate_user_id;
 use crate::io::output;
 use crate::io::picker;
 use crate::storage::repo::TaskRepo;
@@ -44,7 +45,10 @@ pub fn resolve_id(
     config: PickerConfig<'_>,
 ) -> Result<Option<String>, AppError> {
     let id = match id {
-        Some(id) => return Ok(Some(id)),
+        Some(id) => {
+            validate_user_id(&id)?;
+            return Ok(Some(id));
+        }
         None => {
             let tasks = repo.list()?;
             if tasks.is_empty() {
