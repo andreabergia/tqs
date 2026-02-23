@@ -24,6 +24,54 @@ impl TaskRepo {
         self.root.join(format!("{id}.md"))
     }
 
+    fn validate_path_is_within_root(&self, path: &Path) -> Result<(), AppError> {
+        let canonical_root = self.root.canonicalize().map_err(|e| {
+            AppError::message(format!("failed to canonicalize root directory: {}", e))
+        })?;
+
+        if path.exists() {
+            let canonical_path = path.canonicalize().map_err(|e| {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    return AppError::path_traversal_attempt(format!(
+                        "path {} resolves outside root",
+                        path.display()
+                    ));
+                }
+                AppError::from(e)
+            })?;
+
+            if !canonical_path.starts_with(&canonical_root) {
+                return Err(AppError::path_traversal_attempt(format!(
+                    "{} resolves to {}, which is outside root {}",
+                    path.display(),
+                    canonical_path.display(),
+                    canonical_root.display()
+                )));
+            }
+        } else {
+            let parent = path.parent().unwrap_or(path);
+            let canonical_parent = parent.canonicalize().map_err(|e| {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    return AppError::path_traversal_attempt(format!(
+                        "path {} would resolve outside root",
+                        path.display()
+                    ));
+                }
+                AppError::from(e)
+            })?;
+
+            if !canonical_parent.starts_with(&canonical_root) {
+                return Err(AppError::path_traversal_attempt(format!(
+                    "{} would resolve outside root {}",
+                    path.display(),
+                    canonical_root.display()
+                )));
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn id_exists(&self, id: &str) -> bool {
         self.task_path(id).exists()
     }
@@ -38,6 +86,7 @@ impl TaskRepo {
         }
 
         fs::create_dir_all(&self.root)?;
+        self.validate_path_is_within_root(&path)?;
         let markdown = render_task_markdown(task)?;
         fs::write(&path, markdown)?;
         Ok(())
@@ -45,6 +94,7 @@ impl TaskRepo {
 
     pub fn read(&self, id: &str) -> Result<Task, AppError> {
         let path = self.task_path(id);
+        self.validate_path_is_within_root(&path)?;
         let content = fs::read_to_string(&path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 AppError::not_found(id)
@@ -60,6 +110,8 @@ impl TaskRepo {
 
     pub fn update(&self, task: &Task) -> Result<(), AppError> {
         let path = self.task_path(&task.id);
+        self.validate_path_is_within_root(&path)?;
+
         if !path.exists() {
             return Err(AppError::not_found(&task.id));
         }
@@ -71,6 +123,8 @@ impl TaskRepo {
 
     pub fn delete(&self, id: &str) -> Result<(), AppError> {
         let path = self.task_path(id);
+        self.validate_path_is_within_root(&path)?;
+
         if !path.exists() {
             return Err(AppError::not_found(id));
         }
@@ -82,6 +136,9 @@ impl TaskRepo {
     pub fn rename_task(&self, old_id: &str, new_id: &str) -> Result<(), AppError> {
         let old_path = self.task_path(old_id);
         let new_path = self.task_path(new_id);
+
+        self.validate_path_is_within_root(&old_path)?;
+        self.validate_path_is_within_root(&new_path)?;
 
         if !old_path.exists() {
             return Err(AppError::not_found(old_id));
@@ -356,5 +413,210 @@ mod tests {
             .expect("closed tasks should be listed");
         assert_eq!(closed_tasks.len(), 1);
         assert_eq!(closed_tasks[0].id, "closed-5678");
+    }
+
+    mod path_security_tests {
+        use super::*;
+
+        #[test]
+        fn create_with_parent_dir_traversal_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let malicious_id = "../../../etc/passwd";
+            let task = create_test_task(malicious_id, "Malicious task");
+            let result = repo.create(&task);
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn create_with_absolute_path_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let malicious_id = "/etc/passwd";
+            let task = create_test_task(malicious_id, "Malicious task");
+            let result = repo.create(&task);
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn create_with_mixed_traversal_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let malicious_id = "task-1234/../../etc/passwd";
+            let task = create_test_task(malicious_id, "Malicious task");
+            let result = repo.create(&task);
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn read_with_parent_dir_traversal_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let result = repo.read("../../../etc/passwd");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn read_with_absolute_path_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let result = repo.read("/etc/passwd");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn read_with_mixed_traversal_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let result = repo.read("task-1234/../../etc/passwd");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn update_with_parent_dir_traversal_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let malicious_id = "../../../etc/passwd";
+            let task = create_test_task(malicious_id, "Malicious task");
+            let result = repo.update(&task);
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn update_with_absolute_path_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let malicious_id = "/etc/passwd";
+            let task = create_test_task(malicious_id, "Malicious task");
+            let result = repo.update(&task);
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn delete_with_parent_dir_traversal_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let result = repo.delete("../../../etc/passwd");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn delete_with_absolute_path_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let result = repo.delete("/etc/passwd");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn rename_with_traversal_in_old_id_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let task = create_test_task("valid-task", "Valid task");
+            repo.create(&task).expect("task should be created");
+
+            let result = repo.rename_task("../../../etc/passwd", "new-id");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn rename_with_traversal_in_new_id_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let task = create_test_task("valid-task", "Valid task");
+            repo.create(&task).expect("task should be created");
+
+            let result = repo.rename_task("valid-task", "../../../etc/passwd");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn rename_with_absolute_path_in_new_id_fails() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let task = create_test_task("valid-task", "Valid task");
+            repo.create(&task).expect("task should be created");
+
+            let result = repo.rename_task("valid-task", "/etc/passwd");
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn valid_task_id_succeeds_despite_malicious_lookalike() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let task = create_test_task("task-with-dashes", "Valid task");
+            repo.create(&task).expect("task should be created");
+
+            let read = repo.read("task-with-dashes").expect("task should be read");
+            assert_eq!(read.id, "task-with-dashes");
+        }
+
+        #[test]
+        fn cannot_create_file_outside_root_via_parent_dirs() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let task = create_test_task("test-1234", "Test task");
+            repo.create(&task).expect("task should be created");
+
+            let file_inside_root = temp.path().join("test-1234.md");
+            assert!(file_inside_root.exists());
+
+            let file_outside = temp.path().parent().unwrap().join("test-1234.md");
+            assert!(!file_outside.exists());
+        }
+
+        #[test]
+        fn multiple_parent_dir_traversals_still_blocked() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let malicious_id = "../../../../../../etc/passwd";
+            let result = repo.read(malicious_id);
+
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
     }
 }

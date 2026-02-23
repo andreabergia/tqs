@@ -12,6 +12,8 @@ pub enum AppError {
     NoTty,
     #[error("invalid task file {path}: {reason}")]
     InvalidTaskFile { path: String, reason: String },
+    #[error("path traversal attempt: {0}")]
+    PathTraversalAttempt(String),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("yaml error: {0}")]
@@ -42,6 +44,10 @@ impl AppError {
         }
     }
 
+    pub fn path_traversal_attempt(path: impl Into<String>) -> Self {
+        Self::PathTraversalAttempt(path.into())
+    }
+
     pub fn exit_code(&self) -> i32 {
         match self {
             Self::Usage(_) => 2,
@@ -49,6 +55,7 @@ impl AppError {
             | Self::NotFound { .. }
             | Self::NoTty
             | Self::InvalidTaskFile { .. }
+            | Self::PathTraversalAttempt(_)
             | Self::Io(_)
             | Self::Yaml(_)
             | Self::Format(_)
