@@ -1,7 +1,7 @@
 use crate::app::app_error::AppError;
 
 use super::args::{Cli, Command};
-use super::commands::{complete, create, delete, info, list, move_cmd, reopen};
+use super::commands::{complete, create, delete, edit, info, list, move_cmd, reopen};
 
 pub fn handle(cli: Cli) -> Result<(), AppError> {
     match cli.command {
@@ -12,6 +12,7 @@ pub fn handle(cli: Cli) -> Result<(), AppError> {
         Some(Command::Info(info_cmd)) => info::handle_info(info_cmd, cli.root),
         Some(Command::Delete(delete_cmd)) => delete::handle_delete(delete_cmd, cli.root),
         Some(Command::Move(move_cmd)) => move_cmd::handle_move(move_cmd, cli.root),
+        Some(Command::Edit(edit_cmd)) => edit::handle_edit(edit_cmd, cli.root),
         None => Err(AppError::usage("no command specified")),
     }
 }

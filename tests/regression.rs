@@ -1036,3 +1036,211 @@ mod malformed_files {
             .stdout(contains("Summary: Good task"));
     }
 }
+
+#[test]
+fn edit_task_exits_with_0() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .code(0);
+}
+
+#[test]
+fn edit_nonexistent_exits_with_1() {
+    let temp = TempDir::new().expect("temp dir should be created");
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg("nonexistent")
+        .assert()
+        .code(1);
+}
+
+#[test]
+fn edit_without_id_non_tty_exits_with_1() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .assert()
+        .code(1);
+}
+
+#[test]
+fn edit_success_message_to_stdout() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"))
+        .stderr(contains("Edited task:").not());
+}
+
+#[test]
+fn edit_without_id_with_no_tasks_shows_message() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .assert()
+        .code(0)
+        .stdout(predicates::str::contains("No tasks available"));
+}
+
+#[test]
+fn edit_id_mismatch_exits_with_1() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let file_path = temp.path().join(format!("{task_id}.md"));
+    std::fs::write(
+        &file_path,
+        "---\nid: changed-id\ncreated_at: 2026-02-21T00:00:00Z\nstatus: open\nsummary: Modified\n---\n",
+    ).expect("modified file should be written");
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .code(1);
+}
+
+#[test]
+fn edit_id_mismatch_error_to_stderr() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let file_path = temp.path().join(format!("{task_id}.md"));
+    std::fs::write(
+        &file_path,
+        "---\nid: changed-id\ncreated_at: 2026-02-21T00:00:00Z\nstatus: open\nsummary: Modified\n---\n",
+    ).expect("modified file should be written");
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .failure()
+        .stderr(contains("ID in file"))
+        .stderr(contains("does not match filename"))
+        .stdout(contains("ID in file").not());
+}

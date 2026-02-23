@@ -33,6 +33,10 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         canonical: "move",
         aliases: &["rename", "mv"],
     },
+    CommandSpec {
+        canonical: "edit",
+        aliases: &["modify"],
+    },
 ];
 
 fn prefix_match(input: &str, target: &str) -> bool {

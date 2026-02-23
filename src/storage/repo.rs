@@ -20,7 +20,7 @@ impl TaskRepo {
         &self.root
     }
 
-    fn task_path(&self, id: &str) -> PathBuf {
+    pub fn task_path(&self, id: &str) -> PathBuf {
         self.root.join(format!("{id}.md"))
     }
 

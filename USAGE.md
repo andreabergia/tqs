@@ -19,6 +19,7 @@ tqs list bug fix                              Filter by keywords
 tqs complete [id]                             Mark as closed
 tqs reopen [id]                               Mark as open
 tqs info [id]                                 Show details
+tqs edit [id]                                 Edit in $EDITOR
 tqs move [old_id] [new_id]                    Change task ID
 tqs delete <id>                               Delete task
 
@@ -27,6 +28,7 @@ tqs new [summary]                             Alias for create
 tqs show [id]                                 Alias for info
 tqs done [id]                                 Alias for complete
 tqs open [id]                                 Alias for reopen
+tqs modify [id]                               Alias for edit
 tqs remove <id>                               Alias for delete
 tqs rename [old_id] [new_id]                  Alias for move
 
@@ -71,6 +73,7 @@ Commands support fuzzy matching - enter a subset of characters in order to match
 - `tqs cr` or `tqs crte` → `tqs create`
 - `tqs l` or `tqs ls` → `tqs list`
 - `tqs i` or `tqs inf` → `tqs info`
+- `tqs ed` or `tqs edi` → `tqs edit`
 - `tqs cmp` → `tqs complete`
 - `tqs opn` → `tqs reopen`
 - `tqs d` or `tqs del` → `tqs delete`
@@ -81,6 +84,7 @@ Commands also support exact aliases (shell-style synonyms):
 - `tqs new` or `tqs add` → `tqs create`
 - `tqs ls` → `tqs list`
 - `tqs show` or `tqs view` → `tqs info`
+- `tqs modify` → `tqs edit`
 - `tqs done`, `tqs finish`, or `tqs close` → `tqs complete`
 - `tqs open` → `tqs reopen`
 - `tqs remove`, `tqs rm`, or `tqs del` → `tqs delete`
@@ -101,10 +105,12 @@ tqs l                    # List open tasks
 tqs cr "Buy groceries"   # Create a task
 tqs c <task-id>          # Create a task (create > complete)
 tqs i <task-id>          # Show task info
+tqs ed <task-id>         # Edit a task
 
 # Aliases
 tqs new "Buy groceries"  # Create a task
 tqs show <task-id>       # Show task info
+tqs modify <task-id>     # Edit a task
 tqs done <task-id>       # Complete a task
 tqs rename old-id new-id # Move/rename task ID
 
@@ -244,6 +250,56 @@ Displays id, status, created_at, summary, and full markdown description.
 
 ---
 
+### `edit` - Edit task in editor
+
+```
+tqs edit [id]
+```
+
+**Arguments:**
+- `id` - Task ID (optional, opens interactive picker if omitted)
+
+**Examples:**
+```bash
+tqs edit cobalt-urial-7f3a
+tqs edit                             # Interactive picker
+```
+
+**Interactive:**
+Without an ID, opens a fuzzy-select picker of all tasks. Requires a TTY.
+
+**Behavior:**
+- Opens the task file in `$EDITOR` (defaults to `vi`)
+- Validates the edited file after the editor closes
+- Shows recovery options if the file is empty or invalid
+- Validates that the ID in the file matches the filename
+- Provides options to restore, rename, or abort on ID mismatch
+
+**Recovery options:**
+
+1. **Empty file:** Three options
+   - "Restore original content" - Restore the file before editing
+   - "Delete task" - Remove the task entirely
+   - "Abort" - Leave the file empty and return an error
+
+2. **Invalid format:** Two options
+   - "Restore original content" - Restore the file before editing
+   - "Abort" - Leave the file malformed and return an error
+
+3. **ID mismatch:** Three options
+   - "Restore original ID in file" - Keep user's edits, fix ID field
+   - "Rename file to match new ID" - Move the file to the new ID
+   - "Abort" - Leave the file as-is and return an error
+
+**Editor configuration:**
+Set the `EDITOR` environment variable to use your preferred editor:
+```bash
+export EDITOR=nvim
+tqs edit <task-id>
+```
+
+---
+
 ### `delete` - Delete a task
 
 ```
@@ -319,6 +375,7 @@ Several commands support interactive mode when no ID is provided:
 - `complete` - Picker for open tasks
 - `reopen` - Picker for closed tasks
 - `info` - Picker for all tasks
+- `edit` - Picker for all tasks
 - `move` - Picker for old ID, prompt for new ID
 - `create` - Prompts for summary and description (optional)
 

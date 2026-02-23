@@ -1606,3 +1606,395 @@ fn move_with_both_ids() {
         .success()
         .stdout(contains("renamed-task"));
 }
+
+#[test]
+fn edit_task_by_id() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn edit_nonexistent_task_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg("nonexistent")
+        .assert()
+        .failure()
+        .stderr(contains("task not found"));
+}
+
+#[test]
+fn edit_without_id_in_non_tty_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .assert()
+        .failure()
+        .stderr(contains("interactive input requires a TTY"));
+}
+
+#[test]
+fn test_alias_command_modify() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task to modify")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("modify")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn test_fuzzy_command_edt() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task for edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edt")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn test_fuzzy_command_ed() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("ed")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn test_fuzzy_command_edi() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edi")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn test_fuzzy_command_mod() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("mod")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn test_fuzzy_command_modi() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("new")
+        .arg("Task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("l")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("modi")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn edit_with_id_change_fails_validation() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Original task")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let file_path = temp.path().join(format!("{task_id}.md"));
+    std::fs::write(
+        &file_path,
+        "---\nid: changed-id\ncreated_at: 2026-02-21T00:00:00Z\nstatus: open\nsummary: Modified summary\n---\n",
+    ).expect("modified file should be written");
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .failure()
+        .stderr(contains("ID in file (changed-id) does not match filename"));
+}
+
+#[test]
+fn edit_with_id_change_to_existing_id_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task 1")
+        .assert()
+        .success();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task 2")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let file_path = temp.path().join(format!("{task_id}.md"));
+    std::fs::write(
+        &file_path,
+        "---\nid: task-1\ncreated_at: 2026-02-21T00:00:00Z\nstatus: open\nsummary: Try rename\n---\n",
+    ).expect("modified file should be written");
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "cat")
+        .assert()
+        .failure();
+}

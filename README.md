@@ -11,6 +11,7 @@ tqs list --closed            List closed tasks
 tqs complete [id]            Mark task as closed
 tqs reopen [id]              Mark task as open
 tqs info [id]                Show task details
+tqs edit [id]                Edit task in $EDITOR
 tqs move [old_id] [new_id]   Change task ID
 tqs delete <id>              Delete a task
 
@@ -19,6 +20,7 @@ tqs new [summary]            Alias for create
 tqs show <id>                Alias for info
 tqs done <id>                Alias for complete
 tqs open <id>                Alias for reopen
+tqs modify <id>              Alias for edit
 tqs remove <id>              Alias for delete
 tqs rename <old> <new>       Alias for move
 
@@ -26,6 +28,7 @@ tqs rename <old> <new>       Alias for move
 tqs cr [summary]             Create (shorter)
 tqs l                        List
 tqs i <id>                   Info
+tqs ed [id]                  Edit
 tqs c [summary]              Create (create > complete)
 ```
 
@@ -55,6 +58,9 @@ tqs list
 # View task details
 tqs info <task-id>
 
+# Edit a task in your editor
+tqs edit <task-id>
+
 # Mark task as complete
 tqs complete <task-id>
 
@@ -65,11 +71,13 @@ tqs list --closed
 tqs cr "Write documentation"
 tqs l
 tqs i <task-id>
+tqs ed <task-id>
 
 # Or aliases (shell-style)
 tqs new "Write documentation"
 tqs show <task-id>
 tqs done <task-id>
+tqs modify <task-id>
 ```
 
 ## Storage Location
