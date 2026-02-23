@@ -4,6 +4,32 @@ use crate::domain::task::{Task, TaskStatus};
 use dialoguer::console::{Key, Term, style};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 
+struct TerminalGuard<'a> {
+    term: &'a Term,
+    rendered_lines: usize,
+}
+
+impl<'a> TerminalGuard<'a> {
+    fn new(term: &'a Term) -> Result<Self, AppError> {
+        term.hide_cursor()?;
+        Ok(Self {
+            term,
+            rendered_lines: 0,
+        })
+    }
+
+    fn set_rendered_lines(&mut self, lines: usize) {
+        self.rendered_lines = lines;
+    }
+}
+
+impl<'a> Drop for TerminalGuard<'a> {
+    fn drop(&mut self) {
+        let _ = self.term.clear_last_lines(self.rendered_lines);
+        let _ = self.term.show_cursor();
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct TaskPickerOptions<'a> {
     pub prompt: &'a str,
@@ -65,9 +91,9 @@ pub fn pick_task(
     let mut scroll = 0usize;
     let mut rendered_lines = 0usize;
 
-    term.hide_cursor()?;
+    let mut guard = TerminalGuard::new(&term)?;
 
-    let result = loop {
+    loop {
         let visible = build_visible_items(tasks, mode, &search, &matcher);
         sync_selection(&visible, &mut selected, &mut scroll);
         let frame = RenderFrame {
@@ -80,6 +106,7 @@ pub fn pick_task(
             scroll,
         };
         rendered_lines = render_picker(&term, frame, rendered_lines)?;
+        guard.set_rendered_lines(rendered_lines);
 
         match term.read_key()? {
             Key::Escape => break Ok(None),
@@ -116,14 +143,7 @@ pub fn pick_task(
             }
             _ => {}
         }
-    };
-
-    if rendered_lines > 0 {
-        term.clear_last_lines(rendered_lines)?;
     }
-    term.show_cursor()?;
-
-    result
 }
 
 fn sanitize_allowed_modes(allowed: &[ListMode], default_mode: ListMode) -> Vec<ListMode> {
