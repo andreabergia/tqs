@@ -34,6 +34,10 @@ pub fn validate_user_id(id: &str) -> Result<(), AppError> {
         return Err(AppError::usage("task ID cannot be an absolute path"));
     }
 
+    if trimmed.starts_with('.') {
+        return Err(AppError::usage("task ID cannot start with '.'"));
+    }
+
     if trimmed.contains('/') || trimmed.contains('\\') {
         return Err(AppError::usage(
             "task ID cannot contain path separators (/ or \\)",
@@ -195,13 +199,24 @@ mod tests {
         }
 
         #[test]
-        fn dot_id_succeeds() {
-            assert!(validate_user_id(".").is_ok());
+        fn dot_id_fails() {
+            let result = validate_user_id(".");
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("start with '.'"));
         }
 
         #[test]
-        fn double_dot_id_succeeds() {
-            assert!(validate_user_id("..").is_ok());
+        fn double_dot_id_fails() {
+            let result = validate_user_id("..");
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("start with '.'"));
+        }
+
+        #[test]
+        fn hidden_file_style_id_fails() {
+            let result = validate_user_id(".task-123");
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("start with '.'"));
         }
 
         #[test]
@@ -240,14 +255,14 @@ mod tests {
         fn parent_dir_traversal_fails() {
             let result = validate_user_id("../etc/passwd");
             assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path separators"));
+            assert!(result.unwrap_err().to_string().contains("start with '.'"));
         }
 
         #[test]
         fn multiple_parent_dir_traversal_fails() {
             let result = validate_user_id("../../etc/passwd");
             assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path separators"));
+            assert!(result.unwrap_err().to_string().contains("start with '.'"));
         }
 
         #[test]
