@@ -207,9 +207,12 @@ fn render_picker(
         .iter()
         .map(|m| {
             if *m == frame.mode {
-                format!("{}", style(format!("*{}", m.label())).bold().cyan())
+                format!(
+                    "{}",
+                    style(format!(" {} ", m.label())).bold().black().on_cyan()
+                )
             } else {
-                format!("{}", style(m.label()).dim())
+                format!("{}", style(m.label()).cyan())
             }
         })
         .collect::<Vec<_>>()
@@ -222,7 +225,7 @@ fn render_picker(
     };
     let hint_line = format!(
         "{}",
-        style("Tab/Shift-Tab: filter  Up/Down: navigate  Enter: select  Esc: cancel").dim()
+        style("Tab/Shift-Tab: filter  Up/Down: navigate  Enter: select  Esc: cancel").cyan()
     );
 
     term.write_line(&prompt_line)?;
@@ -233,7 +236,7 @@ fn render_picker(
 
     let mut line_count = 2;
     if frame.visible.is_empty() {
-        term.write_line(&format!("{}", style("  (no matching tasks)").dim()))?;
+        term.write_line(&format!("{}", style("  (no matching tasks)").yellow()))?;
         return Ok(line_count + 1);
     }
 
@@ -244,25 +247,34 @@ fn render_picker(
     }
 
     for (idx, item) in frame.visible.iter().enumerate().skip(start).take(max_items) {
-        let prefix = if Some(idx) == frame.selected {
-            format!("{}", style(">").bold().cyan())
+        let is_selected = Some(idx) == frame.selected;
+
+        let prefix = if is_selected {
+            format!("{}", style(">").bold().black().on_cyan())
         } else {
             " ".to_string()
         };
-        let status = match item.status {
-            TaskStatus::Open => style(format_status_tag(TaskStatus::Open))
-                .green()
-                .to_string(),
-            TaskStatus::Closed => style(format_status_tag(TaskStatus::Closed))
-                .yellow()
-                .to_string(),
-        };
-        let summary = if Some(idx) == frame.selected {
-            format!("{}", style(&item.summary).bold())
+
+        let line = if is_selected {
+            let line_content = format!(
+                "{} {} - {}",
+                format_status_tag(item.status),
+                item.id,
+                item.summary
+            );
+            style(line_content).bold().black().on_cyan()
         } else {
-            item.summary.clone()
+            let status_tag = format_status_tag(item.status);
+            let status = match item.status {
+                TaskStatus::Open => style(&status_tag).green(),
+                TaskStatus::Closed => style(&status_tag).yellow(),
+            };
+            let summary_style = style(&item.summary);
+            let line_content = format!("{status} {} - {summary_style}", item.id);
+            style(line_content)
         };
-        term.write_line(&format!("{prefix} {status} {} - {summary}", item.id))?;
+
+        term.write_line(&format!("{prefix} {line}"))?;
         line_count += 1;
     }
 
