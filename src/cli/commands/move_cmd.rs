@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use crate::app::app_error::AppError;
+use crate::domain::filter::ListMode;
 use crate::io::input;
 use crate::io::output;
 use crate::io::picker;
@@ -28,7 +29,14 @@ pub fn handle_move(Move { old_id, new_id }: Move, root: Option<PathBuf>) -> Resu
                 return Ok(());
             }
 
-            match picker::pick_task(&tasks, "Select task to move")? {
+            let allowed_modes = [ListMode::All, ListMode::Open, ListMode::Closed];
+            let options = picker::TaskPickerOptions {
+                prompt: "Select task to move",
+                default_mode: ListMode::All,
+                allowed_modes: &allowed_modes,
+            };
+
+            match picker::pick_task(&tasks, options)? {
                 Some(id) => id,
                 None => {
                     output::print_info("Operation cancelled");

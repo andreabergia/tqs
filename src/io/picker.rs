@@ -1,26 +1,347 @@
 use crate::app::app_error::AppError;
-use crate::domain::task::Task;
-use dialoguer::{FuzzySelect, theme::ColorfulTheme};
+use crate::domain::filter::{ListMode, cycle_list_mode, matches_list_mode};
+use crate::domain::task::{Task, TaskStatus};
+use dialoguer::console::{Key, Term, style};
+use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 
-pub fn pick_task(tasks: &[Task], prompt: &str) -> Result<Option<String>, AppError> {
+#[derive(Debug, Clone, Copy)]
+pub struct TaskPickerOptions<'a> {
+    pub prompt: &'a str,
+    pub default_mode: ListMode,
+    pub allowed_modes: &'a [ListMode],
+}
+
+#[derive(Debug, Clone)]
+struct VisibleItem {
+    task_index: usize,
+    status: TaskStatus,
+    id: String,
+    summary: String,
+    score: i64,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RenderFrame<'a> {
+    prompt: &'a str,
+    mode: ListMode,
+    allowed_modes: &'a [ListMode],
+    search: &'a str,
+    visible: &'a [VisibleItem],
+    selected: Option<usize>,
+    scroll: usize,
+}
+
+pub fn pick_task(
+    tasks: &[Task],
+    options: TaskPickerOptions<'_>,
+) -> Result<Option<String>, AppError> {
     if tasks.is_empty() {
         return Ok(None);
     }
 
-    if !dialoguer::console::Term::stderr().is_term() {
+    let term = Term::stderr();
+    if !term.is_term() {
         return Err(AppError::NoTty);
     }
 
-    let items: Vec<String> = tasks
+    let allowed_modes = sanitize_allowed_modes(options.allowed_modes, options.default_mode);
+    let mut mode = if allowed_modes.contains(&options.default_mode) {
+        options.default_mode
+    } else {
+        allowed_modes[0]
+    };
+
+    let matcher = SkimMatcherV2::default();
+    let mut search = String::new();
+    let mut selected = Some(0usize);
+    let mut scroll = 0usize;
+    let mut rendered_lines = 0usize;
+
+    term.hide_cursor()?;
+
+    let result = loop {
+        let visible = build_visible_items(tasks, mode, &search, &matcher);
+        sync_selection(&visible, &mut selected, &mut scroll);
+        let frame = RenderFrame {
+            prompt: options.prompt,
+            mode,
+            allowed_modes: &allowed_modes,
+            search: &search,
+            visible: &visible,
+            selected,
+            scroll,
+        };
+        rendered_lines = render_picker(&term, frame, rendered_lines)?;
+
+        match term.read_key()? {
+            Key::Escape => break Ok(None),
+            Key::Tab => {
+                mode = cycle_list_mode(mode, &allowed_modes, false);
+                selected = Some(0);
+                scroll = 0;
+            }
+            Key::BackTab => {
+                mode = cycle_list_mode(mode, &allowed_modes, true);
+                selected = Some(0);
+                scroll = 0;
+            }
+            Key::ArrowUp => {
+                move_selection_up(&visible, &mut selected, &mut scroll);
+            }
+            Key::ArrowDown => {
+                move_selection_down(&visible, &mut selected, &mut scroll);
+            }
+            Key::Backspace => {
+                search.pop();
+                selected = Some(0);
+                scroll = 0;
+            }
+            Key::Enter => {
+                if let Some(sel) = selected.and_then(|idx| visible.get(idx)) {
+                    break Ok(Some(tasks[sel.task_index].id.clone()));
+                }
+            }
+            Key::Char(ch) if !ch.is_ascii_control() => {
+                search.push(ch);
+                selected = Some(0);
+                scroll = 0;
+            }
+            _ => {}
+        }
+    };
+
+    if rendered_lines > 0 {
+        term.clear_last_lines(rendered_lines)?;
+    }
+    term.show_cursor()?;
+
+    result
+}
+
+fn sanitize_allowed_modes(allowed: &[ListMode], default_mode: ListMode) -> Vec<ListMode> {
+    let mut modes = Vec::new();
+
+    for mode in allowed.iter().copied() {
+        if !modes.contains(&mode) {
+            modes.push(mode);
+        }
+    }
+
+    if modes.is_empty() {
+        modes.push(default_mode);
+    }
+
+    if !modes.contains(&default_mode) {
+        modes.insert(0, default_mode);
+    }
+
+    modes
+}
+
+fn build_visible_items(
+    tasks: &[Task],
+    mode: ListMode,
+    search: &str,
+    matcher: &SkimMatcherV2,
+) -> Vec<VisibleItem> {
+    let mut visible = tasks
         .iter()
-        .map(|task| format!("{} - {}", task.id, task.summary))
-        .collect();
+        .enumerate()
+        .filter(|(_, task)| matches_list_mode(task, mode))
+        .filter_map(|(idx, task)| {
+            let display = format!("[{}] {} - {}", task.status, task.id, task.summary);
+            let score = if search.is_empty() {
+                Some(0)
+            } else {
+                matcher.fuzzy_match(&display, search)
+            }?;
 
-    let selection = FuzzySelect::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .default(0)
-        .items(&items)
-        .interact_opt()?;
+            Some(VisibleItem {
+                task_index: idx,
+                status: task.status,
+                id: task.id.clone(),
+                summary: task.summary.clone(),
+                score,
+            })
+        })
+        .collect::<Vec<_>>();
 
-    Ok(selection.and_then(|idx| tasks.get(idx).map(|t| t.id.clone())))
+    visible.sort_by(|a, b| {
+        b.score
+            .cmp(&a.score)
+            .then_with(|| a.task_index.cmp(&b.task_index))
+    });
+    visible
+}
+
+fn sync_selection(visible: &[VisibleItem], selected: &mut Option<usize>, scroll: &mut usize) {
+    if visible.is_empty() {
+        *selected = None;
+        *scroll = 0;
+        return;
+    }
+
+    let idx = selected.unwrap_or(0).min(visible.len() - 1);
+    *selected = Some(idx);
+}
+
+fn render_picker(
+    term: &Term,
+    frame: RenderFrame<'_>,
+    prev_rendered_lines: usize,
+) -> Result<usize, AppError> {
+    if prev_rendered_lines > 0 {
+        term.clear_last_lines(prev_rendered_lines)?;
+    }
+
+    let mode_list = frame
+        .allowed_modes
+        .iter()
+        .map(|m| {
+            if *m == frame.mode {
+                format!("{}", style(format!("*{}", m.label())).bold().cyan())
+            } else {
+                format!("{}", style(m.label()).dim())
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/");
+
+    let prompt_line = if frame.search.is_empty() {
+        format!("{} [{mode_list}]", frame.prompt)
+    } else {
+        format!("{} [{mode_list}] search: {}", frame.prompt, frame.search)
+    };
+    let hint_line = format!(
+        "{}",
+        style("Tab/Shift-Tab: filter  Up/Down: navigate  Enter: select  Esc: cancel").dim()
+    );
+
+    term.write_line(&prompt_line)?;
+    term.write_line(&hint_line)?;
+
+    let rows = term.size().0 as usize;
+    let max_items = rows.saturating_sub(2).max(1);
+
+    let mut line_count = 2;
+    if frame.visible.is_empty() {
+        term.write_line(&format!("{}", style("  (no matching tasks)").dim()))?;
+        return Ok(line_count + 1);
+    }
+
+    let sel = frame.selected.unwrap_or(0);
+    let mut start = frame.scroll.min(sel);
+    if sel >= start + max_items {
+        start = sel + 1 - max_items;
+    }
+
+    for (idx, item) in frame.visible.iter().enumerate().skip(start).take(max_items) {
+        let prefix = if Some(idx) == frame.selected {
+            format!("{}", style(">").bold().cyan())
+        } else {
+            " ".to_string()
+        };
+        let status = match item.status {
+            TaskStatus::Open => style("[open]").green().to_string(),
+            TaskStatus::Closed => style("[closed]").yellow().to_string(),
+        };
+        let summary = if Some(idx) == frame.selected {
+            format!("{}", style(&item.summary).bold())
+        } else {
+            item.summary.clone()
+        };
+        term.write_line(&format!("{prefix} {status} {} - {summary}", item.id))?;
+        line_count += 1;
+    }
+
+    Ok(line_count)
+}
+
+fn move_selection_up(visible: &[VisibleItem], selected: &mut Option<usize>, scroll: &mut usize) {
+    if visible.is_empty() {
+        return;
+    }
+
+    let next = match *selected {
+        Some(0) | None => visible.len() - 1,
+        Some(idx) => idx - 1,
+    };
+
+    *selected = Some(next);
+    *scroll = (*scroll).min(next);
+}
+
+fn move_selection_down(visible: &[VisibleItem], selected: &mut Option<usize>, scroll: &mut usize) {
+    if visible.is_empty() {
+        return;
+    }
+
+    let next = match *selected {
+        None => 0,
+        Some(idx) => (idx + 1) % visible.len(),
+    };
+
+    *selected = Some(next);
+    if next == 0 {
+        *scroll = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_visible_items, sanitize_allowed_modes, sync_selection};
+    use crate::domain::filter::ListMode;
+    use crate::domain::task::{Task, TaskStatus};
+    use chrono::{DateTime, Utc};
+    use fuzzy_matcher::skim::SkimMatcherV2;
+
+    fn created_at() -> DateTime<Utc> {
+        "2026-02-20T22:15:00Z"
+            .parse()
+            .expect("timestamp literal should parse")
+    }
+
+    fn task(id: &str, status: TaskStatus, summary: &str) -> Task {
+        Task {
+            id: id.to_string(),
+            created_at: created_at(),
+            status,
+            summary: summary.to_string(),
+            description: None,
+        }
+    }
+
+    #[test]
+    fn sanitize_allowed_modes_keeps_uniques_and_default() {
+        let modes = sanitize_allowed_modes(&[ListMode::All, ListMode::All], ListMode::Open);
+        assert_eq!(modes, vec![ListMode::Open, ListMode::All]);
+    }
+
+    #[test]
+    fn build_visible_items_filters_by_status_and_search() {
+        let tasks = vec![
+            task("alpha", TaskStatus::Open, "Write docs"),
+            task("beta", TaskStatus::Closed, "Fix parser"),
+        ];
+        let matcher = SkimMatcherV2::default();
+
+        let open = build_visible_items(&tasks, ListMode::Open, "", &matcher);
+        assert_eq!(open.len(), 1);
+        assert_eq!(open[0].task_index, 0);
+
+        let closed_search = build_visible_items(&tasks, ListMode::Closed, "parser", &matcher);
+        assert_eq!(closed_search.len(), 1);
+        assert_eq!(closed_search[0].task_index, 1);
+    }
+
+    #[test]
+    fn sync_selection_clears_when_list_empty() {
+        let mut selected = Some(3);
+        let mut scroll = 5;
+
+        sync_selection(&[], &mut selected, &mut scroll);
+
+        assert_eq!(selected, None);
+        assert_eq!(scroll, 0);
+    }
 }

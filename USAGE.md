@@ -384,5 +384,6 @@ Interactive features require a TTY. Without a TTY, you must provide the required
 
 **Picker Behavior:**
 - Fuzzy-select interface
+- Task status filter toggle with `Tab` / `Shift+Tab` (`all`, `open`, `closed`; availability depends on command)
 - Cancel with Ctrl+C or Esc
 - Success with confirmation message

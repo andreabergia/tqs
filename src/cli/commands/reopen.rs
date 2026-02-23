@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use crate::app::app_error::AppError;
-use crate::domain::task::TaskStatus;
+use crate::domain::filter::{ListMode, matches_list_mode};
 use crate::io::output;
 use crate::io::picker;
 use crate::storage::repo::TaskRepo;
@@ -22,13 +22,28 @@ pub fn handle_reopen(
     let id = match id {
         Some(id) => id,
         None => {
-            let tasks = repo.list_filtered(TaskStatus::Closed)?;
+            let tasks = repo.list()?;
             if tasks.is_empty() {
+                output::print_info("No tasks available");
+                return Ok(());
+            }
+
+            if !tasks
+                .iter()
+                .any(|task| matches_list_mode(task, ListMode::Closed))
+            {
                 output::print_info("No closed tasks available");
                 return Ok(());
             }
 
-            match picker::pick_task(&tasks, "Select task to reopen")? {
+            let allowed_modes = [ListMode::Closed, ListMode::All];
+            let options = picker::TaskPickerOptions {
+                prompt: "Select task to reopen",
+                default_mode: ListMode::Closed,
+                allowed_modes: &allowed_modes,
+            };
+
+            match picker::pick_task(&tasks, options)? {
                 Some(id) => id,
                 None => {
                     output::print_info("Operation cancelled");

@@ -703,8 +703,8 @@ mod stream_consistency {
             .arg("complete")
             .assert()
             .success()
-            .stdout(contains("No open tasks available"))
-            .stderr(contains("No open tasks available").not());
+            .stdout(contains("No tasks available"))
+            .stderr(contains("No tasks available").not());
     }
 }
 

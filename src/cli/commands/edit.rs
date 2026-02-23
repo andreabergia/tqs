@@ -1,4 +1,5 @@
 use crate::app::app_error::AppError;
+use crate::domain::filter::ListMode;
 use crate::io::output;
 use crate::io::picker;
 use crate::storage::format::{parse_task_markdown, render_task_markdown};
@@ -26,7 +27,14 @@ pub fn handle_edit(Edit { id }: Edit, root: Option<PathBuf>) -> Result<(), AppEr
                 return Ok(());
             }
 
-            match picker::pick_task(&tasks, "Select task to edit")? {
+            let allowed_modes = [ListMode::All, ListMode::Open, ListMode::Closed];
+            let options = picker::TaskPickerOptions {
+                prompt: "Select task to edit",
+                default_mode: ListMode::All,
+                allowed_modes: &allowed_modes,
+            };
+
+            match picker::pick_task(&tasks, options)? {
                 Some(id) => id,
                 None => {
                     output::print_info("Operation cancelled");

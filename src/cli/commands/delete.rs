@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use crate::app::app_error::AppError;
+use crate::domain::filter::ListMode;
 use crate::io::output;
 use crate::io::picker;
 use crate::storage::repo::TaskRepo;
@@ -26,7 +27,14 @@ pub fn handle_delete(Delete { id }: Delete, root: Option<PathBuf>) -> Result<(),
                 return Ok(());
             }
 
-            match picker::pick_task(&tasks, "Select task to delete")? {
+            let allowed_modes = [ListMode::All, ListMode::Open, ListMode::Closed];
+            let options = picker::TaskPickerOptions {
+                prompt: "Select task to delete",
+                default_mode: ListMode::All,
+                allowed_modes: &allowed_modes,
+            };
+
+            match picker::pick_task(&tasks, options)? {
                 Some(id) => id,
                 None => {
                     output::print_info("Operation cancelled");

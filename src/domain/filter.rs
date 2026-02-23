@@ -7,6 +7,42 @@ pub enum ListMode {
     All,
 }
 
+impl ListMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Closed => "closed",
+            Self::All => "all",
+        }
+    }
+}
+
+pub fn matches_list_mode(task: &Task, mode: ListMode) -> bool {
+    match mode {
+        ListMode::All => true,
+        ListMode::Open => task.status.is_open(),
+        ListMode::Closed => task.status.is_closed(),
+    }
+}
+
+pub fn cycle_list_mode(current: ListMode, allowed: &[ListMode], reverse: bool) -> ListMode {
+    if allowed.is_empty() {
+        return current;
+    }
+
+    let current_idx = allowed
+        .iter()
+        .position(|mode| *mode == current)
+        .unwrap_or(0);
+    let next_idx = if reverse {
+        (current_idx + allowed.len() - 1) % allowed.len()
+    } else {
+        (current_idx + 1) % allowed.len()
+    };
+
+    allowed[next_idx]
+}
+
 pub fn matches_keywords(task: &Task, keywords: &[String]) -> bool {
     if keywords.is_empty() {
         return true;
@@ -22,7 +58,7 @@ pub fn matches_keywords(task: &Task, keywords: &[String]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::matches_keywords;
+    use super::{ListMode, cycle_list_mode, matches_keywords, matches_list_mode};
     use crate::domain::task::{Task, TaskStatus};
     use chrono::{DateTime, Utc};
 
@@ -51,5 +87,32 @@ mod tests {
 
         assert!(matches_keywords(&target, &ok));
         assert!(!matches_keywords(&target, &not_ok));
+    }
+
+    #[test]
+    fn matches_list_mode_uses_task_status() {
+        let mut target = task("Write docs", None);
+        target.status = TaskStatus::Closed;
+
+        assert!(matches_list_mode(&target, ListMode::All));
+        assert!(!matches_list_mode(&target, ListMode::Open));
+        assert!(matches_list_mode(&target, ListMode::Closed));
+    }
+
+    #[test]
+    fn cycle_list_mode_moves_forward_and_backward() {
+        let allowed = [ListMode::Open, ListMode::All];
+        assert_eq!(
+            cycle_list_mode(ListMode::Open, &allowed, false),
+            ListMode::All
+        );
+        assert_eq!(
+            cycle_list_mode(ListMode::All, &allowed, false),
+            ListMode::Open
+        );
+        assert_eq!(
+            cycle_list_mode(ListMode::Open, &allowed, true),
+            ListMode::All
+        );
     }
 }

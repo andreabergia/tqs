@@ -564,7 +564,7 @@ fn complete_without_id_fails() {
         .arg("complete")
         .assert()
         .success()
-        .stdout(contains("No open tasks available"));
+        .stdout(contains("No tasks available"));
 }
 
 #[test]
@@ -650,7 +650,7 @@ fn reopen_without_id_fails() {
         .arg("reopen")
         .assert()
         .success()
-        .stdout(contains("No closed tasks available"));
+        .stdout(contains("No tasks available"));
 }
 
 #[test]
@@ -933,7 +933,7 @@ fn complete_picker_with_no_open_tasks() {
         .arg("complete")
         .assert()
         .success()
-        .stdout(contains("No open tasks available"));
+        .stdout(contains("No tasks available"));
 }
 
 #[test]
