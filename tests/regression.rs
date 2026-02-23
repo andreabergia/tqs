@@ -1355,6 +1355,665 @@ fn edit_malformed_editor_fails() {
         .arg(task_id)
         .env("EDITOR", "\"")
         .assert()
-        .failure()
+        .code(1)
         .stderr(contains("invalid editor command"));
+}
+
+// ============================================================================
+// Unsafe ID Rejection Tests
+// ============================================================================
+
+mod unsafe_id_tests {
+    use super::*;
+
+    #[test]
+    fn create_with_parent_dir_traversal_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("../../../etc/passwd")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot start with '.'"));
+    }
+
+    #[test]
+    fn create_with_absolute_path_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("/etc/passwd")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot be an absolute path"));
+    }
+
+    #[test]
+    fn create_with_hidden_file_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg(".hidden-task")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot start with '.'"));
+    }
+
+    #[test]
+    fn create_with_forward_slash_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("task/123")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot contain path separators"));
+    }
+
+    #[test]
+    fn create_with_backslash_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("task\\123")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot contain path separators"));
+    }
+
+    #[test]
+    fn create_with_empty_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot be empty"));
+    }
+
+    #[test]
+    fn create_with_double_dot_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("..")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot start with '.'"));
+    }
+
+    #[test]
+    fn create_with_mixed_traversal_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("task-123/../../etc/passwd")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot contain path separators"));
+    }
+
+    #[test]
+    fn move_with_parent_dir_traversal_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("move")
+            .arg(task_id)
+            .arg("../../../etc/passwd")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot start with '.'"));
+    }
+
+    #[test]
+    fn move_with_absolute_path_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("move")
+            .arg(task_id)
+            .arg("/etc/passwd")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot be an absolute path"));
+    }
+
+    #[test]
+    fn move_with_hidden_file_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("move")
+            .arg(task_id)
+            .arg(".hidden")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot start with '.'"));
+    }
+
+    #[test]
+    fn move_with_path_separator_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("move")
+            .arg(task_id)
+            .arg("new/id")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot contain path separators"));
+    }
+
+    #[test]
+    fn create_with_whitespace_id_fails() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("--id")
+            .arg("   ")
+            .arg("Task")
+            .assert()
+            .code(2)
+            .stderr(contains("task ID cannot be empty"));
+    }
+}
+
+// ============================================================================
+// Enhanced EDITOR-with-args Tests
+// ============================================================================
+
+mod editor_tests {
+    use super::*;
+
+    #[test]
+    fn edit_visual_overrides_editor_exits_with_0() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task to edit")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("VISUAL", "sh -c 'cat \"$1\"; exit 0' dummy")
+            .env("EDITOR", "cat")
+            .assert()
+            .code(0)
+            .stdout(contains("Edited task:"));
+    }
+
+    #[test]
+    fn edit_with_single_arg_exits_with_0() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task to edit")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("EDITOR", "sh -c 'cat \"$1\"' dummy")
+            .assert()
+            .code(0)
+            .stdout(contains("Edited task:"))
+            .stderr(contains("Edited task:").not());
+    }
+
+    #[test]
+    fn edit_with_multiple_args_exits_with_0() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task to edit")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("EDITOR", "sh -c 'cat \"$1\"; exit 0' dummy")
+            .assert()
+            .code(0)
+            .stdout(contains("Edited task:"))
+            .stderr(contains("Edited task:").not());
+    }
+
+    #[test]
+    fn edit_id_mismatch_exits_with_1() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        let file_path = temp.path().join(format!("{task_id}.md"));
+        std::fs::write(
+            &file_path,
+            "---\nid: changed-id\ncreated_at: 2026-02-21T00:00:00Z\nstatus: open\nsummary: Modified\n---\n",
+        ).expect("modified file should be written");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("EDITOR", "cat")
+            .assert()
+            .code(1);
+    }
+
+    #[test]
+    fn edit_id_mismatch_error_message_to_stderr() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        let file_path = temp.path().join(format!("{task_id}.md"));
+        std::fs::write(
+            &file_path,
+            "---\nid: changed-id\ncreated_at: 2026-02-21T00:00:00Z\nstatus: open\nsummary: Modified\n---\n",
+        ).expect("modified file should be written");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("EDITOR", "cat")
+            .assert()
+            .code(1)
+            .stderr(contains("ID in file"))
+            .stderr(contains("does not match filename"))
+            .stdout(contains("ID in file").not());
+    }
+
+    #[test]
+    fn edit_malformed_editor_exits_with_1() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task to edit")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("EDITOR", "\"")
+            .assert()
+            .code(1)
+            .stderr(contains("invalid editor command"));
+    }
+
+    #[test]
+    fn edit_malformed_editor_error_message() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task to edit")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("EDITOR", "\"")
+            .assert()
+            .code(1)
+            .stderr(contains("invalid editor command"))
+            .stdout(contains("invalid editor command").not());
+    }
+
+    #[test]
+    fn edit_task_exits_with_0() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let list_output = cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&list_output);
+        let lines: Vec<&str> = stdout.lines().collect();
+        let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg(task_id)
+            .env("EDITOR", "cat")
+            .assert()
+            .code(0)
+            .stdout(contains("Edited task:"));
+    }
+
+    #[test]
+    fn edit_nonexistent_exits_with_1() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .arg("nonexistent")
+            .assert()
+            .code(1)
+            .stderr(contains("task not found"));
+    }
+
+    #[test]
+    fn edit_without_id_non_tty_exits_with_1() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        cargo_bin_cmd!("tqs")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("create")
+            .arg("Task")
+            .assert()
+            .success();
+
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .assert()
+            .code(1)
+            .stderr(contains("interactive input requires a TTY"));
+    }
+
+    #[test]
+    fn edit_without_id_with_no_tasks_exits_with_0() {
+        let temp = TempDir::new().expect("temp dir should be created");
+
+        let mut cmd = cargo_bin_cmd!("tqs");
+        cmd.arg("--root")
+            .arg(temp.path())
+            .arg("edit")
+            .assert()
+            .code(0)
+            .stdout(predicates::str::contains("No tasks available"));
+    }
 }
