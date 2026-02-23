@@ -158,6 +158,33 @@ impl TaskRepo {
         Ok(())
     }
 
+    pub fn rename_task_with_content(
+        &self,
+        old_id: &str,
+        new_id: &str,
+        content: &str,
+    ) -> Result<(), AppError> {
+        let old_path = self.task_path(old_id);
+        let new_path = self.task_path(new_id);
+
+        self.validate_path_is_within_root(&old_path)?;
+        self.validate_path_is_within_root(&new_path)?;
+
+        if !old_path.exists() {
+            return Err(AppError::not_found(old_id));
+        }
+
+        if new_path.exists() {
+            return Err(AppError::message(format!(
+                "task with id {new_id} already exists"
+            )));
+        }
+
+        fs::write(&new_path, content)?;
+        fs::remove_file(&old_path)?;
+        Ok(())
+    }
+
     pub fn list(&self) -> Result<Vec<Task>, AppError> {
         let mut tasks = Vec::new();
 
@@ -578,6 +605,34 @@ mod tests {
 
             assert!(result.is_err());
             assert!(result.unwrap_err().to_string().contains("path traversal"));
+        }
+
+        #[test]
+        fn rename_task_with_content_preserves_edited_fields() {
+            let temp = TempDir::new().expect("temp dir should be created");
+            let repo = TaskRepo::new(temp.path().to_path_buf());
+
+            let original_task = create_test_task("original-id", "Original summary");
+            repo.create(&original_task).expect("task should be created");
+
+            let edited_content = "---\nid: new-id\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Edited summary\n---\nEdited description\n";
+
+            repo.rename_task_with_content("original-id", "new-id", edited_content)
+                .expect("rename with content should succeed");
+
+            assert!(!temp.path().join("original-id.md").exists());
+            assert!(temp.path().join("new-id.md").exists());
+
+            let renamed_task = repo
+                .read("new-id")
+                .expect("renamed task should be readable");
+            assert_eq!(renamed_task.id, "new-id");
+            assert_eq!(renamed_task.summary, "Edited summary");
+            assert_eq!(renamed_task.status, TaskStatus::Closed);
+            assert_eq!(
+                renamed_task.description,
+                Some("Edited description".to_string())
+            );
         }
 
         #[test]

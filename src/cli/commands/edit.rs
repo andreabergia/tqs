@@ -103,7 +103,7 @@ pub fn handle_edit(Edit { id }: Edit, root: Option<PathBuf>) -> Result<(), AppEr
                         Ok(())
                     }
                     1 => {
-                        repo.rename_task(&id, &edited_task.id)?;
+                        repo.rename_task_with_content(&id, &edited_task.id, &edited_content)?;
                         output::print_info(&format!("Renamed task: {} -> {}", id, edited_task.id));
                         Ok(())
                     }
