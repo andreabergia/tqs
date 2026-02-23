@@ -1,43 +1,31 @@
-#[derive(Clone, Copy)]
+use crate::cli::args::Cli;
+use clap::CommandFactory;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+#[derive(Clone)]
 struct CommandSpec {
-    canonical: &'static str,
-    aliases: &'static [&'static str],
+    canonical: String,
+    aliases: Vec<String>,
 }
 
-const COMMAND_SPECS: &[CommandSpec] = &[
-    CommandSpec {
-        canonical: "create",
-        aliases: &["new", "add"],
-    },
-    CommandSpec {
-        canonical: "list",
-        aliases: &["ls"],
-    },
-    CommandSpec {
-        canonical: "info",
-        aliases: &["show", "view"],
-    },
-    CommandSpec {
-        canonical: "complete",
-        aliases: &["done", "finish", "close"],
-    },
-    CommandSpec {
-        canonical: "reopen",
-        aliases: &["open"],
-    },
-    CommandSpec {
-        canonical: "delete",
-        aliases: &["remove", "rm", "del"],
-    },
-    CommandSpec {
-        canonical: "move",
-        aliases: &["rename", "mv"],
-    },
-    CommandSpec {
-        canonical: "edit",
-        aliases: &["modify"],
-    },
-];
+fn build_command_specs() -> Vec<CommandSpec> {
+    Cli::command()
+        .get_subcommands()
+        .map(|cmd| {
+            let aliases: Vec<String> = cmd.get_visible_aliases().map(|s| s.to_string()).collect();
+            CommandSpec {
+                canonical: cmd.get_name().to_string(),
+                aliases,
+            }
+        })
+        .collect()
+}
+
+fn get_command_specs() -> &'static Vec<CommandSpec> {
+    static SPECS: OnceLock<Vec<CommandSpec>> = OnceLock::new();
+    SPECS.get_or_init(build_command_specs)
+}
 
 fn prefix_match(input: &str, target: &str) -> bool {
     target.to_lowercase().starts_with(&input.to_lowercase())
@@ -75,7 +63,7 @@ fn exact_match(input: &str, target: &str) -> bool {
     input.eq_ignore_ascii_case(target)
 }
 
-fn pick_unique_shortest(candidates: &[(&'static str, usize)]) -> Option<&'static str> {
+fn pick_unique_shortest<'a>(candidates: &'a [(&'a str, usize)]) -> Option<&'a str> {
     let min_len = candidates.iter().map(|(_, len)| *len).min()?;
 
     let mut winner = None;
@@ -94,98 +82,109 @@ fn pick_unique_shortest(candidates: &[(&'static str, usize)]) -> Option<&'static
     winner
 }
 
-fn pick_unique_shortest_alias(matches: &[(&'static str, usize)]) -> Option<&'static str> {
-    let mut best_per_canonical: Vec<(&'static str, usize)> = Vec::new();
+fn pick_unique_shortest_alias<'a>(matches: &'a [(&'a str, usize)]) -> Option<&'a str> {
+    let mut best_per_canonical: HashMap<&str, usize> = HashMap::new();
 
     for &(canonical, alias_len) in matches {
-        if let Some((_, best_len)) = best_per_canonical
-            .iter_mut()
-            .find(|(existing, _)| *existing == canonical)
-        {
-            if alias_len < *best_len {
-                *best_len = alias_len;
-            }
-            continue;
-        }
-
-        best_per_canonical.push((canonical, alias_len));
+        best_per_canonical
+            .entry(canonical)
+            .and_modify(|best| {
+                if alias_len < *best {
+                    *best = alias_len;
+                }
+            })
+            .or_insert(alias_len);
     }
 
-    pick_unique_shortest(&best_per_canonical)
+    let min_len = best_per_canonical.values().min().copied()?;
+    let mut winner = None;
+    for (canonical, &len) in &best_per_canonical {
+        if len == min_len {
+            match winner {
+                None => winner = Some(*canonical),
+                Some(existing) if existing == *canonical => {}
+                Some(_) => return None,
+            }
+        }
+    }
+
+    winner
 }
 
-fn resolve_command(input: &str) -> Option<&'static str> {
+fn resolve_command(input: &str) -> Option<String> {
     if input.is_empty() {
         return None;
     }
 
-    if let Some(cmd) = COMMAND_SPECS
+    let specs = get_command_specs();
+
+    if let Some(cmd) = specs
         .iter()
-        .find(|spec| exact_match(input, spec.canonical))
-        .map(|spec| spec.canonical)
+        .find(|spec| exact_match(input, &spec.canonical))
+        .map(|spec| spec.canonical.clone())
     {
         return Some(cmd);
     }
 
-    let exact_alias_matches: Vec<&'static str> = COMMAND_SPECS
+    let exact_alias_matches: Vec<String> = specs
         .iter()
         .filter(|spec| spec.aliases.iter().any(|alias| exact_match(input, alias)))
-        .map(|spec| spec.canonical)
+        .map(|spec| spec.canonical.clone())
         .collect();
 
     if !exact_alias_matches.is_empty() {
-        let unique: Vec<(&'static str, usize)> = exact_alias_matches
+        let unique: Vec<(&str, usize)> = exact_alias_matches
             .iter()
-            .map(|&canonical| (canonical, 0))
+            .map(|canonical| (canonical.as_str(), 0))
             .collect();
-        return pick_unique_shortest(&unique);
+        return pick_unique_shortest(&unique).map(|s| s.to_string());
     }
 
-    let prefix_canonical_matches: Vec<(&'static str, usize)> = COMMAND_SPECS
+    let prefix_canonical_matches: Vec<(&str, usize)> = specs
         .iter()
-        .filter(|spec| prefix_match(input, spec.canonical))
-        .map(|spec| (spec.canonical, spec.canonical.len()))
+        .filter(|spec| prefix_match(input, &spec.canonical))
+        .map(|spec| (spec.canonical.as_str(), spec.canonical.len()))
         .collect();
 
     if let Some(cmd) = pick_unique_shortest(&prefix_canonical_matches) {
-        return Some(cmd);
+        return Some(cmd.to_string());
     }
 
-    let fuzzy_canonical_matches: Vec<(&'static str, usize)> = COMMAND_SPECS
+    let fuzzy_canonical_matches: Vec<(&str, usize)> = specs
         .iter()
-        .filter(|spec| fuzzy_match(input, spec.canonical))
-        .map(|spec| (spec.canonical, spec.canonical.len()))
+        .filter(|spec| fuzzy_match(input, &spec.canonical))
+        .map(|spec| (spec.canonical.as_str(), spec.canonical.len()))
         .collect();
 
     if let Some(cmd) = pick_unique_shortest(&fuzzy_canonical_matches) {
-        return Some(cmd);
+        return Some(cmd.to_string());
     }
 
-    let prefix_alias_matches: Vec<(&'static str, usize)> = COMMAND_SPECS
+    let prefix_alias_matches: Vec<(&str, usize)> = specs
         .iter()
         .flat_map(|spec| {
             spec.aliases
                 .iter()
-                .filter(move |&&alias| prefix_match(input, alias))
-                .map(move |&alias| (spec.canonical, alias.len()))
+                .filter(move |alias| prefix_match(input, alias))
+                .map(move |alias| (spec.canonical.as_str(), alias.len()))
         })
         .collect();
 
     if let Some(cmd) = pick_unique_shortest_alias(&prefix_alias_matches) {
-        return Some(cmd);
+        return Some(cmd.to_string());
     }
 
-    let fuzzy_alias_matches: Vec<(&'static str, usize)> = COMMAND_SPECS
+    let fuzzy_alias_matches: Vec<(&str, usize)> = specs
         .iter()
         .flat_map(|spec| {
             spec.aliases
                 .iter()
-                .filter(move |&&alias| fuzzy_match(input, alias))
-                .map(move |&alias| (spec.canonical, alias.len()))
+                .filter(move |alias| fuzzy_match(input, alias))
+                .map(move |alias| (spec.canonical.as_str(), alias.len()))
         })
         .collect();
 
-    pick_unique_shortest_alias(&fuzzy_alias_matches)
+    pick_unique_shortest_alias(&fuzzy_alias_matches).map(|s| s.to_string())
 }
 
 pub fn expand_command(args: Vec<String>) -> Vec<String> {
@@ -220,7 +219,7 @@ pub fn expand_command(args: Vec<String>) -> Vec<String> {
 
     if let Some(cmd) = matched_command {
         let mut expanded_args = args.clone();
-        expanded_args[command_index] = cmd.to_string();
+        expanded_args[command_index] = cmd;
         expanded_args
     } else {
         args
@@ -432,5 +431,51 @@ mod tests {
     fn test_pick_unique_shortest_ambiguous_returns_none() {
         let candidates = vec![("alpha", 3), ("beta", 3)];
         assert_eq!(pick_unique_shortest(&candidates), None);
+    }
+
+    #[test]
+    fn test_clap_and_fuzzy_aliases_are_synced() {
+        use crate::cli::args::Cli;
+        use clap::CommandFactory;
+
+        let clap_cmd = Cli::command();
+
+        for spec in get_command_specs() {
+            let subcommand = clap_cmd
+                .find_subcommand(&spec.canonical)
+                .expect(&format!("Subcommand {} not found in Clap", spec.canonical));
+
+            let clap_aliases: Vec<&str> = subcommand.get_visible_aliases().collect();
+            let fuzzy_aliases: Vec<&str> = spec.aliases.iter().map(|s| s.as_str()).collect();
+
+            assert_eq!(
+                clap_aliases.len(),
+                fuzzy_aliases.len(),
+                "Number of aliases mismatch for command {}: Clap has {:?}, fuzzy has {:?}",
+                spec.canonical,
+                clap_aliases,
+                fuzzy_aliases
+            );
+
+            for clap_alias in &clap_aliases {
+                assert!(
+                    fuzzy_aliases.contains(clap_alias),
+                    "Clap alias '{}' for command '{}' not found in fuzzy aliases: {:?}",
+                    clap_alias,
+                    spec.canonical,
+                    fuzzy_aliases
+                );
+            }
+
+            for fuzzy_alias in &fuzzy_aliases {
+                assert!(
+                    clap_aliases.contains(fuzzy_alias),
+                    "Fuzzy alias '{}' for command '{}' not found in Clap aliases: {:?}",
+                    fuzzy_alias,
+                    spec.canonical,
+                    clap_aliases
+                );
+            }
+        }
     }
 }
