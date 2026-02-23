@@ -3,11 +3,9 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use crate::app::app_error::AppError;
+use crate::cli::commands::helpers;
 use crate::domain::filter::ListMode;
 use crate::io::output;
-use crate::io::picker;
-use crate::storage::repo::TaskRepo;
-use crate::storage::root;
 
 #[derive(Debug, Parser)]
 pub struct Delete {
@@ -15,33 +13,20 @@ pub struct Delete {
 }
 
 pub fn handle_delete(Delete { id }: Delete, root: Option<PathBuf>) -> Result<(), AppError> {
-    let storage_root = root::resolve_root(root);
-    let repo = TaskRepo::new(storage_root);
+    let repo = helpers::resolve_repo(root);
 
-    let id = match id {
-        Some(id) => id,
-        None => {
-            let tasks = repo.list()?;
-            if tasks.is_empty() {
-                output::print_info("No tasks available");
-                return Ok(());
-            }
+    let config = helpers::PickerConfig {
+        prompt: "Select task to delete",
+        default_mode: ListMode::All,
+        allowed_modes: &[ListMode::All, ListMode::Open, ListMode::Closed],
+        empty_message: "No tasks available",
+        cancel_message: "Operation cancelled",
+        status_check: None,
+        status_check_message: None,
+    };
 
-            let allowed_modes = [ListMode::All, ListMode::Open, ListMode::Closed];
-            let options = picker::TaskPickerOptions {
-                prompt: "Select task to delete",
-                default_mode: ListMode::All,
-                allowed_modes: &allowed_modes,
-            };
-
-            match picker::pick_task(&tasks, options)? {
-                Some(id) => id,
-                None => {
-                    output::print_info("Operation cancelled");
-                    return Ok(());
-                }
-            }
-        }
+    let Some(id) = helpers::resolve_id(id, &repo, config)? else {
+        return Ok(());
     };
 
     repo.delete(&id)?;

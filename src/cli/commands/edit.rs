@@ -1,10 +1,8 @@
 use crate::app::app_error::AppError;
+use crate::cli::commands::helpers;
 use crate::domain::filter::ListMode;
 use crate::io::output;
-use crate::io::picker;
 use crate::storage::format::{parse_task_markdown, render_task_markdown};
-use crate::storage::repo::TaskRepo;
-use crate::storage::root;
 use clap::Parser;
 use dialoguer::{Select, theme::ColorfulTheme};
 use std::path::PathBuf;
@@ -15,33 +13,20 @@ pub struct Edit {
 }
 
 pub fn handle_edit(Edit { id }: Edit, root: Option<PathBuf>) -> Result<(), AppError> {
-    let storage_root = root::resolve_root(root);
-    let repo = TaskRepo::new(storage_root);
+    let repo = helpers::resolve_repo(root);
 
-    let id = match id {
-        Some(id) => id,
-        None => {
-            let tasks = repo.list()?;
-            if tasks.is_empty() {
-                output::print_info("No tasks available");
-                return Ok(());
-            }
+    let config = helpers::PickerConfig {
+        prompt: "Select task to edit",
+        default_mode: ListMode::All,
+        allowed_modes: &[ListMode::All, ListMode::Open, ListMode::Closed],
+        empty_message: "No tasks available",
+        cancel_message: "Operation cancelled",
+        status_check: None,
+        status_check_message: None,
+    };
 
-            let allowed_modes = [ListMode::All, ListMode::Open, ListMode::Closed];
-            let options = picker::TaskPickerOptions {
-                prompt: "Select task to edit",
-                default_mode: ListMode::All,
-                allowed_modes: &allowed_modes,
-            };
-
-            match picker::pick_task(&tasks, options)? {
-                Some(id) => id,
-                None => {
-                    output::print_info("Operation cancelled");
-                    return Ok(());
-                }
-            }
-        }
+    let Some(id) = helpers::resolve_id(id, &repo, config)? else {
+        return Ok(());
     };
 
     let task = repo.read(&id)?;
