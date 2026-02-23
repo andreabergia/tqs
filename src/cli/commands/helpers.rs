@@ -7,6 +7,22 @@ use crate::io::picker;
 use crate::storage::repo::TaskRepo;
 use crate::storage::root;
 
+pub fn parse_editor_command() -> Result<(String, Vec<String>), AppError> {
+    let editor = std::env::var("VISUAL")
+        .or_else(|_| std::env::var("EDITOR"))
+        .unwrap_or_else(|_| "vi".to_string());
+
+    let mut parts = shell_words::split(&editor)
+        .map_err(|e| AppError::message(format!("invalid editor command '{}': {}", editor, e)))?;
+
+    if parts.is_empty() {
+        return Err(AppError::message("editor command is empty"));
+    }
+
+    let program = parts.remove(0);
+    Ok((program, parts))
+}
+
 pub struct PickerConfig<'a> {
     pub prompt: &'a str,
     pub default_mode: ListMode,

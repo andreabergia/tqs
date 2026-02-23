@@ -863,6 +863,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_yaml",
+ "shell-words",
  "tempfile",
  "thiserror",
 ]

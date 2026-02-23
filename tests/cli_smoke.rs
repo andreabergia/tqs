@@ -2036,3 +2036,118 @@ fn edit_with_id_change_to_existing_id_fails() {
         .assert()
         .failure();
 }
+
+#[test]
+fn edit_with_editor_and_single_arg() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "sh -c 'cat \"$1\"' dummy")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn edit_with_editor_and_multiple_args() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "sh -c 'cat \"$1\"; exit 0' dummy")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}
+
+#[test]
+fn edit_visual_overrides_editor() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let mut edit_cmd = cargo_bin_cmd!("tqs");
+    edit_cmd
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("VISUAL", "sh -c 'cat \"$1\"' dummy")
+        .env("EDITOR", "cat")
+        .assert()
+        .success()
+        .stdout(contains("Edited task:"));
+}

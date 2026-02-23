@@ -35,8 +35,9 @@ pub fn handle_edit(Edit { id }: Edit, root: Option<PathBuf>) -> Result<(), AppEr
 
     std::fs::write(&file_path, &original_markdown)?;
 
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-    let exit_status = std::process::Command::new(&editor)
+    let (program, args) = helpers::parse_editor_command()?;
+    let exit_status = std::process::Command::new(&program)
+        .args(args)
         .arg(&file_path)
         .status()?;
 
@@ -45,7 +46,7 @@ pub fn handle_edit(Edit { id }: Edit, root: Option<PathBuf>) -> Result<(), AppEr
             "Editor exited with non-zero status: {:?}",
             exit_status.code()
         );
-        return Err(AppError::message(format!("editor '{}' failed", editor)));
+        return Err(AppError::message("editor command failed"));
     }
 
     let edited_content = std::fs::read_to_string(&file_path)?;

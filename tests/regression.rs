@@ -1244,3 +1244,117 @@ fn edit_id_mismatch_error_to_stderr() {
         .stderr(contains("does not match filename"))
         .stdout(contains("ID in file").not());
 }
+
+#[test]
+fn edit_with_args_exits_with_0() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "sh -c 'cat \"$1\"; exit 0' dummy")
+        .assert()
+        .success()
+        .code(0);
+}
+
+#[test]
+fn edit_with_args_success_message() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    let edit_assert = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "sh -c 'cat \"$1\"; exit 0' dummy")
+        .assert()
+        .success();
+    let output = edit_assert.get_output();
+
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Edited task:"));
+    assert!(String::from_utf8_lossy(&output.stderr).is_empty());
+}
+
+#[test]
+fn edit_malformed_editor_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Task to edit")
+        .assert()
+        .success();
+
+    let list_output = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let stdout = String::from_utf8_lossy(&list_output);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let task_id = lines.get(2).unwrap().split_whitespace().next().unwrap();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg(task_id)
+        .env("EDITOR", "\"")
+        .assert()
+        .failure()
+        .stderr(contains("invalid editor command"));
+}
