@@ -33,31 +33,51 @@ pub fn handle_create(
     let storage_root = root::resolve_root(root);
     let repo = TaskRepo::new(storage_root);
 
-    let task_id = match id {
-        Some(provided_id) => {
+    let (task_id, summary, description) = match (id, summary, description) {
+        (Some(provided_id), Some(s), d) => {
             if repo.id_exists(&provided_id) {
                 return Err(AppError::usage(format!(
                     "id '{}' already exists",
                     provided_id
                 )));
             }
-            provided_id
+            (provided_id, s, d)
         }
-        None => {
+        (None, Some(s), d) => {
             let generator = IdGenerator::new(|id| repo.id_exists(id));
-            generator.generate()
+            (generator.generate(), s, d)
         }
-    };
-
-    let (summary, description) = match (summary, description) {
-        (Some(s), d) => (s, d),
-        (None, Some(_)) => {
+        (None, None, Some(_)) => {
             return Err(AppError::usage("missing summary"));
         }
-        (None, None) => {
+        (None, None, None) => {
+            let summary = input::prompt_input("Summary:")?;
+            let user_id = input::prompt_input_optional("ID (blank to auto-generate):")?;
+            let task_id = if user_id.is_empty() {
+                let generator = IdGenerator::new(|id| repo.id_exists(id));
+                generator.generate()
+            } else {
+                if repo.id_exists(&user_id) {
+                    return Err(AppError::usage(format!("id '{}' already exists", user_id)));
+                }
+                user_id
+            };
+            let description = input::prompt_multiline("Description:")?;
+            (task_id, summary, description)
+        }
+        (Some(_provided_id), None, Some(_)) => {
+            return Err(AppError::usage("missing summary"));
+        }
+        (Some(provided_id), None, None) => {
+            if repo.id_exists(&provided_id) {
+                return Err(AppError::usage(format!(
+                    "id '{}' already exists",
+                    provided_id
+                )));
+            }
             let summary = input::prompt_input("Summary:")?;
             let description = input::prompt_multiline("Description:")?;
-            (summary, description)
+            (provided_id, summary, description)
         }
     };
 

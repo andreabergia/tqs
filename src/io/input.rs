@@ -31,6 +31,28 @@ pub fn prompt_input(prompt: &str) -> Result<String, AppError> {
     }
 }
 
+pub fn prompt_input_optional(prompt: &str) -> Result<String, AppError> {
+    if !has_tty() && !is_test_mode() {
+        return Err(AppError::NoTty);
+    }
+
+    if is_test_mode() {
+        eprintln!("{prompt}");
+        let mut line = String::new();
+        std::io::stdin()
+            .read_line(&mut line)
+            .map_err(AppError::Io)?;
+        Ok(line.trim().to_string())
+    } else {
+        let theme = ColorfulTheme::default();
+        Input::with_theme(&theme)
+            .with_prompt(prompt)
+            .allow_empty(true)
+            .interact()
+            .map_err(AppError::from)
+    }
+}
+
 pub fn prompt_multiline(prompt: &str) -> Result<Option<String>, AppError> {
     if !has_tty() && !is_test_mode() {
         return Err(AppError::NoTty);

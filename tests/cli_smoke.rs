@@ -127,7 +127,7 @@ fn create_interactive_with_summary_only() {
         .arg("--root")
         .arg(temp.path())
         .arg("create")
-        .write_stdin("Test task\n\n")
+        .write_stdin("Test task\n\n\n")
         .assert()
         .success()
         .stdout(contains("Created task:"));
@@ -141,7 +141,7 @@ fn create_interactive_with_summary_and_description() {
         .arg("--root")
         .arg(temp.path())
         .arg("create")
-        .write_stdin("Write docs\nUser guide\nAPI docs\n")
+        .write_stdin("Write docs\n\nUser guide\nAPI docs\n")
         .assert()
         .success()
         .stdout(contains("Created task:"));
@@ -178,6 +178,44 @@ fn create_interactive_with_summary_and_description() {
 }
 
 #[test]
+fn create_interactive_with_custom_id() {
+    let temp = TempDir::new().expect("temp dir should be created");
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.env("TQS_TEST_MODE", "1")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .write_stdin("Test task\ncustom-id-123\n")
+        .assert()
+        .success()
+        .stdout(contains("Created task: custom-id-123"));
+}
+
+#[test]
+fn create_interactive_with_duplicate_id_fails() {
+    let temp = TempDir::new().expect("temp dir should be created");
+
+    let mut cmd1 = cargo_bin_cmd!("tqs");
+    cmd1.env("TQS_TEST_MODE", "1")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .write_stdin("First task\nmy-custom-id\n")
+        .assert()
+        .success();
+
+    let mut cmd2 = cargo_bin_cmd!("tqs");
+    cmd2.env("TQS_TEST_MODE", "1")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .write_stdin("Second task\nmy-custom-id\n")
+        .assert()
+        .failure()
+        .stderr(contains("id 'my-custom-id' already exists"));
+}
+
+#[test]
 fn create_interactive_empty_description() {
     let temp = TempDir::new().expect("temp dir should be created");
     let mut cmd = cargo_bin_cmd!("tqs");
@@ -185,7 +223,7 @@ fn create_interactive_empty_description() {
         .arg("--root")
         .arg(temp.path())
         .arg("create")
-        .write_stdin("Task\n\n")
+        .write_stdin("Task\n\n\n")
         .assert()
         .success()
         .stdout(contains("Created task:"));
@@ -199,7 +237,7 @@ fn create_interactive_whitespace_only_description() {
         .arg("--root")
         .arg(temp.path())
         .arg("create")
-        .write_stdin("Task\n   \n  \n")
+        .write_stdin("Task\n\n   \n  \n")
         .assert()
         .success()
         .stdout(contains("Created task:"));
