@@ -31,6 +31,14 @@ struct RenderFrame<'a> {
     scroll: usize,
 }
 
+fn format_status_tag(status: TaskStatus) -> String {
+    let label = match status {
+        TaskStatus::Open => "open",
+        TaskStatus::Closed => "closed",
+    };
+    format!("[{label:<6}]")
+}
+
 pub fn pick_task(
     tasks: &[Task],
     options: TaskPickerOptions<'_>,
@@ -242,8 +250,12 @@ fn render_picker(
             " ".to_string()
         };
         let status = match item.status {
-            TaskStatus::Open => style("[open]").green().to_string(),
-            TaskStatus::Closed => style("[closed]").yellow().to_string(),
+            TaskStatus::Open => style(format_status_tag(TaskStatus::Open))
+                .green()
+                .to_string(),
+            TaskStatus::Closed => style(format_status_tag(TaskStatus::Closed))
+                .yellow()
+                .to_string(),
         };
         let summary = if Some(idx) == frame.selected {
             format!("{}", style(&item.summary).bold())
@@ -289,7 +301,7 @@ fn move_selection_down(visible: &[VisibleItem], selected: &mut Option<usize>, sc
 
 #[cfg(test)]
 mod tests {
-    use super::{build_visible_items, sanitize_allowed_modes, sync_selection};
+    use super::{build_visible_items, format_status_tag, sanitize_allowed_modes, sync_selection};
     use crate::domain::filter::ListMode;
     use crate::domain::task::{Task, TaskStatus};
     use chrono::{DateTime, Utc};
@@ -343,5 +355,15 @@ mod tests {
 
         assert_eq!(selected, None);
         assert_eq!(scroll, 0);
+    }
+
+    #[test]
+    fn status_tags_use_equal_width() {
+        let open = format_status_tag(TaskStatus::Open);
+        let closed = format_status_tag(TaskStatus::Closed);
+
+        assert_eq!(open, "[open  ]");
+        assert_eq!(closed, "[closed]");
+        assert_eq!(open.len(), closed.len());
     }
 }
