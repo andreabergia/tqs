@@ -46,6 +46,11 @@ cargo build --release
 
 The binary will be at `target/release/tqs`.
 
+Download release binaries:
+
+- GitHub Releases publishes `tqs` archives for Linux x86_64 and macOS arm64.
+- Each release includes a checksum file for verification.
+
 ## Quick Start
 
 ```bash
@@ -95,3 +100,52 @@ Each task is saved as `<storage-root>/<task-id>.md`.
 
 - [USAGE.md](USAGE.md) - Complete command reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) - How it works internally
+
+## Maintainer Release Process
+
+Releases are built and published by GitHub Actions from version tags.
+
+### One-time setup
+
+Install the maintainer tools:
+
+```bash
+cargo install cargo-dist cargo-release
+```
+
+Or use the helper script in this repo (still requires those tools).
+
+### Preflight checks
+
+Run the standard checks locally before cutting a release:
+
+```bash
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+dist plan
+```
+
+### Cut a release
+
+Update `CHANGELOG.md` (`Unreleased` section), then run one command:
+
+```bash
+scripts/release.sh patch --execute
+```
+
+Use `minor`, `major`, or an exact version instead of `patch` as needed.
+
+This will:
+
+- bump `Cargo.toml` version
+- create a `vX.Y.Z` git tag
+- push the release commit and tag to `origin`
+
+Pushing the tag triggers `.github/workflows/release.yml`, which builds archives and checksums and publishes them to GitHub Releases.
+
+To preview a release without making changes:
+
+```bash
+scripts/release.sh patch
+```
