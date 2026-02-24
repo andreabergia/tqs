@@ -2,7 +2,9 @@
 name = "tqs"
 version = "0.1.0"
 edition = "2024"
+description = "Terminal task queue CLI with Markdown/YAML-backed tasks"
 repository = "https://github.com/andreabergia/tqs"
+homepage = "https://github.com/andreabergia/tqs"
 
 [dependencies]
 chrono = { version = "0.4", features = ["clock", "serde"] }

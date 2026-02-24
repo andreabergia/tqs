@@ -38,6 +38,13 @@ TQS is a simple command-line task manager that stores tasks as Markdown files. P
 
 ## Installation
 
+Homebrew (macOS/Linux):
+
+```bash
+brew tap andreabergia/homebrew-tap
+brew install tqs
+```
+
 Build from source:
 
 ```bash
@@ -49,6 +56,7 @@ The binary will be at `target/release/tqs`.
 Download release binaries:
 
 - GitHub Releases publishes `tqs` archives for Linux x86_64 and macOS arm64.
+- Stable releases also update the Homebrew formula in `andreabergia/homebrew-tap`.
 - Each release includes a checksum file for verification.
 
 ## Quick Start
@@ -143,6 +151,8 @@ This will:
 - push the release commit and tag to `origin`
 
 Pushing the tag triggers `.github/workflows/release.yml`, which builds archives and checksums and publishes them to GitHub Releases.
+For stable releases, the same workflow also updates the Homebrew formula in
+`andreabergia/homebrew-tap`. Prereleases (`alpha`, `beta`, `rc`) do not update Homebrew.
 
 To preview a release without making changes:
 
