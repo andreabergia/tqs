@@ -87,7 +87,7 @@ Tasks are stored as Markdown files with YAML frontmatter. The storage location f
 1. `--root <path>` flag
 2. `TQS_ROOT` environment variable
 3. `<git-repo>/todos` (if in a Git repository)
-4. `~/.tqs/todos` (fallback)
+4. `$XDG_DATA_HOME/tqs/todos` (defaults to `~/.local/share/tqs/todos`)
 
 Each task is saved as `<storage-root>/<task-id>.md`.
 

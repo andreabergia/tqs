@@ -78,7 +78,7 @@ Priority:
 1. --root <path> flag
 2. TQS_ROOT environment variable
 3. <git-repo>/todos (detected via `git rev-parse --show-toplevel`)
-4. ~/.tqs/todos (fallback)
+4. $XDG_DATA_HOME/tqs/todos (defaults to ~/.local/share/tqs/todos)
 ```
 
 Root resolution is in `storage/root.rs::resolve_root()`.

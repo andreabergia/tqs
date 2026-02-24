@@ -20,8 +20,19 @@ pub fn resolve_root(explicit_root: Option<PathBuf>) -> PathBuf {
         return git_root.join(TODOS_DIR);
     }
 
+    if let Some(xdg_data) = env::var_os("XDG_DATA_HOME")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+    {
+        return xdg_data.join("tqs").join(TODOS_DIR);
+    }
+
     if let Some(home) = env_home() {
-        return home.join(".tqs").join(TODOS_DIR);
+        return home
+            .join(".local")
+            .join("share")
+            .join("tqs")
+            .join(TODOS_DIR);
     }
 
     cwd.unwrap_or_else(|| PathBuf::from(".")).join(TODOS_DIR)
@@ -81,7 +92,11 @@ mod tests {
             return root.join(TODOS_DIR);
         }
         if let Some(root) = home_root {
-            return root.join(".tqs").join(TODOS_DIR);
+            return root
+                .join(".local")
+                .join("share")
+                .join("tqs")
+                .join(TODOS_DIR);
         }
 
         cwd.join(TODOS_DIR)
@@ -136,7 +151,7 @@ mod tests {
             PathBuf::from("/cwd"),
         );
 
-        assert_eq!(root, PathBuf::from("/home/me/.tqs/todos"));
+        assert_eq!(root, PathBuf::from("/home/me/.local/share/tqs/todos"));
     }
 
     #[test]

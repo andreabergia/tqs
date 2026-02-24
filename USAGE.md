@@ -56,7 +56,7 @@ export TQS_ROOT=/custom/path
 tqs list
 ```
 
-Storage precedence: `--root` → `TQS_ROOT` → `<git-repo>/todos` → `~/.tqs/todos`
+Storage precedence: `--root` → `TQS_ROOT` → `<git-repo>/todos` → `$XDG_DATA_HOME/tqs/todos`
 
 ## Exit Codes
 
