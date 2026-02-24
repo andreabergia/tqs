@@ -15,8 +15,12 @@ pub struct Move {
     pub new_id: Option<String>,
 }
 
-pub fn handle_move(Move { old_id, new_id }: Move, root: Option<PathBuf>) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root);
+pub fn handle_move(
+    Move { old_id, new_id }: Move,
+    root: Option<PathBuf>,
+    global: bool,
+) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root, global);
 
     let config = helpers::PickerConfig {
         prompt: "Select task to move",

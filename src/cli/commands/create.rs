@@ -29,8 +29,9 @@ pub fn handle_create(
         description,
     }: Create,
     root: Option<PathBuf>,
+    global: bool,
 ) -> Result<(), AppError> {
-    let storage_root = root::resolve_root(root);
+    let storage_root = root::resolve_root(root, global);
     let repo = TaskRepo::new(storage_root);
 
     let (task_id, summary, description) = match (id, summary, description) {

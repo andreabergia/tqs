@@ -12,8 +12,8 @@ pub struct Info {
     pub id: Option<String>,
 }
 
-pub fn handle_info(Info { id }: Info, root: Option<PathBuf>) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root);
+pub fn handle_info(Info { id }: Info, root: Option<PathBuf>, global: bool) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root, global);
 
     let config = helpers::PickerConfig {
         prompt: "Select task to view",

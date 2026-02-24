@@ -7,6 +7,9 @@ use super::commands::{Complete, Create, Delete, Edit, Info, List, Move, Reopen};
 #[derive(Debug, Parser)]
 #[command(name = "tqs", version, about = "Terminal task queue")]
 pub struct Cli {
+    #[arg(short = 'g', long, global = true, conflicts_with = "root")]
+    pub global: bool,
+
     #[arg(long, global = true)]
     pub root: Option<PathBuf>,
 

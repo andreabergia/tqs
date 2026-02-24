@@ -13,8 +13,9 @@ pub struct Complete {
 pub fn handle_complete(
     Complete { id }: Complete,
     root: Option<std::path::PathBuf>,
+    global: bool,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root);
+    let repo = helpers::resolve_repo(root, global);
 
     let config = helpers::PickerConfig {
         prompt: "Select task to complete",

@@ -425,6 +425,19 @@ mod exit_code {
     }
 
     #[test]
+    fn global_and_root_conflict_exits_with_2() {
+        let temp = TempDir::new().expect("temp dir should be created");
+        cargo_bin_cmd!("tqs")
+            .arg("-g")
+            .arg("--root")
+            .arg(temp.path())
+            .arg("list")
+            .assert()
+            .code(2)
+            .stderr(contains("cannot be used with"));
+    }
+
+    #[test]
     fn invalid_command_exits_with_2() {
         let temp = TempDir::new().expect("temp dir should be created");
         let mut cmd = cargo_bin_cmd!("tqs");

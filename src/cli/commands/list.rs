@@ -29,8 +29,9 @@ pub fn handle_list(
         verbose,
     }: List,
     root: Option<std::path::PathBuf>,
+    global: bool,
 ) -> Result<(), AppError> {
-    let storage_root = root::resolve_root(root);
+    let storage_root = root::resolve_root(root, global);
     let repo = TaskRepo::new(storage_root);
 
     let list_mode = if closed {

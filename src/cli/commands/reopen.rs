@@ -13,8 +13,9 @@ pub struct Reopen {
 pub fn handle_reopen(
     Reopen { id }: Reopen,
     root: Option<std::path::PathBuf>,
+    global: bool,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root);
+    let repo = helpers::resolve_repo(root, global);
 
     let config = helpers::PickerConfig {
         prompt: "Select task to reopen",

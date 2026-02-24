@@ -34,8 +34,8 @@ pub struct PickerConfig<'a> {
     pub status_check_message: Option<&'a str>,
 }
 
-pub fn resolve_repo(root: Option<PathBuf>) -> TaskRepo {
-    let storage_root = root::resolve_root(root);
+pub fn resolve_repo(root: Option<PathBuf>, global: bool) -> TaskRepo {
+    let storage_root = root::resolve_root(root, global);
     TaskRepo::new(storage_root)
 }
 
