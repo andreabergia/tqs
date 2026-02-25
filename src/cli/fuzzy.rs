@@ -9,6 +9,11 @@ struct CommandSpec {
     aliases: Vec<String>,
 }
 
+struct FlagScanSpecs {
+    short: HashMap<char, bool>,
+    long: HashMap<String, bool>,
+}
+
 fn build_command_specs() -> Vec<CommandSpec> {
     Cli::command()
         .get_subcommands()
@@ -22,9 +27,33 @@ fn build_command_specs() -> Vec<CommandSpec> {
         .collect()
 }
 
+fn build_flag_scan_specs() -> FlagScanSpecs {
+    let cmd = Cli::command();
+    let mut short = HashMap::new();
+    let mut long = HashMap::new();
+
+    for arg in cmd.get_arguments() {
+        let takes_value = arg.get_action().takes_values();
+
+        if let Some(short_name) = arg.get_short() {
+            short.insert(short_name, takes_value);
+        }
+        if let Some(long_name) = arg.get_long() {
+            long.insert(long_name.to_string(), takes_value);
+        }
+    }
+
+    FlagScanSpecs { short, long }
+}
+
 fn get_command_specs() -> &'static Vec<CommandSpec> {
     static SPECS: OnceLock<Vec<CommandSpec>> = OnceLock::new();
     SPECS.get_or_init(build_command_specs)
+}
+
+fn get_flag_scan_specs() -> &'static FlagScanSpecs {
+    static SPECS: OnceLock<FlagScanSpecs> = OnceLock::new();
+    SPECS.get_or_init(build_flag_scan_specs)
 }
 
 fn prefix_match(input: &str, target: &str) -> bool {
@@ -194,19 +223,53 @@ pub fn expand_command(args: Vec<String>) -> Vec<String> {
 
     let mut command_index = None;
     let mut i = 1;
+    let flag_specs = get_flag_scan_specs();
 
     while i < args.len() {
         let arg = &args[i];
 
-        if arg.starts_with('-') {
+        if arg == "--" {
+            return args;
+        }
+
+        if let Some(long_token) = arg.strip_prefix("--") {
+            let (long_name, has_inline_value) = match long_token.split_once('=') {
+                Some((name, _)) => (name, true),
+                None => (long_token, false),
+            };
+
             i += 1;
-            if i < args.len() && !args[i].starts_with('-') {
+            if flag_specs.long.get(long_name).copied().unwrap_or(false)
+                && !has_inline_value
+                && i < args.len()
+                && !args[i].starts_with('-')
+            {
                 i += 1;
             }
-        } else {
-            command_index = Some(i);
-            break;
+            continue;
         }
+
+        if arg.starts_with('-') && arg.len() == 2 {
+            let short_name = arg.chars().nth(1).expect("single short flag char");
+            i += 1;
+            if flag_specs.short.get(&short_name).copied().unwrap_or(false)
+                && i < args.len()
+                && !args[i].starts_with('-')
+            {
+                i += 1;
+            }
+            continue;
+        }
+
+        if arg.starts_with('-') {
+            // Unknown/clustered flags are treated as standalone tokens during pre-scan so
+            // we don't accidentally swallow the subcommand shorthand as a flag value.
+            i += 1;
+            continue;
+        }
+
+        command_index = Some(i);
+        break;
     }
 
     let command_index = match command_index {
@@ -327,6 +390,49 @@ mod tests {
         let expanded = expand_command(args);
         assert_eq!(expanded[3], "list");
         assert_eq!(expanded[1], "--root");
+    }
+
+    #[test]
+    fn test_expand_command_with_bool_global_flag_short_before() {
+        let args = vec!["tqs".to_string(), "-g".to_string(), "l".to_string()];
+        let expanded = expand_command(args);
+        assert_eq!(expanded[2], "list");
+        assert_eq!(expanded[1], "-g");
+    }
+
+    #[test]
+    fn test_expand_command_with_bool_global_flag_long_before() {
+        let args = vec!["tqs".to_string(), "--global".to_string(), "l".to_string()];
+        let expanded = expand_command(args);
+        assert_eq!(expanded[2], "list");
+        assert_eq!(expanded[1], "--global");
+    }
+
+    #[test]
+    fn test_expand_command_with_mixed_globals_before() {
+        let args = vec![
+            "tqs".to_string(),
+            "-g".to_string(),
+            "--root".to_string(),
+            "/path".to_string(),
+            "l".to_string(),
+        ];
+        let expanded = expand_command(args);
+        assert_eq!(expanded[4], "list");
+        assert_eq!(expanded[1], "-g");
+        assert_eq!(expanded[2], "--root");
+    }
+
+    #[test]
+    fn test_expand_command_with_global_flag_equals_value_before() {
+        let args = vec![
+            "tqs".to_string(),
+            "--root=/path".to_string(),
+            "l".to_string(),
+        ];
+        let expanded = expand_command(args);
+        assert_eq!(expanded[2], "list");
+        assert_eq!(expanded[1], "--root=/path");
     }
 
     #[test]
