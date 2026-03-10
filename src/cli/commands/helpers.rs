@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use crate::app::app_error::AppError;
 use crate::domain::{filter::title_matches_query, task::Queue};
 use crate::io::{output, picker};
-use crate::storage::{config, repo::StoredTask, repo::TaskRepo};
+use crate::storage::{config, config::ResolvedConfig, repo::StoredTask, repo::TaskRepo};
 
 pub fn parse_editor_command() -> Result<(String, Vec<String>), AppError> {
     let editor = std::env::var("VISUAL")
@@ -22,9 +22,13 @@ pub fn parse_editor_command() -> Result<(String, Vec<String>), AppError> {
     Ok((program, parts))
 }
 
-pub fn resolve_repo(root: Option<PathBuf>, _global: bool) -> Result<TaskRepo, AppError> {
-    let resolved = config::resolve(root)?;
+pub fn resolve_repo(root: Option<PathBuf>, global: bool) -> Result<TaskRepo, AppError> {
+    let resolved = resolve_config(root, global)?;
     Ok(TaskRepo::new(resolved.tasks_root, resolved.queue_dirs))
+}
+
+pub fn resolve_config(root: Option<PathBuf>, _global: bool) -> Result<ResolvedConfig, AppError> {
+    config::resolve(root)
 }
 
 pub fn parse_queue(value: &str) -> Result<Queue, String> {

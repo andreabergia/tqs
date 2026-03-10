@@ -135,13 +135,13 @@ Possible relation to the new log ingestion pipeline.
 
 Daily-note integration is generic Markdown integration.
 
-When implemented, `tqs done` may:
+When `daily_notes_dir` is configured, `tqs done`:
 
-1. locate today’s note in `daily_notes_dir`
-2. create it if configured to do so
-3. ensure the completed-tasks section exists
-4. append one completion line
-5. avoid duplicates for the same task
+1. locates today’s note in `daily_notes_dir`
+2. creates it if it does not exist
+3. ensures the completed-tasks section exists
+4. appends one completion line
+5. avoids duplicates for the same task
 
 Recommended default section heading:
 

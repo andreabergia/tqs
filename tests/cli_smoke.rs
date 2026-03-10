@@ -1,5 +1,6 @@
 use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::TempDir;
+use chrono::Local;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 
@@ -295,4 +296,49 @@ fn command_fails_cleanly_when_tasks_root_is_not_configured() {
         .assert()
         .failure()
         .stderr(contains("missing tasks_root"));
+}
+
+#[test]
+fn done_appends_completion_to_daily_note_when_configured() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    let tasks_root = temp.path().join("tasks");
+    let daily_notes_dir = temp.path().join("daily");
+    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
+    std::fs::write(
+        config_dir.join("config.toml"),
+        format!(
+            "tasks_root = '{}'\ndaily_notes_dir = '{}'\n",
+            tasks_root.display(),
+            daily_notes_dir.display()
+        ),
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("Ship v2")
+        .assert()
+        .success();
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("done")
+        .arg("task-1")
+        .assert()
+        .success()
+        .stdout(contains("Completed task: task-1"));
+
+    let note_name = format!("{}.md", Local::now().format("%F"));
+    let note = std::fs::read_to_string(daily_notes_dir.join(note_name)).expect("note should exist");
+    assert!(note.contains("## Completed Tasks"));
+    assert!(note.contains("- [x] Ship v2 (task-1)"));
+
+    let task = std::fs::read_to_string(tasks_root.join("done").join("task-1.md"))
+        .expect("task should exist");
+    assert!(task.contains(&format!("daily_note: {}.md", Local::now().format("%F"))));
 }

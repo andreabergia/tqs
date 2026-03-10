@@ -144,6 +144,42 @@ Delivered:
 - added configurable queue directory names while preserving canonical queue values in task frontmatter
 - removed the implicit git/XDG data fallback so missing `tasks_root` now fails explicitly
 
+## Phase 5: Add Daily-Note Completion Logging
+
+Status: completed
+
+Goal:
+
+Implement the deferred generic Markdown daily-note integration for task completion.
+
+Deliverables:
+
+- append completed tasks to today’s note when `daily_notes_dir` is configured
+- create today’s note and the completed-tasks section when missing
+- avoid duplicate completion entries for the same task
+- persist the referenced daily note back into task frontmatter
+
+Rules:
+
+- daily-note integration remains optional and inactive when `daily_notes_dir` is unset
+- completion logging stays tool-agnostic Markdown rather than editor-specific metadata
+- `done` remains idempotent for already-completed tasks
+- daily-note references are stored as note filenames in task frontmatter
+
+Acceptance criteria:
+
+- `done` still completes tasks correctly when no daily-note directory is configured
+- `done` appends a completion entry to `YYYY-MM-DD.md` when daily-note integration is configured
+- the completed-tasks section is created automatically when absent
+- repeated completion logging does not duplicate the same task entry
+
+Delivered:
+
+- added daily-note completion logging to `done` using `daily_notes_dir` when configured
+- create or update today’s `YYYY-MM-DD.md` note with a `## Completed Tasks` section
+- prevent duplicate completion lines for the same task in the target note
+- record the linked daily-note filename in task frontmatter after successful completion logging
+
 ## Deferred Features
 
 The following remain out of scope until the lean core is complete and stable:
@@ -153,7 +189,6 @@ The following remain out of scope until the lean core is complete and stable:
 - `doctor`
 - `config`
 - advanced list filters
-- daily-note append behavior
 - richer search filters
 
 ## Test Plan
@@ -173,6 +208,7 @@ CLI:
 - `list` works for the default dashboard and explicit queue view
 - `move` updates both file location and metadata
 - `done` moves to `done` and is idempotent enough for repeated runs
+- `done` appends to the configured daily note and records `daily_note`
 - `edit` opens the resolved file path
 - `show` prints metadata, path, and body
 - `find` matches title and body at minimum

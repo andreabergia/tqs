@@ -129,9 +129,8 @@ Behavior:
 - set `queue: done`
 - set `completed_at`
 - update `updated_at`
+- when `daily_notes_dir` is configured, append a completion line to today’s daily note and store the note reference
 - report idempotently if the task is already done
-
-Daily-note append behavior is documented separately and deferred from the first implementation milestone.
 
 ### `tqs edit`
 
