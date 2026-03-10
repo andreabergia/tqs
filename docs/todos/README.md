@@ -11,5 +11,4 @@ Open issues:
 - `edit-updates-metadata-without-content-change.md`
 - `doctor-config-scope-too-narrow.md`
 - `add-default-source-not-manual.md`
-- `doc-conflict-template-default.md`
 - `doc-conflict-obsidian-vs-filesystem-first.md`
