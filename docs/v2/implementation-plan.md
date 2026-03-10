@@ -110,6 +110,8 @@ Delivered:
 
 ## Phase 4: Add Minimal Configuration
 
+Status: completed
+
 Goal:
 
 Resolve runtime directories without expanding the public surface unnecessarily.
@@ -134,6 +136,13 @@ Acceptance criteria:
 - CLI commands operate predictably with configured paths
 - missing required configuration fails with concise errors
 - optional daily-note configuration can be absent without affecting the core workflow
+
+Delivered:
+
+- added a small config loader using `--root`, `TQS_ROOT`, then `~/.config/tqs/config.toml`
+- resolved optional `daily_notes_dir` from config without affecting the current core workflow
+- added configurable queue directory names while preserving canonical queue values in task frontmatter
+- removed the implicit git/XDG data fallback so missing `tasks_root` now fails explicitly
 
 ## Deferred Features
 

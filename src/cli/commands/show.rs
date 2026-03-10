@@ -16,7 +16,7 @@ pub fn handle_show(
     root: Option<PathBuf>,
     global: bool,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global);
+    let repo = helpers::resolve_repo(root, global)?;
     let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to show")? else {
         return Ok(());
     };

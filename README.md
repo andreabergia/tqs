@@ -95,14 +95,27 @@ tqs modify <task-id>
 
 ## Storage Location
 
-Tasks are stored as Markdown files with YAML frontmatter. The storage location follows this precedence:
+Tasks are stored as Markdown files with YAML frontmatter. `tasks_root` is resolved in this order:
 
 1. `--root <path>` flag
 2. `TQS_ROOT` environment variable
-3. `<git-repo>/todos` (if in a Git repository)
-4. `$XDG_DATA_HOME/tqs/todos` (defaults to `~/.local/share/tqs/todos`)
+3. `$XDG_CONFIG_HOME/tqs/config.toml` or `~/.config/tqs/config.toml`
 
-Each task is saved as `<storage-root>/<task-id>.md`.
+Minimal config example:
+
+```toml
+tasks_root = "/path/to/tasks"
+daily_notes_dir = "/path/to/daily-notes"
+
+[queues]
+inbox = "inbox"
+now = "now"
+next = "next"
+later = "later"
+done = "done"
+```
+
+Task frontmatter still uses the built-in queue names. Queue configuration only changes the directory names under `tasks_root`, so files are stored as `<tasks_root>/<configured-queue-dir>/<task-id>.md`.
 
 ## Learn More
 

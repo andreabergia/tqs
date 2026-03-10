@@ -18,7 +18,7 @@ pub fn handle_list(
     root: Option<PathBuf>,
     global: bool,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global);
+    let repo = helpers::resolve_repo(root, global)?;
 
     match queue {
         Some(queue) => {

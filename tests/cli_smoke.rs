@@ -228,3 +228,71 @@ fn show_does_not_resolve_body_text_as_task_reference() {
         .failure()
         .stderr(contains("task not found: cost explorer"));
 }
+
+#[test]
+fn add_reads_tasks_root_from_config_file() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    let tasks_root = temp.path().join("configured-tasks");
+    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
+    std::fs::write(
+        config_dir.join("config.toml"),
+        format!("tasks_root = '{}'\n", tasks_root.display()),
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("Ship v2")
+        .assert()
+        .success()
+        .stdout(contains("Created task: task-1"));
+
+    assert!(tasks_root.join("inbox").join("task-1.md").exists());
+}
+
+#[test]
+fn add_uses_configured_queue_directory_names() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    let tasks_root = temp.path().join("configured-tasks");
+    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
+    std::fs::write(
+        config_dir.join("config.toml"),
+        format!(
+            "tasks_root = '{}'\n[queues]\ninbox = 'capture'\ndone = 'archive'\n",
+            tasks_root.display()
+        ),
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("Ship v2")
+        .assert()
+        .success();
+
+    assert!(tasks_root.join("capture").join("task-1.md").exists());
+    assert!(!tasks_root.join("inbox").join("task-1.md").exists());
+}
+
+#[test]
+fn command_fails_cleanly_when_tasks_root_is_not_configured() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", temp.path())
+        .env_remove("TQS_ROOT")
+        .arg("list")
+        .assert()
+        .failure()
+        .stderr(contains("missing tasks_root"));
+}

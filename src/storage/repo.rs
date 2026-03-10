@@ -10,7 +10,10 @@ use crate::domain::{
     id::validate_user_id,
     task::{Queue, Task},
 };
-use crate::storage::format::{parse_task_markdown, render_task_markdown};
+use crate::storage::{
+    config::QueueDirs,
+    format::{parse_task_markdown, render_task_markdown},
+};
 
 #[derive(Debug, Clone)]
 pub struct StoredTask {
@@ -20,11 +23,12 @@ pub struct StoredTask {
 
 pub struct TaskRepo {
     root: PathBuf,
+    queue_dirs: QueueDirs,
 }
 
 impl TaskRepo {
-    pub fn new(root: PathBuf) -> Self {
-        Self { root }
+    pub fn new(root: PathBuf, queue_dirs: QueueDirs) -> Self {
+        Self { root, queue_dirs }
     }
 
     pub fn root(&self) -> &Path {
@@ -32,7 +36,7 @@ impl TaskRepo {
     }
 
     pub fn queue_dir(&self, queue: Queue) -> PathBuf {
-        self.root.join(queue.to_string())
+        self.root.join(self.queue_dirs.dir_name(queue))
     }
 
     pub fn task_path(&self, queue: Queue, id: &str) -> PathBuf {
@@ -241,6 +245,7 @@ impl TaskRepo {
 mod tests {
     use super::TaskRepo;
     use crate::domain::task::{Queue, Task};
+    use crate::storage::config::QueueDirs;
     use chrono::Utc;
     use std::fs;
     use tempfile::TempDir;
@@ -254,7 +259,7 @@ mod tests {
     #[test]
     fn create_read_and_move_across_queues() {
         let temp = TempDir::new().expect("temp dir should exist");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
         let task = task("task-1", "Ship v2", Queue::Inbox);
 
         let created_path = repo.create(&task).expect("task should be created");
@@ -272,7 +277,7 @@ mod tests {
     #[test]
     fn scans_all_queue_directories() {
         let temp = TempDir::new().expect("temp dir should exist");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
         repo.create(&task("task-1", "Inbox task", Queue::Inbox))
             .expect("inbox task should be created");
         repo.create(&task("task-2", "Later task", Queue::Later))
@@ -285,7 +290,7 @@ mod tests {
     #[test]
     fn malformed_files_are_skipped_during_scan() {
         let temp = TempDir::new().expect("temp dir should exist");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
         repo.create(&task("good", "Good task", Queue::Inbox))
             .expect("good task should be created");
 
@@ -302,12 +307,33 @@ mod tests {
     #[test]
     fn update_keeps_filename_stable_when_title_changes() {
         let temp = TempDir::new().expect("temp dir should exist");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
         let mut task = task("task-1", "Old title", Queue::Inbox);
         repo.create(&task).expect("task should be created");
 
         task.title = "New title".to_string();
         let path = repo.update(&task).expect("task should update");
         assert!(path.ends_with("inbox/task-1.md"));
+    }
+
+    #[test]
+    fn queue_directory_names_can_be_overridden() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(
+            temp.path().to_path_buf(),
+            QueueDirs {
+                inbox: "capture".to_string(),
+                now: "focus".to_string(),
+                next: "up-next".to_string(),
+                later: "backlog".to_string(),
+                done: "archive".to_string(),
+            },
+        );
+
+        repo.create(&task("task-1", "Ship v2", Queue::Inbox))
+            .expect("task should be created");
+
+        assert!(temp.path().join("capture").join("task-1.md").exists());
+        assert!(!temp.path().join("inbox").join("task-1.md").exists());
     }
 }

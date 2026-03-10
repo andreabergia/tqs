@@ -21,7 +21,7 @@ pub fn handle_move(
     root: Option<PathBuf>,
     global: bool,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global);
+    let repo = helpers::resolve_repo(root, global)?;
     let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to move")? else {
         return Ok(());
     };

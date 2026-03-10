@@ -47,7 +47,7 @@ pub fn handle_add(
     root: Option<PathBuf>,
     global: bool,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global);
+    let repo = helpers::resolve_repo(root, global)?;
     let title = match title {
         Some(title) => title,
         None => input::prompt_input("Title:")?,

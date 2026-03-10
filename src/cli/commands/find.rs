@@ -17,7 +17,7 @@ pub fn handle_find(
     root: Option<PathBuf>,
     global: bool,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global);
+    let repo = helpers::resolve_repo(root, global)?;
     let matches = repo
         .scan_all()?
         .into_iter()
