@@ -12,6 +12,8 @@ tqs add <title> --edit
 # Review work
 tqs list
 tqs list <queue>
+tqs now
+tqs inbox
 tqs find <query>
 tqs show <task>
 
@@ -22,6 +24,7 @@ tqs edit <task>
 
 # Global storage override
 tqs --root <path> <command>
+tqs config
 ```
 
 ## Global Options
@@ -131,6 +134,34 @@ tqs list
 tqs list now
 tqs list done
 ```
+
+### `now`
+
+```bash
+tqs now
+```
+
+Prints the `now` queue view.
+
+Behavior:
+
+- equivalent to `tqs list now`
+- prints the `now` header and one line per task: `<id>  <title>`
+- empty queue output prints `No tasks found`
+
+### `inbox`
+
+```bash
+tqs inbox
+```
+
+Prints the `inbox` queue view.
+
+Behavior:
+
+- equivalent to `tqs list inbox`
+- prints the `inbox` header and one line per task: `<id>  <title>`
+- empty queue output prints `No tasks found`
 
 ### `move`
 
@@ -256,6 +287,26 @@ Example:
 tqs find billing
 tqs find platform-costs
 ```
+
+### `config`
+
+```bash
+tqs config
+```
+
+Displays the effective configuration values used by the CLI.
+
+Output includes:
+
+- `tasks_root`
+- `daily_notes_dir` or `<unset>`
+- queue directory mappings for `inbox`, `now`, `next`, `later`, and `done`
+
+Behavior:
+
+- resolves config with the current precedence: `--root`, `TQS_ROOT`, then config file
+- prints effective values only
+- does not modify config files or validate beyond normal command startup
 
 ## File Format
 

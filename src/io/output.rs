@@ -3,6 +3,7 @@ use crate::{
         filter::queue_counts,
         task::{Queue, Task},
     },
+    storage::config::ResolvedConfig,
     storage::repo::StoredTask,
 };
 use dialoguer::console::style;
@@ -121,4 +122,19 @@ pub fn print_search_results(results: &[StoredTask]) {
             stored.task.title
         );
     }
+}
+
+pub fn print_config(config: &ResolvedConfig) {
+    println!("tasks_root = {}", config.tasks_root.display());
+
+    match &config.daily_notes_dir {
+        Some(path) => println!("daily_notes_dir = {}", path.display()),
+        None => println!("daily_notes_dir = <unset>"),
+    }
+
+    println!("queue.inbox = {}", config.queue_dirs.inbox);
+    println!("queue.now = {}", config.queue_dirs.now);
+    println!("queue.next = {}", config.queue_dirs.next);
+    println!("queue.later = {}", config.queue_dirs.later);
+    println!("queue.done = {}", config.queue_dirs.done);
 }

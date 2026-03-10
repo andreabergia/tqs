@@ -8,7 +8,9 @@ TQS is a Rust CLI for managing queue-based tasks stored as Markdown files with Y
 tqs add "Reply to AWS billing alert"
 tqs add "Plan rollout" --queue now --tags ops,release --project platform
 tqs list
-tqs list now
+tqs now
+tqs inbox
+tqs config
 tqs move 20260309-aws now
 tqs done 20260309-aws
 tqs edit 20260309-aws
@@ -26,7 +28,7 @@ Tasks live in one of five built-in queues:
 - `later`
 - `done`
 
-`tqs list` prints a compact dashboard with queue counts plus the `now` and `inbox` sections. `tqs list <queue>` prints just that queue.
+`tqs list` prints a compact dashboard with queue counts plus the `now` and `inbox` sections. `tqs list <queue>` prints just that queue. `tqs now` and `tqs inbox` are direct shortcuts for the two most common queue views.
 
 ## Installation
 
@@ -56,6 +58,8 @@ tqs add "Investigate API latency" --tags api,perf --source pager --project platf
 
 # Review the default dashboard
 tqs list
+tqs now
+tqs inbox
 
 # Focus a task
 tqs move 20260309-api now
@@ -69,6 +73,9 @@ tqs done 20260309-api
 
 # Search across all queues
 tqs find latency
+
+# Inspect effective configuration
+tqs config
 ```
 
 Task arguments are resolved in this order:

@@ -52,18 +52,18 @@ The first implementation milestone includes:
 
 - `add`
 - `list`
+- `now`
+- `inbox`
 - `move`
 - `done`
 - `edit`
 - `show`
 - `find`
-
-Deferred commands:
-
-- `now`
-- `inbox`
-- `doctor`
 - `config`
+
+Deferred command:
+
+- `doctor`
 
 ## Commands
 
@@ -116,6 +116,26 @@ Behavior:
 - update `updated_at`
 - if the task is already in that queue, report that no change was needed
 
+### `tqs now`
+
+```bash
+tqs now
+```
+
+Behavior:
+
+- exact convenience alias for `tqs list now`
+
+### `tqs inbox`
+
+```bash
+tqs inbox
+```
+
+Behavior:
+
+- exact convenience alias for `tqs list inbox`
+
 ### `tqs done`
 
 ```bash
@@ -167,6 +187,20 @@ Behavior:
 - simple text-based search is acceptable for v1
 - search should cover the title and body at minimum
 - searching tags, source, and project is recommended if implemented in the first milestone
+
+### `tqs config`
+
+```bash
+tqs config
+```
+
+Behavior:
+
+- resolve the effective configuration
+- display `tasks_root`
+- display `daily_notes_dir` or an unset marker
+- display queue directory mappings for all built-in queues
+- remain read-only
 
 ## Exit Behavior
 

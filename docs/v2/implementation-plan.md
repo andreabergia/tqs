@@ -8,7 +8,7 @@ Implemented:
 
 - canonical `docs/v2` design set
 - queue-based task model and filesystem layout
-- lean v2 command set: `add`, `list`, `move`, `done`, `edit`, `show`, `find`
+- lean v2 command set: `add`, `list`, `now`, `inbox`, `move`, `done`, `edit`, `show`, `find`, `config`
 - minimal config loading for `tasks_root`, optional `daily_notes_dir`, and queue directory overrides
 - optional daily-note completion logging
 - top-level repository docs aligned with the shipped v2 CLI, storage model, and architecture
@@ -21,7 +21,8 @@ Validated:
 
 Still missing:
 
-- all deferred features from the original plan remain deferred
+- `doctor` remains deferred for a future milestone
+- phase 9 query/filter decisions remain open
 
 ## Phase 6: Consolidate Documentation
 
@@ -76,29 +77,22 @@ Acceptance criteria:
 
 ## Phase 8: Decide and Implement Remaining Deferred Commands
 
-Status: pending
+Status: complete
 
 Goal:
 
-Resolve the command-level deferred items from the original plan.
+Resolve the command-level deferred items from the original plan and keep only the ones that still fit the product.
 
-Deferred items carried over from the original plan:
+Outcome:
 
-- `now`
-- `inbox`
-- `doctor`
-- `config`
-
-Work required:
-
-- decide which of these commands belong in the next shipped milestone
-- define exact CLI contracts before implementation
-- implement only the commands that still make product sense after the lean-core shakeout
-- remove any command from the roadmap if it no longer has a strong product case
+- implemented `now` as a convenience alias for `list now`
+- implemented `inbox` as a convenience alias for `list inbox`
+- implemented `config` as a read-only effective-config view
+- kept `doctor` explicitly deferred for a future milestone because it is additive diagnostics rather than core queue workflow
 
 Acceptance criteria:
 
-- each deferred command is either implemented with tests and docs, or explicitly dropped from the active roadmap
+- each deferred command is either implemented with tests and docs, or explicitly deferred/dropped from the active roadmap
 
 ## Phase 9: Decide and Implement Deferred Query Features
 
