@@ -3,11 +3,12 @@ use assert_fs::TempDir;
 use chrono::Local;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
+use std::fs;
 
 fn write_task(root: &std::path::Path, queue: &str, id: &str, title: &str, body: &str) {
     let queue_dir = root.join(queue);
-    std::fs::create_dir_all(&queue_dir).expect("queue dir should exist");
-    std::fs::write(
+    fs::create_dir_all(&queue_dir).expect("queue dir should exist");
+    fs::write(
         queue_dir.join(format!("{id}.md")),
         format!(
             "---\nid: {id}\ntitle: {title}\nqueue: {queue}\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n{body}"
@@ -63,6 +64,26 @@ fn list_without_queue_shows_dashboard() {
 }
 
 #[test]
+fn list_queue_shows_only_requested_queue() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(temp.path(), "now", "task-1", "Do now", "# Do now");
+    write_task(temp.path(), "inbox", "task-2", "Review PR", "# Review PR");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("list")
+        .arg("now")
+        .assert()
+        .success()
+        .stdout(
+            contains("now")
+                .and(contains("Do now"))
+                .and(contains("Review PR").not()),
+        );
+}
+
+#[test]
 fn move_relocates_file_to_target_queue() {
     let temp = TempDir::new().expect("temp dir should exist");
 
@@ -88,6 +109,53 @@ fn move_relocates_file_to_target_queue() {
 
     assert!(!temp.path().join("inbox").join("task-1.md").exists());
     assert!(temp.path().join("now").join("task-1.md").exists());
+}
+
+#[test]
+fn move_promotes_task_from_inbox_to_now() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("Review outage notes")
+        .assert()
+        .success();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("move")
+        .arg("task-1")
+        .arg("now")
+        .assert()
+        .success()
+        .stdout(contains("Moved task: task-1"));
+
+    assert!(!temp.path().join("inbox").join("task-1.md").exists());
+    assert!(temp.path().join("now").join("task-1.md").exists());
+}
+
+#[test]
+fn move_is_noop_when_task_is_already_in_target_queue() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(temp.path(), "now", "task-1", "Do now", "# Do now");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("move")
+        .arg("task-1")
+        .arg("now")
+        .assert()
+        .success()
+        .stdout(contains("Task task-1 is already in now"));
+
+    assert!(temp.path().join("now").join("task-1.md").exists());
+    assert!(!temp.path().join("inbox").join("task-1.md").exists());
 }
 
 #[test]
@@ -305,8 +373,8 @@ fn done_appends_completion_to_daily_note_when_configured() {
     let config_dir = config_home.join("tqs");
     let tasks_root = temp.path().join("tasks");
     let daily_notes_dir = temp.path().join("daily");
-    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
-    std::fs::write(
+    fs::create_dir_all(&config_dir).expect("config dir should exist");
+    fs::write(
         config_dir.join("config.toml"),
         format!(
             "tasks_root = '{}'\ndaily_notes_dir = '{}'\n",
@@ -334,11 +402,59 @@ fn done_appends_completion_to_daily_note_when_configured() {
         .stdout(contains("Completed task: task-1"));
 
     let note_name = format!("{}.md", Local::now().format("%F"));
-    let note = std::fs::read_to_string(daily_notes_dir.join(note_name)).expect("note should exist");
+    let note = fs::read_to_string(daily_notes_dir.join(note_name)).expect("note should exist");
     assert!(note.contains("## Completed Tasks"));
     assert!(note.contains("- [x] Ship v2 (task-1)"));
 
-    let task = std::fs::read_to_string(tasks_root.join("done").join("task-1.md"))
-        .expect("task should exist");
+    let task =
+        fs::read_to_string(tasks_root.join("done").join("task-1.md")).expect("task should exist");
     assert!(task.contains(&format!("daily_note: {}.md", Local::now().format("%F"))));
+}
+
+#[test]
+fn done_with_daily_notes_does_not_duplicate_note_entry() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    let tasks_root = temp.path().join("tasks");
+    let daily_notes_dir = temp.path().join("daily");
+    fs::create_dir_all(&config_dir).expect("config dir should exist");
+    fs::write(
+        config_dir.join("config.toml"),
+        format!(
+            "tasks_root = '{}'\ndaily_notes_dir = '{}'\n",
+            tasks_root.display(),
+            daily_notes_dir.display()
+        ),
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("Ship v2")
+        .assert()
+        .success();
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("done")
+        .arg("task-1")
+        .assert()
+        .success()
+        .stdout(contains("Completed task: task-1"));
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("done")
+        .arg("task-1")
+        .assert()
+        .success()
+        .stdout(contains("already done"));
+
+    let note_name = format!("{}.md", Local::now().format("%F"));
+    let note = fs::read_to_string(daily_notes_dir.join(note_name)).expect("note should exist");
+    assert_eq!(note.matches("- [x] Ship v2 (task-1)").count(), 1);
 }
