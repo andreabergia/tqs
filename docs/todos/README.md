@@ -8,7 +8,6 @@ Open issues:
 - `daily-note-link-format-mismatch.md`
 - `find-missing-structured-flags.md`
 - `list-missing-filter-flags.md`
-- `edit-updates-metadata-without-content-change.md`
 - `doctor-config-scope-too-narrow.md`
 - `add-default-source-not-manual.md`
 - `doc-conflict-obsidian-vs-filesystem-first.md`

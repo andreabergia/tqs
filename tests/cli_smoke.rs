@@ -702,6 +702,29 @@ fn edit_updates_body_without_renaming_file() {
 }
 
 #[test]
+fn edit_with_unchanged_file_preserves_updated_at() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let original = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nOld body";
+    fs::create_dir_all(temp.path().join("inbox")).expect("queue dir should exist");
+    fs::write(temp.path().join("inbox").join("task-1.md"), original).expect("task should exist");
+
+    cargo_bin_cmd!("tqs")
+        .env("VISUAL", "sh -c 'touch \"$1\"' sh")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("edit")
+        .arg("task-1")
+        .assert()
+        .success()
+        .stdout(contains("No changes made: task-1"));
+
+    let path = temp.path().join("inbox").join("task-1.md");
+    let content = fs::read_to_string(path).expect("task should exist");
+    assert_eq!(content, original);
+    assert!(content.contains("updated_at: 2026-03-09T10:34:12Z"));
+}
+
+#[test]
 fn add_with_edit_persists_editor_changes() {
     let temp = TempDir::new().expect("temp dir should exist");
 

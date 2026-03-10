@@ -38,6 +38,15 @@ pub fn handle_edit(
         return Err(AppError::message("task file cannot be empty"));
     }
 
+    if edited_content == original_content {
+        output::print_info(&format!(
+            "No changes made: {} ({})",
+            stored.task.id,
+            stored.path.display()
+        ));
+        return Ok(());
+    }
+
     match repo.replace_edited(&stored.task.id, &edited_content, Utc::now()) {
         Ok((task, path)) => {
             output::print_info(&format!("Edited task: {} ({})", task.id, path.display()));
