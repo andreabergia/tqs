@@ -2,154 +2,203 @@
 
 ## Overview
 
-TQS is a simple Rust CLI application that manages tasks as Markdown files. The codebase is organized into clear layers: CLI parsing, command handlers, domain logic, storage, and I/O.
+TQS is a Rust CLI for queue-based task management using Markdown files on disk. The codebase is organized around a small set of layers:
 
-## Module Organization
+- CLI parsing and command dispatch
+- application errors and orchestration
+- domain types and search/filter logic
+- filesystem-backed storage and config loading
+- terminal I/O for prompts, pickers, and formatted output
 
-```
+## Module Layout
+
+```text
 src/
-├── main.rs          # Entry point
-├── lib.rs           # Library exports
-├── cli/             # Command-line interface
-│   ├── args.rs      # Clap CLI definitions
-│   ├── commands/    # Per-command structs
-│   └── handlers.rs  # Command routing
-├── app/             # Application layer
-│   ├── service.rs   # Main app runner
-│   └── app_error.rs # Error types
-├── domain/          # Domain logic
-│   ├── task.rs      # Task model and status
-│   ├── id.rs        # ID generation
-│   └── filter.rs    # Filtering logic
-├── storage/         # Storage layer
-│   ├── repo.rs      # Task repository
-│   ├── format.rs    # Markdown serialization
-│   └── root.rs      # Storage root resolution
-└── io/              # Input/output
-    ├── input.rs     # Interactive input
-    ├── output.rs    # Formatted output
-    └── picker.rs    # Fuzzy-select picker
+├── main.rs              # process entry point
+├── lib.rs               # library entry point
+├── cli/
+│   ├── args.rs          # clap definitions for global flags and commands
+│   ├── fuzzy.rs         # command expansion for fuzzy input
+│   ├── handlers.rs      # dispatch from parsed CLI to command handlers
+│   └── commands/        # command implementations
+├── app/
+│   ├── service.rs       # top-level app runner and exit handling
+│   └── app_error.rs     # error model and exit codes
+├── domain/
+│   ├── task.rs          # Queue enum and Task model
+│   ├── id.rs            # id generation and validation
+│   └── filter.rs        # dashboard counts and search matching
+├── storage/
+│   ├── config.rs        # config loading and root resolution
+│   ├── repo.rs          # repository for task files
+│   ├── format.rs        # Markdown/frontmatter parsing and rendering
+│   └── daily_notes.rs   # optional completion logging
+└── io/
+    ├── input.rs         # interactive text prompts
+    ├── output.rs        # CLI output formatting
+    └── picker.rs        # interactive task selection
 ```
 
 ## Data Flow
 
-```
-CLI (args.rs)
+```text
+CLI (args.rs + fuzzy.rs)
     ↓
 Handlers (handlers.rs)
     ↓
-App Service (service.rs)
+Command implementation (cli/commands/*)
     ↓
-Task Repository (repo.rs)
+Config + Repository (storage/config.rs, storage/repo.rs)
     ↓
-Markdown Files (<root>/<id>.md)
+Markdown task files (<tasks_root>/<queue-dir>/<id>.md)
 ```
 
-1. `clap` parses command-line arguments into `Cli` struct
-2. `handlers::handle()` routes to the appropriate command handler
-3. Command handlers call domain logic and storage operations
-4. `TaskRepo` manages file I/O and serialization
-5. Tasks are persisted as Markdown with YAML frontmatter
+The `done` command may also call `storage/daily_notes.rs` to append to today’s daily note when that integration is configured.
 
-## Task Lifecycle
+## Domain Model
 
-- Tasks are created in `Open` status
-- `complete()` transitions Open → Closed
-- `reopen()` transitions Closed → Open
-- `delete()` removes the task file entirely
+### Queues
 
-State transitions are idempotent: closing an already-closed task succeeds with a message.
+The task workflow is centered on five built-in logical queues:
 
-## Storage Architecture
+- `inbox`
+- `now`
+- `next`
+- `later`
+- `done`
 
-### Repository Pattern
+The queue value is stored in frontmatter and used by CLI parsing, filtering, and output. Configurable queue directory names affect only on-disk folder names.
 
-`TaskRepo` provides CRUD operations:
-- `create()` - Write new task file
-- `read()` - Parse task from file
-- `update()` - Modify and rewrite task file
-- `delete()` - Remove task file
-- `list()` - Scan directory, parse all files, sort
+### Task Schema
 
-### Storage Root Resolution
+`Task` in `src/domain/task.rs` stores:
 
+- `id`
+- `title`
+- `queue`
+- `created_at`
+- `updated_at`
+- `tags`
+- `source`
+- `project`
+- `completed_at`
+- `daily_note`
+- `body`
+
+New tasks are created in `inbox` with a default Markdown body template:
+
+```markdown
+# <title>
+
+## Context
+
+## Notes
 ```
-Priority:
-1. --root <path> flag
-2. TQS_ROOT environment variable
-3. <git-repo>/todos (detected via `git rev-parse --show-toplevel`)
-4. $XDG_DATA_HOME/tqs/todos (defaults to ~/.local/share/tqs/todos)
-```
 
-Root resolution is in `storage/root.rs::resolve_root()`.
+### Queue Transitions
+
+- `add` creates a task in `inbox` unless `--queue` is supplied
+- `move` changes queues and relocates the file
+- `done` moves the task to `done` and sets `completed_at`
+- editing preserves the task id and normalizes completion metadata so only `done` tasks keep `completed_at`
+
+Transitions are idempotent where appropriate: moving to the current queue or running `done` on an already completed task succeeds with an informational message.
+
+## Storage Model
+
+### Root Resolution
+
+`storage/config.rs` resolves `tasks_root` in this order:
+
+1. CLI `--root`
+2. `TQS_ROOT`
+3. config file at `$XDG_CONFIG_HOME/tqs/config.toml` or `~/.config/tqs/config.toml`
+
+The same config file may also define:
+
+- `daily_notes_dir`
+- queue directory overrides for `inbox`, `now`, `next`, `later`, and `done`
+
+Relative paths in the config file are resolved relative to the config file directory.
+
+### Repository Behavior
+
+`TaskRepo` in `storage/repo.rs` provides the filesystem-backed operations used by commands:
+
+- `create` writes a new task file
+- `read` and `find_by_id` resolve stored tasks
+- `update` rewrites a task and moves its file if the queue changed
+- `move_to_queue` applies queue transitions
+- `replace_edited` reparses and validates editor changes
+- `scan_all` walks all queue directories, skipping malformed Markdown files with warnings
+
+Tasks are stored as:
+
+```text
+<tasks_root>/<queue-dir>/<id>.md
+```
 
 ### File Format
 
-Tasks use Markdown with YAML frontmatter:
+Task files are Markdown with YAML frontmatter:
 
 ```yaml
 ---
-id: cobalt-urial-7f3a
-created_at: 2026-02-20T22:15:00Z
-status: open
-summary: Short task summary
+id: 20260309-103412-reply-aws-billing
+title: Reply to AWS billing alert
+queue: now
+created_at: 2026-03-09T10:34:12Z
+updated_at: 2026-03-09T11:20:07Z
+tags: [aws, finance]
+source: email
+project: platform-costs
+completed_at:
+daily_note:
 ---
-
-Markdown body follows...
 ```
 
-Serialization is in `storage/format.rs`:
-- `parse_task_markdown()` - Parse file into Task
-- `render_task_markdown()` - Render Task to file
+The Markdown body follows the closing `---`. `storage/format.rs` is responsible for parsing, rendering, and validating this schema.
 
-## Key Design Decisions
+## CLI Behavior
 
-### File-based Storage
-- Simple and version control friendly
-- No database dependencies
-- Easy to inspect and edit manually
-- Git-friendly (stored in repo todos/ directory)
+### Command Surface
 
-### Markdown Format
-- Human-readable and editable
-- Supports rich descriptions
-- YAML frontmatter for structured metadata
-- Skips malformed files gracefully (with warnings)
+The shipped lean-core commands are:
 
-### ID Generation
-- Random 4-character words (e.g., "cobalt-urial-7f3a")
-- Uniqueness guaranteed via collision detection
-- Easy to reference and type
+- `add`
+- `list`
+- `move`
+- `done`
+- `edit`
+- `show`
+- `find`
 
-### Error Handling
-- Custom `AppError` type with exit codes
-- Runtime errors → exit code 1
-- Usage errors → exit code 2
-- Warnings to stderr for recoverable issues (malformed files)
+### Task Reference Resolution
 
-### Interactive vs Non-interactive
-- Commands work in scripts (non-interactive mode)
-- Interactive features require TTY
-- Graceful fallback with clear error messages
+Commands that accept a task reference use the same resolution rules:
 
-## Extensibility
+1. exact id
+2. unique id prefix
+3. unique title substring
+4. picker when ambiguous and a TTY is available
 
-### Adding a New Command
+If no TTY is available for an ambiguous match, the command returns an error instead of guessing.
 
-1. Define struct in `cli/commands/` with `clap::Parser`
-2. Implement handler function returning `Result<(), AppError>`
-3. Add variant to `Command` enum in `cli/args.rs`
-4. Route in `handlers.rs`
+### Output
 
-### Modifying Storage
+`io/output.rs` owns the text UI:
 
-- Add methods to `TaskRepo` in `storage/repo.rs`
-- Update `Task` model in `domain/task.rs` for schema changes
-- Update serialization in `storage/format.rs`
+- dashboard and queue listings for `list`
+- detailed task rendering for `show`
+- search result formatting for `find`
+- informational messages for create, move, done, and edit flows
 
-### Customizing Output
+## Error Handling
 
-- Modify `io/output.rs` formatting functions
-- `print_tasks_simple()` - Default list output
-- `print_tasks_verbose()` - Verbose list output
-- `print_task_detail()` - Task info output
+`AppError` in `src/app/app_error.rs` drives user-visible failures and exit codes:
+
+- `0` for success
+- `1` for runtime failures
+- `2` for usage and argument errors
+
+Recoverable malformed task files are reported as warnings during repository scans and skipped rather than aborting the whole command.

@@ -11,6 +11,7 @@ Implemented:
 - lean v2 command set: `add`, `list`, `move`, `done`, `edit`, `show`, `find`
 - minimal config loading for `tasks_root`, optional `daily_notes_dir`, and queue directory overrides
 - optional daily-note completion logging
+- top-level repository docs aligned with the shipped v2 CLI, storage model, and architecture
 
 Validated:
 
@@ -20,13 +21,12 @@ Validated:
 
 Still missing:
 
-- top-level documentation still describes the old v1 CLI and storage model
 - several lean-core acceptance scenarios are only partially covered by end-to-end tests
 - all deferred features from the original plan remain deferred
 
 ## Phase 6: Consolidate Documentation
 
-Status: pending
+Status: complete
 
 Goal:
 
