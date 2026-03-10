@@ -111,3 +111,35 @@ fn add_with_explicit_done_queue_sets_completed_at() {
     assert!(content.contains("completed_at:"));
     assert!(!content.contains("completed_at: null"));
 }
+
+#[test]
+fn ambiguous_task_reference_is_reported_cleanly_without_tty() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("Ship release")
+        .assert()
+        .success();
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-2")
+        .arg("Ship release prep")
+        .assert()
+        .success();
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("show")
+        .arg("Ship release")
+        .assert()
+        .failure()
+        .stderr(contains("task reference is ambiguous: Ship release"));
+}

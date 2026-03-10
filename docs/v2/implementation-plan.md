@@ -63,7 +63,7 @@ Delivered:
 
 ## Phase 3: Replace the CLI Surface
 
-Status: in progress
+Status: completed
 
 Goal:
 
@@ -100,16 +100,13 @@ Acceptance criteria:
 - ambiguous references behave correctly in interactive and non-interactive contexts
 - already-done tasks are handled idempotently by `done`
 
-Delivered so far:
+Delivered:
 
 - removed the old `create`, `complete`, `reopen`, `info`, and `delete` command paths
 - implemented `add`, `list`, `move`, `done`, `edit`, `show`, and `find`
-- updated fuzzy command expansion and aliases for the new command set
-- implemented shared task resolution with exact id, unique id prefix, search-based matching, and picker fallback
-
-Remaining:
-
-- refine CLI behavior to fully match the documented v2 contract where current output/UX is still minimal
+- removed legacy command aliases from the v2 CLI surface
+- implemented shared task resolution with exact id, unique id prefix, unique title substring matching, and picker fallback
+- clarified non-interactive ambiguity handling with a dedicated task-reference error
 
 ## Phase 4: Add Minimal Configuration
 

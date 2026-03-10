@@ -19,18 +19,11 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    #[command(visible_aliases = ["create", "new"])]
     Add(Add),
-    #[command(visible_alias = "ls")]
     List(List),
-    #[command(visible_aliases = ["mv", "rename"])]
     Move(Move),
-    #[command(visible_aliases = ["complete", "finish", "close"])]
     Done(Done),
-    #[command(visible_alias = "modify")]
     Edit(Edit),
-    #[command(visible_aliases = ["info", "view"])]
     Show(Show),
-    #[command(visible_alias = "search")]
     Find(Find),
 }

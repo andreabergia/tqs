@@ -8,6 +8,8 @@ pub enum AppError {
     Usage(String),
     #[error("task not found: {id}")]
     NotFound { id: String },
+    #[error("task reference is ambiguous: {query}")]
+    AmbiguousTaskRef { query: String },
     #[error("interactive input requires a TTY")]
     NoTty,
     #[error("invalid task file {path}: {reason}")]
@@ -37,6 +39,12 @@ impl AppError {
         Self::NotFound { id: id.into() }
     }
 
+    pub fn ambiguous_task_ref(query: impl Into<String>) -> Self {
+        Self::AmbiguousTaskRef {
+            query: query.into(),
+        }
+    }
+
     pub fn invalid_task_file(path: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::InvalidTaskFile {
             path: path.into(),
@@ -53,6 +61,7 @@ impl AppError {
             Self::Usage(_) => 2,
             Self::Message(_)
             | Self::NotFound { .. }
+            | Self::AmbiguousTaskRef { .. }
             | Self::NoTty
             | Self::InvalidTaskFile { .. }
             | Self::PathTraversalAttempt(_)
@@ -78,6 +87,7 @@ mod tests {
     fn operational_errors_map_to_exit_code_1() {
         assert_eq!(AppError::message("oops").exit_code(), 1);
         assert_eq!(AppError::not_found("abc").exit_code(), 1);
+        assert_eq!(AppError::ambiguous_task_ref("ship").exit_code(), 1);
         assert_eq!(AppError::NoTty.exit_code(), 1);
         assert_eq!(
             AppError::invalid_task_file("a.md", "bad yaml").exit_code(),

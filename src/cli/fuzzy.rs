@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_expand_command_list() {
-        let args = vec!["tqs".to_string(), "ls".to_string()];
+        let args = vec!["tqs".to_string(), "lst".to_string()];
         let expanded = expand_command(args);
         assert_eq!(expanded[1], "list");
     }
@@ -362,10 +362,10 @@ mod tests {
     }
 
     #[test]
-    fn test_expand_command_alias_create() {
+    fn test_expand_command_old_command_is_not_rewritten() {
         let args = vec!["tqs".to_string(), "create".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "add");
+        assert_eq!(expanded[1], "create");
     }
 
     #[test]
@@ -474,50 +474,8 @@ mod tests {
     }
 
     #[test]
-    fn test_expand_command_alias_new() {
-        let args = vec!["tqs".to_string(), "new".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[1], "add");
-    }
-
-    #[test]
-    fn test_expand_command_alias_rename() {
-        let args = vec!["tqs".to_string(), "rename".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[1], "move");
-    }
-
-    #[test]
-    fn test_expand_command_alias_remove() {
-        let args = vec!["tqs".to_string(), "close".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[1], "done");
-    }
-
-    #[test]
-    fn test_expand_command_alias_rm() {
-        let args = vec!["tqs".to_string(), "mv".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[1], "move");
-    }
-
-    #[test]
-    fn test_expand_command_alias_show() {
-        let args = vec!["tqs".to_string(), "info".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[1], "show");
-    }
-
-    #[test]
-    fn test_expand_command_alias_done() {
-        let args = vec!["tqs".to_string(), "complete".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[1], "done");
-    }
-
-    #[test]
-    fn test_expand_command_alias_open() {
-        let args = vec!["tqs".to_string(), "view".to_string()];
+    fn test_expand_command_unique_fuzzy_match_still_works_without_aliases() {
+        let args = vec!["tqs".to_string(), "shw".to_string()];
         let expanded = expand_command(args);
         assert_eq!(expanded[1], "show");
     }

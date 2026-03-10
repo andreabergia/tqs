@@ -1,7 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
 
 use crate::app::app_error::AppError;
-use crate::domain::{filter::matches_query, task::Queue};
+use crate::domain::{filter::title_matches_query, task::Queue};
 use crate::io::{output, picker};
 use crate::storage::{repo::StoredTask, repo::TaskRepo, root};
 
@@ -53,7 +53,7 @@ pub fn resolve_task_ref(
 
     match query {
         Some(query) => resolve_query_against_tasks(query, tasks, prompt),
-        None => pick_from(tasks, prompt),
+        None => pick_from(tasks, prompt, None),
     }
 }
 
@@ -77,7 +77,7 @@ fn resolve_query_against_tasks(
 
     let title_matches = tasks
         .iter()
-        .filter(|stored| matches_query(&stored.task, &query))
+        .filter(|stored| title_matches_query(&stored.task, &query))
         .cloned()
         .collect::<Vec<_>>();
     if title_matches.len() == 1 {
@@ -94,12 +94,25 @@ fn resolve_query_against_tasks(
         return Err(AppError::not_found(query));
     }
 
-    pick_from(ambiguous, prompt)
+    pick_from(ambiguous, prompt, Some(&query))
 }
 
-fn pick_from(tasks: Vec<StoredTask>, prompt: &str) -> Result<Option<StoredTask>, AppError> {
-    match picker::pick_task(&tasks, picker::TaskPickerOptions { prompt })? {
+fn pick_from(
+    tasks: Vec<StoredTask>,
+    prompt: &str,
+    ambiguous_query: Option<&str>,
+) -> Result<Option<StoredTask>, AppError> {
+    let selection = picker::pick_task(&tasks, picker::TaskPickerOptions { prompt });
+    let selection = match (selection, ambiguous_query) {
+        (Err(AppError::NoTty), Some(query)) => return Err(AppError::ambiguous_task_ref(query)),
+        (result, _) => result?,
+    };
+
+    match selection {
         Some(index) => Ok(tasks.get(index).cloned()),
+        None if ambiguous_query.is_some() => Err(AppError::ambiguous_task_ref(
+            ambiguous_query.expect("query should exist"),
+        )),
         None => {
             output::print_info("Operation cancelled");
             Ok(None)

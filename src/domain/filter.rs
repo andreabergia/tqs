@@ -18,6 +18,15 @@ pub fn matches_query(task: &Task, query: &str) -> bool {
     haystack.contains(&query)
 }
 
+pub fn title_matches_query(task: &Task, query: &str) -> bool {
+    let query = query.trim().to_ascii_lowercase();
+    if query.is_empty() {
+        return true;
+    }
+
+    task.title.to_ascii_lowercase().contains(&query)
+}
+
 pub fn queue_counts(tasks: &[Task]) -> Vec<(Queue, usize)> {
     Queue::all()
         .iter()
@@ -31,7 +40,7 @@ pub fn queue_counts(tasks: &[Task]) -> Vec<(Queue, usize)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{matches_query, queue_counts};
+    use super::{matches_query, queue_counts, title_matches_query};
     use crate::domain::task::{Queue, Task};
 
     fn task() -> Task {
@@ -55,6 +64,13 @@ mod tests {
         assert!(matches_query(&task, "cost explorer"));
         assert!(matches_query(&task, "platform-costs"));
         assert!(!matches_query(&task, "missing"));
+    }
+
+    #[test]
+    fn title_matches_query_only_uses_title() {
+        let task = task();
+        assert!(title_matches_query(&task, "billing"));
+        assert!(!title_matches_query(&task, "cost explorer"));
     }
 
     #[test]

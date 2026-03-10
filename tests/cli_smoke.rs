@@ -163,3 +163,68 @@ fn find_matches_body_text() {
         .success()
         .stdout(contains("task-1").and(contains("Investigate billing")));
 }
+
+#[test]
+fn old_command_names_are_rejected() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("create")
+        .arg("Ship v2")
+        .assert()
+        .failure()
+        .stderr(contains("unrecognized subcommand"));
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("complete")
+        .arg("task-1")
+        .assert()
+        .failure()
+        .stderr(contains("unrecognized subcommand"));
+}
+
+#[test]
+fn show_resolves_unique_title_substring() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(
+        temp.path(),
+        "inbox",
+        "task-1",
+        "Ship v2 release",
+        "# Ship v2 release",
+    );
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("show")
+        .arg("v2 rel")
+        .assert()
+        .success()
+        .stdout(contains("ID:").and(contains("task-1")));
+}
+
+#[test]
+fn show_does_not_resolve_body_text_as_task_reference() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(
+        temp.path(),
+        "inbox",
+        "task-1",
+        "Ship v2 release",
+        "# Ship v2 release\n\nLook at cost explorer.",
+    );
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("show")
+        .arg("cost explorer")
+        .assert()
+        .failure()
+        .stderr(contains("task not found: cost explorer"));
+}
