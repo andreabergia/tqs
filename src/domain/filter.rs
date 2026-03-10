@@ -1,118 +1,76 @@
-use super::task::Task;
+use super::task::{Queue, Task};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ListMode {
-    Open,
-    Closed,
-    All,
-}
-
-impl ListMode {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Open => "open",
-            Self::Closed => "closed",
-            Self::All => "all",
-        }
-    }
-}
-
-pub fn matches_list_mode(task: &Task, mode: ListMode) -> bool {
-    match mode {
-        ListMode::All => true,
-        ListMode::Open => task.status.is_open(),
-        ListMode::Closed => task.status.is_closed(),
-    }
-}
-
-pub fn cycle_list_mode(current: ListMode, allowed: &[ListMode], reverse: bool) -> ListMode {
-    if allowed.is_empty() {
-        return current;
-    }
-
-    let current_idx = allowed
-        .iter()
-        .position(|mode| *mode == current)
-        .unwrap_or(0);
-    let next_idx = if reverse {
-        (current_idx + allowed.len() - 1) % allowed.len()
-    } else {
-        (current_idx + 1) % allowed.len()
-    };
-
-    allowed[next_idx]
-}
-
-pub fn matches_keywords(task: &Task, keywords: &[String]) -> bool {
-    if keywords.is_empty() {
+pub fn matches_query(task: &Task, query: &str) -> bool {
+    let query = query.trim().to_ascii_lowercase();
+    if query.is_empty() {
         return true;
     }
 
-    let description = task.description.as_deref().unwrap_or_default();
-    let haystack = format!("{} {} {}", task.id, task.summary, description).to_lowercase();
+    let tags = task.tags.join(" ");
+    let source = task.source.as_deref().unwrap_or_default();
+    let project = task.project.as_deref().unwrap_or_default();
+    let haystack = format!(
+        "{} {} {} {} {} {}",
+        task.id, task.title, task.body, tags, source, project
+    )
+    .to_ascii_lowercase();
 
-    keywords
+    haystack.contains(&query)
+}
+
+pub fn queue_counts(tasks: &[Task]) -> Vec<(Queue, usize)> {
+    Queue::all()
         .iter()
-        .all(|kw| haystack.contains(&kw.to_lowercase()))
+        .copied()
+        .map(|queue| {
+            let count = tasks.iter().filter(|task| task.queue == queue).count();
+            (queue, count)
+        })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ListMode, cycle_list_mode, matches_keywords, matches_list_mode};
-    use crate::domain::task::{Task, TaskStatus};
-    use chrono::{DateTime, Utc};
+    use super::{matches_query, queue_counts};
+    use crate::domain::task::{Queue, Task};
 
-    fn task(summary: &str, description: Option<&str>) -> Task {
-        Task {
-            id: "cobalt-urial-7f3a".to_string(),
-            created_at: "2026-02-20T22:15:00Z"
-                .parse::<DateTime<Utc>>()
+    fn task() -> Task {
+        let mut task = Task::new(
+            "20260309-aws-billing",
+            "Reply to AWS billing alert",
+            "2026-03-09T10:34:12Z"
+                .parse()
                 .expect("timestamp should parse"),
-            status: TaskStatus::Open,
-            summary: summary.to_string(),
-            description: description.map(str::to_string),
-        }
-    }
-
-    #[test]
-    fn empty_keywords_match_every_task() {
-        assert!(matches_keywords(&task("Write docs", None), &[]));
-    }
-
-    #[test]
-    fn keywords_use_case_insensitive_and_semantics() {
-        let target = task("Write Parser", Some("Handle Markdown frontmatter"));
-        let ok = vec!["write".to_string(), "frontmatter".to_string()];
-        let not_ok = vec!["write".to_string(), "missing".to_string()];
-
-        assert!(matches_keywords(&target, &ok));
-        assert!(!matches_keywords(&target, &not_ok));
-    }
-
-    #[test]
-    fn matches_list_mode_uses_task_status() {
-        let mut target = task("Write docs", None);
-        target.status = TaskStatus::Closed;
-
-        assert!(matches_list_mode(&target, ListMode::All));
-        assert!(!matches_list_mode(&target, ListMode::Open));
-        assert!(matches_list_mode(&target, ListMode::Closed));
-    }
-
-    #[test]
-    fn cycle_list_mode_moves_forward_and_backward() {
-        let allowed = [ListMode::Open, ListMode::All];
-        assert_eq!(
-            cycle_list_mode(ListMode::Open, &allowed, false),
-            ListMode::All
         );
+        task.tags = vec!["aws".to_string(), "finance".to_string()];
+        task.project = Some("platform-costs".to_string());
+        task.body = "Check cost explorer".to_string();
+        task
+    }
+
+    #[test]
+    fn matches_query_uses_metadata_and_body() {
+        let task = task();
+        assert!(matches_query(&task, "billing"));
+        assert!(matches_query(&task, "cost explorer"));
+        assert!(matches_query(&task, "platform-costs"));
+        assert!(!matches_query(&task, "missing"));
+    }
+
+    #[test]
+    fn queue_counts_cover_every_builtin_queue() {
+        let mut task = task();
+        task.queue = Queue::Now;
+        let counts = queue_counts(&[task]);
+
+        assert_eq!(counts.len(), Queue::all().len());
         assert_eq!(
-            cycle_list_mode(ListMode::All, &allowed, false),
-            ListMode::Open
-        );
-        assert_eq!(
-            cycle_list_mode(ListMode::Open, &allowed, true),
-            ListMode::All
+            counts
+                .iter()
+                .find(|(queue, _)| *queue == Queue::Now)
+                .expect("now queue should exist")
+                .1,
+            1
         );
     }
 }

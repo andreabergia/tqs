@@ -1,18 +1,16 @@
-pub mod complete;
-pub mod create;
-pub mod delete;
+pub mod add;
+pub mod done;
 pub mod edit;
+pub mod find;
 pub mod helpers;
-pub mod info;
 pub mod list;
 pub mod move_cmd;
-pub mod reopen;
+pub mod show;
 
-pub use complete::Complete;
-pub use create::Create;
-pub use delete::Delete;
+pub use add::Add;
+pub use done::Done;
 pub use edit::Edit;
-pub use info::Info;
+pub use find::Find;
 pub use list::List;
 pub use move_cmd::Move;
-pub use reopen::Reopen;
+pub use show::Show;

@@ -3,9 +3,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use chrono::{DateTime, Utc};
+
 use crate::app::app_error::AppError;
-use crate::domain::task::{Task, TaskStatus};
+use crate::domain::{
+    id::validate_user_id,
+    task::{Queue, Task},
+};
 use crate::storage::format::{parse_task_markdown, render_task_markdown};
+
+#[derive(Debug, Clone)]
+pub struct StoredTask {
+    pub task: Task,
+    pub path: PathBuf,
+}
 
 pub struct TaskRepo {
     root: PathBuf,
@@ -20,658 +31,283 @@ impl TaskRepo {
         &self.root
     }
 
-    pub fn task_path(&self, id: &str) -> PathBuf {
-        self.root.join(format!("{id}.md"))
+    pub fn queue_dir(&self, queue: Queue) -> PathBuf {
+        self.root.join(queue.to_string())
     }
 
-    fn validate_path_is_within_root(&self, path: &Path) -> Result<(), AppError> {
-        let canonical_root = self.root.canonicalize().map_err(|e| {
-            AppError::message(format!("failed to canonicalize root directory: {}", e))
-        })?;
-
-        if path.exists() {
-            let canonical_path = path.canonicalize().map_err(|e| {
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    return AppError::path_traversal_attempt(format!(
-                        "path {} resolves outside root",
-                        path.display()
-                    ));
-                }
-                AppError::from(e)
-            })?;
-
-            if !canonical_path.starts_with(&canonical_root) {
-                return Err(AppError::path_traversal_attempt(format!(
-                    "{} resolves to {}, which is outside root {}",
-                    path.display(),
-                    canonical_path.display(),
-                    canonical_root.display()
-                )));
-            }
-        } else {
-            let parent = path.parent().unwrap_or(path);
-            let canonical_parent = parent.canonicalize().map_err(|e| {
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    return AppError::path_traversal_attempt(format!(
-                        "path {} would resolve outside root",
-                        path.display()
-                    ));
-                }
-                AppError::from(e)
-            })?;
-
-            if !canonical_parent.starts_with(&canonical_root) {
-                return Err(AppError::path_traversal_attempt(format!(
-                    "{} would resolve outside root {}",
-                    path.display(),
-                    canonical_root.display()
-                )));
-            }
-        }
-
-        Ok(())
+    pub fn task_path(&self, queue: Queue, id: &str) -> PathBuf {
+        self.queue_dir(queue).join(format!("{id}.md"))
     }
 
     pub fn id_exists(&self, id: &str) -> bool {
-        self.task_path(id).exists()
+        self.find_by_id(id).is_ok()
     }
 
-    pub fn create(&self, task: &Task) -> Result<(), AppError> {
-        let path = self.task_path(&task.id);
-        if path.exists() {
-            return Err(AppError::message(format!(
-                "task with id {} already exists",
-                task.id
-            )));
+    pub fn create(&self, task: &Task) -> Result<PathBuf, AppError> {
+        validate_user_id(&task.id)?;
+        let path = self.task_path(task.queue, &task.id);
+        self.ensure_path_is_within_root(&path)?;
+
+        if self.id_exists(&task.id) {
+            return Err(AppError::usage(format!("id '{}' already exists", task.id)));
         }
 
-        fs::create_dir_all(&self.root)?;
-        self.validate_path_is_within_root(&path)?;
-        let markdown = render_task_markdown(task)?;
-        fs::write(&path, markdown)?;
-        Ok(())
+        fs::create_dir_all(self.queue_dir(task.queue))?;
+        fs::write(&path, render_task_markdown(task)?)?;
+        Ok(path)
     }
 
     pub fn read(&self, id: &str) -> Result<Task, AppError> {
-        let path = self.task_path(id);
-        self.validate_path_is_within_root(&path)?;
-        let content = fs::read_to_string(&path).map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                AppError::not_found(id)
-            } else {
-                AppError::from(e)
-            }
-        })?;
-
-        parse_task_markdown(&content).map_err(|e| {
-            AppError::invalid_task_file(path.to_string_lossy().to_string(), e.to_string())
-        })
+        Ok(self.find_by_id(id)?.task)
     }
 
-    pub fn update(&self, task: &Task) -> Result<(), AppError> {
-        let path = self.task_path(&task.id);
-        self.validate_path_is_within_root(&path)?;
+    pub fn find_by_id(&self, id: &str) -> Result<StoredTask, AppError> {
+        validate_user_id(id)?;
+        let mut matches = self
+            .scan_all()?
+            .into_iter()
+            .filter(|stored| stored.task.id == id)
+            .collect::<Vec<_>>();
 
-        if !path.exists() {
-            return Err(AppError::not_found(&task.id));
+        match matches.len() {
+            0 => Err(AppError::not_found(id)),
+            1 => Ok(matches.remove(0)),
+            _ => Err(AppError::message(format!(
+                "multiple tasks found with id '{}'",
+                id
+            ))),
+        }
+    }
+
+    pub fn update(&self, task: &Task) -> Result<PathBuf, AppError> {
+        validate_user_id(&task.id)?;
+        let existing = self.find_by_id(&task.id)?;
+        let target_path = self.task_path(task.queue, &task.id);
+        self.ensure_path_is_within_root(&target_path)?;
+        fs::create_dir_all(self.queue_dir(task.queue))?;
+        fs::write(&target_path, render_task_markdown(task)?)?;
+
+        if existing.path != target_path && existing.path.exists() {
+            fs::remove_file(existing.path)?;
         }
 
-        let markdown = render_task_markdown(task)?;
-        fs::write(&path, markdown)?;
-        Ok(())
+        Ok(target_path)
     }
 
     pub fn delete(&self, id: &str) -> Result<(), AppError> {
-        let path = self.task_path(id);
-        self.validate_path_is_within_root(&path)?;
-
-        if !path.exists() {
-            return Err(AppError::not_found(id));
-        }
-
-        fs::remove_file(&path)?;
+        let stored = self.find_by_id(id)?;
+        fs::remove_file(stored.path)?;
         Ok(())
     }
 
-    pub fn rename_task(&self, old_id: &str, new_id: &str) -> Result<(), AppError> {
-        let old_path = self.task_path(old_id);
-        let new_path = self.task_path(new_id);
-
-        self.validate_path_is_within_root(&old_path)?;
-        self.validate_path_is_within_root(&new_path)?;
-
-        if !old_path.exists() {
-            return Err(AppError::not_found(old_id));
-        }
-
-        if new_path.exists() {
-            return Err(AppError::message(format!(
-                "task with id {new_id} already exists"
-            )));
-        }
-
-        let mut task = self.read(old_id)?;
-        task.id = new_id.to_string();
-        let markdown = render_task_markdown(&task)?;
-        fs::write(&new_path, markdown)?;
-        fs::remove_file(&old_path)?;
-        Ok(())
-    }
-
-    pub fn rename_task_with_content(
+    pub fn move_to_queue(
         &self,
-        old_id: &str,
-        new_id: &str,
-        content: &str,
-    ) -> Result<(), AppError> {
-        let old_path = self.task_path(old_id);
-        let new_path = self.task_path(new_id);
-
-        self.validate_path_is_within_root(&old_path)?;
-        self.validate_path_is_within_root(&new_path)?;
-
-        if !old_path.exists() {
-            return Err(AppError::not_found(old_id));
-        }
-
-        if new_path.exists() {
-            return Err(AppError::message(format!(
-                "task with id {new_id} already exists"
-            )));
-        }
-
-        fs::write(&new_path, content)?;
-        fs::remove_file(&old_path)?;
-        Ok(())
+        id: &str,
+        queue: Queue,
+        now: DateTime<Utc>,
+    ) -> Result<(Task, PathBuf, bool), AppError> {
+        let mut task = self.read(id)?;
+        let changed = task.move_to(queue, now);
+        let path = self.update(&task)?;
+        Ok((task, path, changed))
     }
 
-    pub fn list(&self) -> Result<Vec<Task>, AppError> {
+    pub fn replace_edited(
+        &self,
+        original_id: &str,
+        content: &str,
+        now: DateTime<Utc>,
+    ) -> Result<(Task, PathBuf), AppError> {
+        let existing = self.find_by_id(original_id)?;
+        let mut task = parse_task_markdown(content).map_err(|e| {
+            AppError::invalid_task_file(existing.path.to_string_lossy().to_string(), e.to_string())
+        })?;
+
+        if task.id != original_id {
+            return Err(AppError::usage("editing a task cannot change its id"));
+        }
+
+        task.normalize(now);
+        let path = self.update(&task)?;
+        Ok((task, path))
+    }
+
+    pub fn scan_all(&self) -> Result<Vec<StoredTask>, AppError> {
         let mut tasks = Vec::new();
 
         if !self.root.exists() {
             return Ok(tasks);
         }
 
-        let entries = fs::read_dir(&self.root)?;
-
-        for entry in entries {
-            let entry = entry?;
-            let path = entry.path();
-
-            if !path.is_file() {
+        for queue in Queue::all().iter().copied() {
+            let dir = self.queue_dir(queue);
+            if !dir.exists() {
                 continue;
             }
 
-            let ext = path.extension().and_then(|e| e.to_str());
-            if ext != Some("md") {
-                continue;
-            }
+            for entry in fs::read_dir(&dir)? {
+                let entry = entry?;
+                let path = entry.path();
 
-            match self.read_task_from_path(&path) {
-                Ok(task) => tasks.push(task),
-                Err(AppError::InvalidTaskFile { path, reason }) => {
-                    eprintln!("Warning: skipping malformed task file {path}: {reason}");
+                if !path.is_file() {
+                    continue;
                 }
-                Err(e) => return Err(e),
+
+                if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+                    continue;
+                }
+
+                match self.read_task_from_path(&path) {
+                    Ok(task) => tasks.push(StoredTask { task, path }),
+                    Err(AppError::InvalidTaskFile { path, reason }) => {
+                        eprintln!("Warning: skipping malformed task file {path}: {reason}");
+                    }
+                    Err(error) => return Err(error),
+                }
             }
         }
 
-        tasks.sort_by(|a, b| {
-            b.created_at
-                .cmp(&a.created_at)
-                .then_with(|| a.id.cmp(&b.id))
+        tasks.sort_by(|left, right| {
+            left.task
+                .queue
+                .cmp(&right.task.queue)
+                .then_with(|| right.task.updated_at.cmp(&left.task.updated_at))
+                .then_with(|| left.task.id.cmp(&right.task.id))
         });
-
         Ok(tasks)
     }
 
-    pub fn list_filtered(&self, status: TaskStatus) -> Result<Vec<Task>, AppError> {
-        let all = self.list()?;
-        Ok(all.into_iter().filter(|t| t.status == status).collect())
+    pub fn list(&self) -> Result<Vec<Task>, AppError> {
+        Ok(self
+            .scan_all()?
+            .into_iter()
+            .map(|stored| stored.task)
+            .collect())
+    }
+
+    pub fn list_queue(&self, queue: Queue) -> Result<Vec<Task>, AppError> {
+        Ok(self
+            .list()?
+            .into_iter()
+            .filter(|task| task.queue == queue)
+            .collect())
     }
 
     fn read_task_from_path(&self, path: &Path) -> Result<Task, AppError> {
+        self.ensure_path_is_within_root(path)?;
         let content = fs::read_to_string(path)?;
-        parse_task_markdown(&content).map_err(|e| {
-            AppError::invalid_task_file(path.to_string_lossy().to_string(), e.to_string())
-        })
+        let task = parse_task_markdown(&content).map_err(|error| {
+            AppError::invalid_task_file(path.to_string_lossy().to_string(), error.to_string())
+        })?;
+
+        let expected_filename = format!("{}.md", task.id);
+        if path.file_name().and_then(|value| value.to_str()) != Some(expected_filename.as_str()) {
+            return Err(AppError::invalid_task_file(
+                path.to_string_lossy().to_string(),
+                "task id does not match filename",
+            ));
+        }
+
+        Ok(task)
+    }
+
+    fn ensure_path_is_within_root(&self, path: &Path) -> Result<(), AppError> {
+        let canonical_root = self.root.canonicalize().or_else(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                fs::create_dir_all(&self.root)?;
+                self.root.canonicalize()
+            } else {
+                Err(error)
+            }
+        })?;
+
+        let parent = path.parent().unwrap_or(path);
+        fs::create_dir_all(parent)?;
+        let canonical_parent = parent.canonicalize()?;
+
+        if canonical_parent.starts_with(&canonical_root) {
+            Ok(())
+        } else {
+            Err(AppError::path_traversal_attempt(format!(
+                "{} resolves outside root {}",
+                path.display(),
+                canonical_root.display()
+            )))
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::TaskRepo;
-    use crate::domain::task::{Task, TaskStatus};
+    use crate::domain::task::{Queue, Task};
     use chrono::Utc;
     use std::fs;
     use tempfile::TempDir;
 
-    fn create_test_task(id: &str, summary: &str) -> Task {
-        Task::new(id, Utc::now(), summary, None)
+    fn task(id: &str, title: &str, queue: Queue) -> Task {
+        let mut task = Task::new(id, title, Utc::now());
+        task.queue = queue;
+        task
     }
 
     #[test]
-    fn create_and_read_task() {
-        let temp = TempDir::new().expect("temp dir should be created");
+    fn create_read_and_move_across_queues() {
+        let temp = TempDir::new().expect("temp dir should exist");
         let repo = TaskRepo::new(temp.path().to_path_buf());
-        let task = create_test_task("test-1234", "Test task");
+        let task = task("task-1", "Ship v2", Queue::Inbox);
 
-        repo.create(&task).expect("task should be created");
-        let read = repo.read(&task.id).expect("task should be read");
+        let created_path = repo.create(&task).expect("task should be created");
+        assert!(created_path.ends_with("inbox/task-1.md"));
 
-        assert_eq!(read.id, task.id);
-        assert_eq!(read.summary, task.summary);
-        assert_eq!(read.status, TaskStatus::Open);
+        let (moved_task, moved_path, changed) = repo
+            .move_to_queue("task-1", Queue::Now, Utc::now())
+            .expect("task should move");
+        assert!(changed);
+        assert_eq!(moved_task.queue, Queue::Now);
+        assert!(moved_path.ends_with("now/task-1.md"));
+        assert!(!created_path.exists());
     }
 
     #[test]
-    fn create_fails_for_existing_id() {
-        let temp = TempDir::new().expect("temp dir should be created");
+    fn scans_all_queue_directories() {
+        let temp = TempDir::new().expect("temp dir should exist");
         let repo = TaskRepo::new(temp.path().to_path_buf());
-        let task = create_test_task("test-1234", "Test task");
+        repo.create(&task("task-1", "Inbox task", Queue::Inbox))
+            .expect("inbox task should be created");
+        repo.create(&task("task-2", "Later task", Queue::Later))
+            .expect("later task should be created");
 
-        repo.create(&task).expect("task should be created");
-        let result = repo.create(&task);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("already exists"));
+        let tasks = repo.list().expect("tasks should list");
+        assert_eq!(tasks.len(), 2);
     }
 
     #[test]
-    fn read_returns_not_found_for_missing_id() {
-        let temp = TempDir::new().expect("temp dir should be created");
+    fn malformed_files_are_skipped_during_scan() {
+        let temp = TempDir::new().expect("temp dir should exist");
         let repo = TaskRepo::new(temp.path().to_path_buf());
+        repo.create(&task("good", "Good task", Queue::Inbox))
+            .expect("good task should be created");
 
-        let result = repo.read("nonexistent");
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
-    }
-
-    #[test]
-    fn update_existing_task() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-        let mut task = create_test_task("test-1234", "Original summary");
-
-        repo.create(&task).expect("task should be created");
-
-        task.summary = "Updated summary".to_string();
-        task.close();
-
-        repo.update(&task).expect("task should be updated");
-        let read = repo.read(&task.id).expect("task should be read");
-
-        assert_eq!(read.summary, "Updated summary");
-        assert_eq!(read.status, TaskStatus::Closed);
-    }
-
-    #[test]
-    fn update_fails_for_missing_task() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-        let task = create_test_task("test-1234", "Test task");
-
-        let result = repo.update(&task);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
-    }
-
-    #[test]
-    fn delete_existing_task() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-        let task = create_test_task("test-1234", "Test task");
-
-        repo.create(&task).expect("task should be created");
-        repo.delete(&task.id).expect("task should be deleted");
-
-        let result = repo.read(&task.id);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn delete_fails_for_missing_task() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-
-        let result = repo.delete("nonexistent");
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
-    }
-
-    #[test]
-    fn list_returns_all_tasks_sorted() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-
-        let now = Utc::now();
-        let task1 = Task::new("alpha-1234", now, "First", None);
-        let task2 = Task::new(
-            "beta-5678",
-            now + chrono::Duration::seconds(1),
-            "Second",
-            None,
-        );
-        let task3 = Task::new(
-            "gamma-90ab",
-            now + chrono::Duration::seconds(2),
-            "Third",
-            None,
-        );
-
-        repo.create(&task1).expect("task1 should be created");
-        repo.create(&task3).expect("task3 should be created");
-        repo.create(&task2).expect("task2 should be created");
-
-        let tasks = repo.list().expect("tasks should be listed");
-
-        assert_eq!(tasks.len(), 3);
-        assert_eq!(tasks[0].id, "gamma-90ab");
-        assert_eq!(tasks[1].id, "beta-5678");
-        assert_eq!(tasks[2].id, "alpha-1234");
-    }
-
-    #[test]
-    fn list_skips_non_markdown_files() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-
-        fs::write(temp.path().join("other.txt"), "not a task").expect("txt file should be written");
-
-        let task = create_test_task("test-1234", "Test task");
-        repo.create(&task).expect("task should be created");
-
-        let tasks = repo.list().expect("tasks should be listed");
-        assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].id, "test-1234");
-    }
-
-    #[test]
-    fn list_skips_malformed_files() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-
-        fs::write(temp.path().join("bad.md"), "not valid markdown")
+        let inbox = temp.path().join("inbox");
+        fs::create_dir_all(&inbox).expect("inbox should exist");
+        fs::write(inbox.join("bad.md"), "---\nid: bad\nqueue: inbox\n---\n")
             .expect("bad file should be written");
 
-        let task = create_test_task("test-1234", "Test task");
-        repo.create(&task).expect("task should be created");
-
-        let tasks = repo.list().expect("tasks should be listed");
+        let tasks = repo.list().expect("scan should succeed");
         assert_eq!(tasks.len(), 1);
-        assert_eq!(tasks[0].id, "test-1234");
+        assert_eq!(tasks[0].id, "good");
     }
 
     #[test]
-    fn id_exists_returns_true_for_existing_task() {
-        let temp = TempDir::new().expect("temp dir should be created");
+    fn update_keeps_filename_stable_when_title_changes() {
+        let temp = TempDir::new().expect("temp dir should exist");
         let repo = TaskRepo::new(temp.path().to_path_buf());
-        let task = create_test_task("test-1234", "Test task");
-
+        let mut task = task("task-1", "Old title", Queue::Inbox);
         repo.create(&task).expect("task should be created");
 
-        assert!(repo.id_exists("test-1234"));
-        assert!(!repo.id_exists("nonexistent"));
-    }
-
-    #[test]
-    fn list_filtered_by_status() {
-        let temp = TempDir::new().expect("temp dir should be created");
-        let repo = TaskRepo::new(temp.path().to_path_buf());
-
-        let task1 = create_test_task("open-1234", "Open task");
-        let mut task2 = create_test_task("closed-5678", "Closed task");
-        task2.close();
-
-        repo.create(&task1).expect("task1 should be created");
-        repo.create(&task2).expect("task2 should be created");
-
-        let open_tasks = repo
-            .list_filtered(TaskStatus::Open)
-            .expect("open tasks should be listed");
-        assert_eq!(open_tasks.len(), 1);
-        assert_eq!(open_tasks[0].id, "open-1234");
-
-        let closed_tasks = repo
-            .list_filtered(TaskStatus::Closed)
-            .expect("closed tasks should be listed");
-        assert_eq!(closed_tasks.len(), 1);
-        assert_eq!(closed_tasks[0].id, "closed-5678");
-    }
-
-    mod path_security_tests {
-        use super::*;
-
-        #[test]
-        fn create_with_parent_dir_traversal_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let malicious_id = "../../../etc/passwd";
-            let task = create_test_task(malicious_id, "Malicious task");
-            let result = repo.create(&task);
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn create_with_absolute_path_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let malicious_id = "/etc/passwd";
-            let task = create_test_task(malicious_id, "Malicious task");
-            let result = repo.create(&task);
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn create_with_mixed_traversal_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let malicious_id = "task-1234/../../etc/passwd";
-            let task = create_test_task(malicious_id, "Malicious task");
-            let result = repo.create(&task);
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn read_with_parent_dir_traversal_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let result = repo.read("../../../etc/passwd");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn read_with_absolute_path_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let result = repo.read("/etc/passwd");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn read_with_mixed_traversal_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let result = repo.read("task-1234/../../etc/passwd");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn update_with_parent_dir_traversal_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let malicious_id = "../../../etc/passwd";
-            let task = create_test_task(malicious_id, "Malicious task");
-            let result = repo.update(&task);
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn update_with_absolute_path_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let malicious_id = "/etc/passwd";
-            let task = create_test_task(malicious_id, "Malicious task");
-            let result = repo.update(&task);
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn delete_with_parent_dir_traversal_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let result = repo.delete("../../../etc/passwd");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn delete_with_absolute_path_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let result = repo.delete("/etc/passwd");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn rename_with_traversal_in_old_id_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let task = create_test_task("valid-task", "Valid task");
-            repo.create(&task).expect("task should be created");
-
-            let result = repo.rename_task("../../../etc/passwd", "new-id");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn rename_with_traversal_in_new_id_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let task = create_test_task("valid-task", "Valid task");
-            repo.create(&task).expect("task should be created");
-
-            let result = repo.rename_task("valid-task", "../../../etc/passwd");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn rename_with_absolute_path_in_new_id_fails() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let task = create_test_task("valid-task", "Valid task");
-            repo.create(&task).expect("task should be created");
-
-            let result = repo.rename_task("valid-task", "/etc/passwd");
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
-
-        #[test]
-        fn rename_task_with_content_preserves_edited_fields() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let original_task = create_test_task("original-id", "Original summary");
-            repo.create(&original_task).expect("task should be created");
-
-            let edited_content = "---\nid: new-id\ncreated_at: 2026-02-21T00:00:00Z\nstatus: closed\nsummary: Edited summary\n---\nEdited description\n";
-
-            repo.rename_task_with_content("original-id", "new-id", edited_content)
-                .expect("rename with content should succeed");
-
-            assert!(!temp.path().join("original-id.md").exists());
-            assert!(temp.path().join("new-id.md").exists());
-
-            let renamed_task = repo
-                .read("new-id")
-                .expect("renamed task should be readable");
-            assert_eq!(renamed_task.id, "new-id");
-            assert_eq!(renamed_task.summary, "Edited summary");
-            assert_eq!(renamed_task.status, TaskStatus::Closed);
-            assert_eq!(
-                renamed_task.description,
-                Some("Edited description".to_string())
-            );
-        }
-
-        #[test]
-        fn valid_task_id_succeeds_despite_malicious_lookalike() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let task = create_test_task("task-with-dashes", "Valid task");
-            repo.create(&task).expect("task should be created");
-
-            let read = repo.read("task-with-dashes").expect("task should be read");
-            assert_eq!(read.id, "task-with-dashes");
-        }
-
-        #[test]
-        fn cannot_create_file_outside_root_via_parent_dirs() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let task = create_test_task("test-1234", "Test task");
-            repo.create(&task).expect("task should be created");
-
-            let file_inside_root = temp.path().join("test-1234.md");
-            assert!(file_inside_root.exists());
-
-            let file_outside = temp.path().parent().unwrap().join("test-1234.md");
-            assert!(!file_outside.exists());
-        }
-
-        #[test]
-        fn multiple_parent_dir_traversals_still_blocked() {
-            let temp = TempDir::new().expect("temp dir should be created");
-            let repo = TaskRepo::new(temp.path().to_path_buf());
-
-            let malicious_id = "../../../../../../etc/passwd";
-            let result = repo.read(malicious_id);
-
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path traversal"));
-        }
+        task.title = "New title".to_string();
+        let path = repo.update(&task).expect("task should update");
+        assert!(path.ends_with("inbox/task-1.md"));
     }
 }

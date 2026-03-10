@@ -1,127 +1,200 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
-pub enum TaskStatus {
-    Open,
-    Closed,
+pub enum Queue {
+    Inbox,
+    Now,
+    Next,
+    Later,
+    Done,
 }
 
-impl TaskStatus {
-    pub fn is_open(self) -> bool {
-        matches!(self, Self::Open)
+impl Queue {
+    pub const ORDERED: [Queue; 5] = [
+        Queue::Inbox,
+        Queue::Now,
+        Queue::Next,
+        Queue::Later,
+        Queue::Done,
+    ];
+
+    pub fn all() -> &'static [Queue] {
+        &Self::ORDERED
     }
 
-    pub fn is_closed(self) -> bool {
-        matches!(self, Self::Closed)
+    pub fn is_done(self) -> bool {
+        matches!(self, Self::Done)
     }
 }
 
-impl fmt::Display for TaskStatus {
+impl fmt::Display for Queue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let text = match self {
-            Self::Open => "open",
-            Self::Closed => "closed",
+        let value = match self {
+            Self::Inbox => "inbox",
+            Self::Now => "now",
+            Self::Next => "next",
+            Self::Later => "later",
+            Self::Done => "done",
         };
 
-        f.write_str(text)
+        f.write_str(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QueueParseError;
+
+impl fmt::Display for QueueParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("invalid queue")
+    }
+}
+
+impl std::error::Error for QueueParseError {}
+
+impl FromStr for Queue {
+    type Err = QueueParseError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "inbox" => Ok(Self::Inbox),
+            "now" => Ok(Self::Now),
+            "next" => Ok(Self::Next),
+            "later" => Ok(Self::Later),
+            "done" => Ok(Self::Done),
+            _ => Err(QueueParseError),
+        }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Task {
     pub id: String,
+    pub title: String,
+    pub queue: Queue,
     pub created_at: DateTime<Utc>,
-    pub status: TaskStatus,
-    pub summary: String,
+    pub updated_at: DateTime<Utc>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub daily_note: Option<String>,
+    #[serde(default)]
+    pub body: String,
 }
 
 impl Task {
-    pub fn new(
-        id: impl Into<String>,
-        created_at: DateTime<Utc>,
-        summary: impl Into<String>,
-        description: Option<String>,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, title: impl Into<String>, now: DateTime<Utc>) -> Self {
+        let title = title.into();
+
         Self {
             id: id.into(),
-            created_at,
-            status: TaskStatus::Open,
-            summary: summary.into(),
-            description,
+            title: title.clone(),
+            queue: Queue::Inbox,
+            created_at: now,
+            updated_at: now,
+            tags: Vec::new(),
+            source: None,
+            project: None,
+            completed_at: None,
+            daily_note: None,
+            body: Self::default_body(&title),
         }
     }
 
-    pub fn close(&mut self) -> bool {
-        if self.status.is_closed() {
+    pub fn default_body(title: &str) -> String {
+        format!("# {title}\n\n## Context\n\n## Notes\n")
+    }
+
+    pub fn move_to(&mut self, queue: Queue, now: DateTime<Utc>) -> bool {
+        if self.queue == queue {
             return false;
         }
 
-        self.status = TaskStatus::Closed;
+        self.queue = queue;
+        self.updated_at = now;
+        self.completed_at = if queue.is_done() { Some(now) } else { None };
         true
     }
 
-    pub fn reopen(&mut self) -> bool {
-        if self.status.is_open() {
-            return false;
+    pub fn normalize(&mut self, now: DateTime<Utc>) {
+        self.updated_at = now;
+        if self.queue.is_done() {
+            if self.completed_at.is_none() {
+                self.completed_at = Some(now);
+            }
+        } else {
+            self.completed_at = None;
         }
-
-        self.status = TaskStatus::Open;
-        true
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Task, TaskStatus};
+    use super::{Queue, Task};
     use chrono::{DateTime, Utc};
 
-    fn created_at() -> DateTime<Utc> {
-        "2026-02-20T22:15:00Z"
+    fn now() -> DateTime<Utc> {
+        "2026-03-09T10:34:12Z"
             .parse()
-            .expect("timestamp literal should parse")
+            .expect("timestamp should parse")
     }
 
     #[test]
-    fn task_status_serializes_as_lowercase() {
-        let output = serde_yaml::to_string(&TaskStatus::Open).expect("status should serialize");
-        assert_eq!(output.trim(), "open");
+    fn queue_roundtrips_in_yaml() {
+        let rendered = serde_yaml::to_string(&Queue::Later).expect("queue should serialize");
+        let parsed: Queue = serde_yaml::from_str(&rendered).expect("queue should deserialize");
+        assert_eq!(parsed, Queue::Later);
     }
 
     #[test]
-    fn task_status_deserializes_from_lowercase() {
-        let status: TaskStatus = serde_yaml::from_str("closed").expect("status should deserialize");
-        assert_eq!(status, TaskStatus::Closed);
+    fn queue_rejects_invalid_names() {
+        assert!("archive".parse::<Queue>().is_err());
     }
 
     #[test]
-    fn close_and_reopen_are_idempotent() {
-        let mut task = Task::new("alpha", created_at(), "Write docs", None);
-        assert!(task.close());
-        assert!(task.status.is_closed());
-        assert!(!task.close());
-
-        assert!(task.reopen());
-        assert!(task.status.is_open());
-        assert!(!task.reopen());
+    fn new_task_uses_inbox_defaults() {
+        let task = Task::new("task-1", "Ship v2", now());
+        assert_eq!(task.queue, Queue::Inbox);
+        assert_eq!(task.created_at, now());
+        assert_eq!(task.updated_at, now());
+        assert!(task.completed_at.is_none());
+        assert!(task.body.contains("# Ship v2"));
     }
 
     #[test]
-    fn task_serde_roundtrip_preserves_fields() {
-        let task = Task {
-            id: "cobalt-urial-7f3a".to_string(),
-            created_at: created_at(),
-            status: TaskStatus::Open,
-            summary: "Short task summary".to_string(),
-            description: Some("Body".to_string()),
-        };
+    fn move_to_done_sets_completed_at() {
+        let mut task = Task::new("task-1", "Ship v2", now());
+        let changed = task.move_to(
+            Queue::Done,
+            "2026-03-10T08:00:00Z"
+                .parse()
+                .expect("timestamp should parse"),
+        );
 
-        let yaml = serde_yaml::to_string(&task).expect("task should serialize");
-        let parsed: Task = serde_yaml::from_str(&yaml).expect("task should deserialize");
-        assert_eq!(parsed, task);
+        assert!(changed);
+        assert_eq!(task.queue, Queue::Done);
+        assert!(task.completed_at.is_some());
+    }
+
+    #[test]
+    fn normalize_clears_completed_at_outside_done() {
+        let mut task = Task::new("task-1", "Ship v2", now());
+        task.completed_at = Some(now());
+        task.normalize(
+            "2026-03-10T08:00:00Z"
+                .parse()
+                .expect("timestamp should parse"),
+        );
+
+        assert!(task.completed_at.is_none());
     }
 }

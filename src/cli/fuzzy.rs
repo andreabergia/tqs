@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_fuzzy_match_exact_match() {
-        assert!(fuzzy_match("create", "create"));
+        assert!(fuzzy_match("add", "add"));
         assert!(fuzzy_match("list", "list"));
     }
 
@@ -304,44 +304,40 @@ mod tests {
         assert!(fuzzy_match("l", "list"));
         assert!(fuzzy_match("ls", "list"));
         assert!(fuzzy_match("lst", "list"));
-        assert!(fuzzy_match("cr", "create"));
-        assert!(fuzzy_match("crt", "create"));
-        assert!(fuzzy_match("cmp", "complete"));
-        assert!(fuzzy_match("opn", "reopen"));
-        assert!(fuzzy_match("d", "delete"));
-        assert!(fuzzy_match("del", "delete"));
-        assert!(fuzzy_match("i", "info"));
-        assert!(fuzzy_match("inf", "info"));
+        assert!(fuzzy_match("ad", "add"));
+        assert!(fuzzy_match("dn", "done"));
+        assert!(fuzzy_match("shw", "show"));
+        assert!(fuzzy_match("fnd", "find"));
         assert!(fuzzy_match("m", "move"));
         assert!(fuzzy_match("mov", "move"));
     }
 
     #[test]
     fn test_fuzzy_match_not_matching() {
-        assert!(!fuzzy_match("rm", "delete"));
-        assert!(!fuzzy_match("xyz", "create"));
+        assert!(!fuzzy_match("rm", "move"));
+        assert!(!fuzzy_match("xyz", "add"));
         assert!(!fuzzy_match("ab", "list"));
     }
 
     #[test]
     fn test_fuzzy_match_empty_input() {
-        assert!(!fuzzy_match("", "create"));
+        assert!(!fuzzy_match("", "add"));
         assert!(!fuzzy_match("list", ""));
     }
 
     #[test]
     fn test_fuzzy_match_case_insensitive() {
-        assert!(fuzzy_match("C", "create"));
-        assert!(fuzzy_match("CR", "create"));
+        assert!(fuzzy_match("A", "add"));
+        assert!(fuzzy_match("AD", "add"));
         assert!(fuzzy_match("L", "list"));
         assert!(fuzzy_match("LIST", "list"));
     }
 
     #[test]
-    fn test_expand_command_cre() {
-        let args = vec!["tqs".to_string(), "cr".to_string()];
+    fn test_expand_command_ad() {
+        let args = vec!["tqs".to_string(), "ad".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "create");
+        assert_eq!(expanded[1], "add");
     }
 
     #[test]
@@ -360,16 +356,16 @@ mod tests {
 
     #[test]
     fn test_expand_command_complete() {
-        let args = vec!["tqs".to_string(), "cmp".to_string()];
+        let args = vec!["tqs".to_string(), "dn".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "complete");
+        assert_eq!(expanded[1], "done");
     }
 
     #[test]
-    fn test_expand_command_ambiguous_c() {
-        let args = vec!["tqs".to_string(), "c".to_string()];
+    fn test_expand_command_alias_create() {
+        let args = vec!["tqs".to_string(), "create".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "create");
+        assert_eq!(expanded[1], "add");
     }
 
     #[test]
@@ -481,7 +477,7 @@ mod tests {
     fn test_expand_command_alias_new() {
         let args = vec!["tqs".to_string(), "new".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "create");
+        assert_eq!(expanded[1], "add");
     }
 
     #[test]
@@ -493,44 +489,44 @@ mod tests {
 
     #[test]
     fn test_expand_command_alias_remove() {
-        let args = vec!["tqs".to_string(), "remove".to_string()];
+        let args = vec!["tqs".to_string(), "close".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "delete");
+        assert_eq!(expanded[1], "done");
     }
 
     #[test]
     fn test_expand_command_alias_rm() {
-        let args = vec!["tqs".to_string(), "rm".to_string()];
+        let args = vec!["tqs".to_string(), "mv".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "delete");
+        assert_eq!(expanded[1], "move");
     }
 
     #[test]
     fn test_expand_command_alias_show() {
-        let args = vec!["tqs".to_string(), "show".to_string()];
+        let args = vec!["tqs".to_string(), "info".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "info");
+        assert_eq!(expanded[1], "show");
     }
 
     #[test]
     fn test_expand_command_alias_done() {
-        let args = vec!["tqs".to_string(), "done".to_string()];
+        let args = vec!["tqs".to_string(), "complete".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "complete");
+        assert_eq!(expanded[1], "done");
     }
 
     #[test]
     fn test_expand_command_alias_open() {
-        let args = vec!["tqs".to_string(), "open".to_string()];
+        let args = vec!["tqs".to_string(), "view".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "reopen");
+        assert_eq!(expanded[1], "show");
     }
 
     #[test]
     fn test_expand_command_canonical_preferred_over_alias_fuzzy() {
-        let args = vec!["tqs".to_string(), "c".to_string()];
+        let args = vec!["tqs".to_string(), "a".to_string()];
         let expanded = expand_command(args);
-        assert_eq!(expanded[1], "create");
+        assert_eq!(expanded[1], "add");
     }
 
     #[test]

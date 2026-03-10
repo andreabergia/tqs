@@ -1,12 +1,12 @@
-use crate::domain::task::{Task, TaskStatus};
+use crate::{
+    domain::{
+        filter::queue_counts,
+        task::{Queue, Task},
+    },
+    storage::repo::StoredTask,
+};
 use dialoguer::console::style;
-
-fn styled_status(status: TaskStatus) -> String {
-    match status {
-        TaskStatus::Open => style("open").green().to_string(),
-        TaskStatus::Closed => style("closed").yellow().to_string(),
-    }
-}
+use std::path::Path;
 
 fn styled_field_label(label: &str) -> String {
     style(label).bold().cyan().to_string()
@@ -20,131 +20,105 @@ pub fn print_error(message: &str) {
     eprintln!("{message}");
 }
 
-pub fn print_tasks_simple(tasks: &[Task]) {
+pub fn print_queue_tasks(queue: Queue, tasks: &[Task]) {
+    println!("{}", style(queue.to_string()).bold().cyan());
+
     if tasks.is_empty() {
         println!("No tasks found");
         return;
     }
 
-    let max_id_width = tasks.iter().map(|t| t.id.len()).max().unwrap_or(0);
-    let gap = 2;
-    let gap_str = " ".repeat(gap);
-    let header_id = format!("{:<width$}", "ID", width = max_id_width);
-    let header_line = format!(
-        "{}{}{}",
-        style(header_id).bold().cyan(),
-        gap_str,
-        style("SUMMARY").bold().cyan()
-    );
-    let separator = format!(
-        "{}{}{}",
-        "-".repeat(max_id_width),
-        " ".repeat(gap),
-        "-".repeat(7)
-    );
-
-    println!("{header_line}");
-    println!("{}", style(separator).dim());
-
     for task in tasks {
-        let padded_id = format!("{:<width$}", task.id, width = max_id_width);
-        println!(
-            "{}{}{}",
-            style(padded_id).cyan(),
-            " ".repeat(gap),
-            task.summary,
-        );
+        println!("{}  {}", style(&task.id).cyan(), task.title);
     }
 }
 
-pub fn print_tasks_verbose(tasks: &[Task]) {
-    if tasks.is_empty() {
-        println!("No tasks found");
-        return;
+pub fn print_dashboard(tasks: &[Task]) {
+    let counts = queue_counts(tasks);
+    for (queue, count) in counts {
+        println!("{queue:<5} {count}");
     }
 
-    let max_id_width = tasks.iter().map(|t| t.id.len()).max().unwrap_or(0);
-    let max_status_width = tasks
-        .iter()
-        .map(|t| t.status.to_string().len())
-        .max()
-        .unwrap_or(0);
-    let max_time_width = tasks
-        .iter()
-        .map(|t| t.created_at.to_string().len())
-        .max()
-        .unwrap_or(0);
-    let gap = 2;
-    let gap_str = " ".repeat(gap);
-    let header_id = format!("{:<id_width$}", "ID", id_width = max_id_width);
-    let header_status = format!(
-        "{:<status_width$}",
-        "STATUS",
-        status_width = max_status_width
+    println!();
+    print_queue_tasks(
+        Queue::Now,
+        &tasks
+            .iter()
+            .filter(|task| task.queue == Queue::Now)
+            .cloned()
+            .collect::<Vec<_>>(),
     );
-    let header_time = format!("{:<time_width$}", "CREATED AT", time_width = max_time_width);
-    let header_line = format!(
-        "{}{gap}{}{gap}{}{gap}{}",
-        style(header_id).bold().cyan(),
-        style(header_status).bold().cyan(),
-        style(header_time).bold().cyan(),
-        style("SUMMARY").bold().cyan(),
-        gap = gap_str
+    println!();
+    print_queue_tasks(
+        Queue::Inbox,
+        &tasks
+            .iter()
+            .filter(|task| task.queue == Queue::Inbox)
+            .cloned()
+            .collect::<Vec<_>>(),
     );
-    let separator = format!(
-        "{}{gap}{}{gap}{}{gap}{}",
-        "-".repeat(max_id_width),
-        "-".repeat(max_status_width),
-        "-".repeat(max_time_width),
-        "-".repeat(7),
-        gap = " ".repeat(gap)
-    );
-
-    println!("{header_line}");
-    println!("{}", style(separator).dim());
-
-    for task in tasks {
-        let padded_id = format!("{:<id_width$}", task.id, id_width = max_id_width);
-        let padded_status = format!(
-            "{:<status_width$}",
-            task.status,
-            status_width = max_status_width
-        );
-        let padded_time = format!(
-            "{:<time_width$}",
-            task.created_at,
-            time_width = max_time_width
-        );
-        println!(
-            "{}{gap}{}{gap}{}{gap}{}",
-            style(padded_id).cyan(),
-            match task.status {
-                TaskStatus::Open => style(padded_status).green(),
-                TaskStatus::Closed => style(padded_status).yellow(),
-            },
-            style(padded_time).dim(),
-            task.summary,
-            gap = " ".repeat(gap)
-        );
-    }
 }
 
-pub fn print_task_detail(task: &Task) {
+pub fn print_task_detail(task: &Task, path: &Path) {
     println!("{} {}", styled_field_label("ID:"), style(&task.id).cyan());
     println!(
         "{} {}",
-        styled_field_label("Status:"),
-        styled_status(task.status)
+        styled_field_label("Queue:"),
+        style(task.queue.to_string()).cyan()
     );
     println!(
         "{} {}",
-        styled_field_label("Created at:"),
-        style(task.created_at.to_string()).dim()
+        styled_field_label("Path:"),
+        style(path.display().to_string()).dim()
     );
-    println!("{} {}", styled_field_label("Summary:"), task.summary);
+    println!(
+        "{} {}",
+        styled_field_label("Created:"),
+        style(task.created_at.to_rfc3339()).dim()
+    );
+    println!(
+        "{} {}",
+        styled_field_label("Updated:"),
+        style(task.updated_at.to_rfc3339()).dim()
+    );
+    println!("{} {}", styled_field_label("Title:"), task.title);
 
-    if let Some(description) = &task.description {
-        println!();
-        println!("{description}");
+    if !task.tags.is_empty() {
+        println!("{} {}", styled_field_label("Tags:"), task.tags.join(", "));
+    }
+
+    if let Some(source) = &task.source {
+        println!("{} {}", styled_field_label("Source:"), source);
+    }
+
+    if let Some(project) = &task.project {
+        println!("{} {}", styled_field_label("Project:"), project);
+    }
+
+    if let Some(completed_at) = task.completed_at {
+        println!(
+            "{} {}",
+            styled_field_label("Completed:"),
+            style(completed_at.to_rfc3339()).dim()
+        );
+    }
+
+    println!();
+    println!("{}", task.body);
+}
+
+pub fn print_search_results(results: &[StoredTask]) {
+    if results.is_empty() {
+        println!("No tasks found");
+        return;
+    }
+
+    for stored in results {
+        println!(
+            "[{}] {}  {}",
+            stored.task.queue,
+            style(&stored.task.id).cyan(),
+            stored.task.title
+        );
     }
 }

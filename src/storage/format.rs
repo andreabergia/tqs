@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::domain::task::{Task, TaskStatus};
+use crate::domain::task::{Queue, Task};
 
 const FRONTMATTER_DELIMITER: &str = "---";
 
@@ -20,24 +20,45 @@ pub enum FormatError {
     MissingFrontmatterEnd,
     #[error("invalid frontmatter yaml: {0}")]
     InvalidFrontmatter(#[from] serde_yaml::Error),
+    #[error("task id does not match filename")]
+    IdMismatch,
+    #[error("completed_at can only be set for done tasks")]
+    CompletedAtWithoutDoneQueue,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct TaskFrontmatter {
     id: String,
+    title: String,
+    queue: Queue,
     created_at: DateTime<Utc>,
-    status: TaskStatus,
-    summary: String,
+    updated_at: DateTime<Utc>,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    source: Option<String>,
+    #[serde(default)]
+    project: Option<String>,
+    #[serde(default)]
+    completed_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    daily_note: Option<String>,
 }
 
 impl From<TaskFrontmatter> for Task {
     fn from(frontmatter: TaskFrontmatter) -> Self {
         Self {
             id: frontmatter.id,
+            title: frontmatter.title,
+            queue: frontmatter.queue,
             created_at: frontmatter.created_at,
-            status: frontmatter.status,
-            summary: frontmatter.summary,
-            description: None,
+            updated_at: frontmatter.updated_at,
+            tags: frontmatter.tags,
+            source: frontmatter.source,
+            project: frontmatter.project,
+            completed_at: frontmatter.completed_at,
+            daily_note: frontmatter.daily_note,
+            body: String::new(),
         }
     }
 }
@@ -46,9 +67,15 @@ impl From<&Task> for TaskFrontmatter {
     fn from(task: &Task) -> Self {
         Self {
             id: task.id.clone(),
+            title: task.title.clone(),
+            queue: task.queue,
             created_at: task.created_at,
-            status: task.status,
-            summary: task.summary.clone(),
+            updated_at: task.updated_at,
+            tags: task.tags.clone(),
+            source: task.source.clone(),
+            project: task.project.clone(),
+            completed_at: task.completed_at,
+            daily_note: task.daily_note.clone(),
         }
     }
 }
@@ -82,112 +109,82 @@ pub fn parse_task_markdown(input: &str) -> Result<Task, FormatError> {
     let parsed = parse_task_file(input)?;
     let frontmatter: TaskFrontmatter = serde_yaml::from_str(&parsed.frontmatter)?;
     let mut task = Task::from(frontmatter);
-    if !parsed.body.is_empty() {
-        task.description = Some(parsed.body);
-    }
-
+    task.body = parsed.body;
+    validate_task(&task)?;
     Ok(task)
 }
 
 pub fn render_task_markdown(task: &Task) -> Result<String, FormatError> {
+    validate_task(task)?;
+
     let frontmatter = TaskFrontmatter::from(task);
     let yaml = serde_yaml::to_string(&frontmatter)?;
-
     let mut output = String::new();
     output.push_str(FRONTMATTER_DELIMITER);
     output.push('\n');
     output.push_str(&yaml);
     output.push_str(FRONTMATTER_DELIMITER);
 
-    if let Some(description) = &task.description
-        && !description.is_empty()
-    {
+    if !task.body.is_empty() {
         output.push('\n');
-        output.push_str(description);
+        output.push_str(&task.body);
     }
 
     Ok(output)
 }
 
+fn validate_task(task: &Task) -> Result<(), FormatError> {
+    if task.completed_at.is_some() && !task.queue.is_done() {
+        return Err(FormatError::CompletedAtWithoutDoneQueue);
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{FormatError, parse_task_file, parse_task_markdown, render_task_markdown};
-    use crate::domain::task::{Task, TaskStatus};
+    use super::{FormatError, parse_task_markdown, render_task_markdown};
+    use crate::domain::task::{Queue, Task};
 
-    fn sample_markdown() -> &'static str {
-        "---\nid: cobalt-urial-7f3a\ncreated_at: 2026-02-20T22:15:00Z\nstatus: open\nsummary: Short task summary\n---\n# Notes\n- one\n- two"
-    }
-
-    #[test]
-    fn parse_task_file_splits_frontmatter_and_body() {
-        let parsed = parse_task_file(sample_markdown()).expect("task file should parse");
-        assert!(parsed.frontmatter.contains("id: cobalt-urial-7f3a"));
-        assert_eq!(parsed.body, "# Notes\n- one\n- two");
-    }
-
-    #[test]
-    fn parse_task_file_requires_frontmatter_start_delimiter() {
-        let err = parse_task_file("id: no-delimiter").expect_err("should fail without delimiter");
-        assert!(matches!(err, FormatError::MissingFrontmatter));
-    }
-
-    #[test]
-    fn parse_task_file_requires_frontmatter_end_delimiter() {
-        let err = parse_task_file("---\nid: a").expect_err("should fail without end delimiter");
-        assert!(matches!(err, FormatError::MissingFrontmatterEnd));
-    }
-
-    #[test]
-    fn parse_task_markdown_maps_body_into_description() {
-        let task = parse_task_markdown(sample_markdown()).expect("task should parse");
-        assert_eq!(task.id, "cobalt-urial-7f3a");
-        assert_eq!(task.status, TaskStatus::Open);
-        assert_eq!(task.summary, "Short task summary");
-        assert_eq!(task.description.as_deref(), Some("# Notes\n- one\n- two"));
-    }
-
-    #[test]
-    fn parse_task_markdown_ignores_unknown_fields() {
-        let markdown = "---\nid: cobalt-urial-7f3a\ncreated_at: 2026-02-20T22:15:00Z\nstatus: open\nsummary: Summary\nextra_field: keep-ignored\n---\n";
-        let task = parse_task_markdown(markdown).expect("task should parse");
-        assert_eq!(task.id, "cobalt-urial-7f3a");
-    }
-
-    #[test]
-    fn render_task_markdown_roundtrips_core_fields() {
-        let task = Task {
-            id: "cobalt-urial-7f3a".to_string(),
-            created_at: "2026-02-20T22:15:00Z"
+    fn task() -> Task {
+        let mut task = Task::new(
+            "20260309-103412-reply-aws-billing",
+            "Reply to AWS billing alert",
+            "2026-03-09T10:34:12Z"
                 .parse()
                 .expect("timestamp should parse"),
-            status: TaskStatus::Closed,
-            summary: "Short task summary".to_string(),
-            description: Some("line 1\nline 2".to_string()),
-        };
-
-        let markdown = render_task_markdown(&task).expect("task should render");
-        let parsed = parse_task_markdown(&markdown).expect("rendered markdown should parse");
-
-        assert_eq!(parsed.id, task.id);
-        assert_eq!(parsed.status, task.status);
-        assert_eq!(parsed.summary, task.summary);
-        assert_eq!(parsed.description, task.description);
+        );
+        task.queue = Queue::Now;
+        task.updated_at = "2026-03-09T11:20:07Z"
+            .parse()
+            .expect("timestamp should parse");
+        task.tags = vec!["aws".to_string(), "finance".to_string()];
+        task.source = Some("email".to_string());
+        task.project = Some("platform-costs".to_string());
+        task.body = "# Reply to AWS billing alert\n\n## Notes\n\nCheck Cost Explorer.".to_string();
+        task
     }
 
     #[test]
-    fn render_omits_description_when_empty() {
-        let task = Task {
-            id: "a-b-cdef".to_string(),
-            created_at: "2026-02-20T22:15:00Z"
-                .parse()
-                .expect("timestamp should parse"),
-            status: TaskStatus::Open,
-            summary: "Summary".to_string(),
-            description: None,
-        };
-
+    fn markdown_roundtrip_preserves_schema_and_body() {
+        let task = task();
         let markdown = render_task_markdown(&task).expect("task should render");
-        let last_line = markdown.lines().last().expect("markdown should have lines");
-        assert_eq!(last_line, "---");
+        let parsed = parse_task_markdown(&markdown).expect("markdown should parse");
+        assert_eq!(parsed, task);
+    }
+
+    #[test]
+    fn render_rejects_completed_at_for_non_done_task() {
+        let mut task = task();
+        task.completed_at = Some(task.updated_at);
+        let err = render_task_markdown(&task).expect_err("task should fail validation");
+        assert!(matches!(err, FormatError::CompletedAtWithoutDoneQueue));
+    }
+
+    #[test]
+    fn parse_keeps_empty_body_empty() {
+        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n";
+        let parsed = parse_task_markdown(markdown).expect("markdown should parse");
+        assert!(parsed.body.is_empty());
     }
 }

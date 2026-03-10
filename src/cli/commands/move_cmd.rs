@@ -1,53 +1,38 @@
 use std::path::PathBuf;
 
+use chrono::Utc;
 use clap::Parser;
 
 use crate::app::app_error::AppError;
 use crate::cli::commands::helpers;
-use crate::domain::filter::ListMode;
-use crate::domain::id::validate_user_id;
-use crate::io::input;
+use crate::domain::task::Queue;
 use crate::io::output;
 
 #[derive(Debug, Parser)]
 pub struct Move {
-    pub old_id: Option<String>,
-    pub new_id: Option<String>,
+    pub task: Option<String>,
+
+    #[arg(value_parser = helpers::parse_queue)]
+    pub queue: Option<Queue>,
 }
 
 pub fn handle_move(
-    Move { old_id, new_id }: Move,
+    Move { task, queue }: Move,
     root: Option<PathBuf>,
     global: bool,
 ) -> Result<(), AppError> {
     let repo = helpers::resolve_repo(root, global);
-
-    let config = helpers::PickerConfig {
-        prompt: "Select task to move",
-        default_mode: ListMode::All,
-        allowed_modes: &[ListMode::All, ListMode::Open, ListMode::Closed],
-        empty_message: "No tasks available",
-        cancel_message: "Operation cancelled",
-        status_check: None,
-        status_check_message: None,
-    };
-
-    let Some(old_id) = helpers::resolve_id(old_id, &repo, config)? else {
+    let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to move")? else {
         return Ok(());
     };
 
-    let new_id = match new_id {
-        Some(id) => id,
-        None => input::prompt_input("New task ID:")?,
-    };
-
-    validate_user_id(&new_id)?;
-
-    if repo.id_exists(&new_id) {
-        return Err(AppError::usage(format!("id '{}' already exists", new_id)));
+    let queue = queue.ok_or_else(|| AppError::usage("missing target queue"))?;
+    if stored.task.queue == queue {
+        output::print_info(&format!("Task {} is already in {}", stored.task.id, queue));
+        return Ok(());
     }
 
-    repo.rename_task(&old_id, &new_id)?;
-    output::print_info(&format!("Moved task: {old_id} -> {new_id}"));
+    let (task, path, _) = repo.move_to_queue(&stored.task.id, queue, Utc::now())?;
+    output::print_info(&format!("Moved task: {} ({})", task.id, path.display()));
     Ok(())
 }

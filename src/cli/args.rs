@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use super::commands::{Complete, Create, Delete, Edit, Info, List, Move, Reopen};
+use super::commands::{Add, Done, Edit, Find, List, Move, Show};
 
 #[derive(Debug, Parser)]
 #[command(name = "tqs", version, about = "Terminal task queue")]
@@ -19,20 +19,18 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    #[command(visible_aliases = ["new", "add"])]
-    Create(Create),
+    #[command(visible_aliases = ["create", "new"])]
+    Add(Add),
     #[command(visible_alias = "ls")]
     List(List),
-    #[command(visible_aliases = ["done", "finish", "close"])]
-    Complete(Complete),
-    #[command(visible_alias = "open")]
-    Reopen(Reopen),
-    #[command(visible_aliases = ["show", "view"])]
-    Info(Info),
-    #[command(visible_aliases = ["remove", "rm", "del"])]
-    Delete(Delete),
-    #[command(visible_aliases = ["rename", "mv"])]
+    #[command(visible_aliases = ["mv", "rename"])]
     Move(Move),
+    #[command(visible_aliases = ["complete", "finish", "close"])]
+    Done(Done),
     #[command(visible_alias = "modify")]
     Edit(Edit),
+    #[command(visible_aliases = ["info", "view"])]
+    Show(Show),
+    #[command(visible_alias = "search")]
+    Find(Find),
 }
