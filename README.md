@@ -1,40 +1,32 @@
 # TQS - Terminal Task Queue
 
+TQS is a Rust CLI for managing queue-based tasks stored as Markdown files with YAML frontmatter.
+
 ## Quick Reference
 
-```
-tqs create [summary]         Create a new task
-tqs create --id <id>         Create with custom ID
-tqs list [keywords]          List open tasks
-tqs list --all               List all tasks
-tqs list --closed            List closed tasks
-tqs complete [id]            Mark task as closed
-tqs reopen [id]              Mark task as open
-tqs info [id]                Show task details
-tqs edit [id]                Edit task in $EDITOR
-tqs move [old_id] [new_id]   Change task ID
-tqs delete <id>              Delete a task
-
-# Aliases work too!
-tqs new [summary]            Alias for create
-tqs show <id>                Alias for info
-tqs done <id>                Alias for complete
-tqs open <id>                Alias for reopen
-tqs modify <id>              Alias for edit
-tqs remove <id>              Alias for delete
-tqs rename <old> <new>       Alias for move
-
-# Fuzzy commands work too!
-tqs cr [summary]             Create (shorter)
-tqs l                        List
-tqs i <id>                   Info
-tqs ed [id]                  Edit
-tqs c [summary]              Create (create > complete)
+```bash
+tqs add "Reply to AWS billing alert"
+tqs add "Plan rollout" --queue now --tags ops,release --project platform
+tqs list
+tqs list now
+tqs move 20260309-aws now
+tqs done 20260309-aws
+tqs edit 20260309-aws
+tqs show 20260309-aws
+tqs find billing
 ```
 
-## What is TQS?
+## Queue Model
 
-TQS is a simple command-line task manager that stores tasks as Markdown files. Perfect for tracking work in Git repositories.
+Tasks live in one of five built-in queues:
+
+- `inbox`
+- `now`
+- `next`
+- `later`
+- `done`
+
+`tqs list` prints a compact dashboard with queue counts plus the `now` and `inbox` sections. `tqs list <queue>` prints just that queue.
 
 ## Installation
 
@@ -53,53 +45,54 @@ cargo build --release
 
 The binary will be at `target/release/tqs`.
 
-Download release binaries:
-
-- GitHub Releases publishes `tqs` archives for Linux x86_64 and macOS arm64.
-- Stable releases also update the Homebrew formula in `andreabergia/homebrew-tap`.
-- Each release includes a checksum file for verification.
-
 ## Quick Start
 
 ```bash
-# Create a task
-tqs create "Write documentation"
+# Capture a task in inbox
+tqs add "Write v2 release notes"
 
-# List open tasks
+# Add metadata at creation time
+tqs add "Investigate API latency" --tags api,perf --source pager --project platform
+
+# Review the default dashboard
 tqs list
 
-# View task details
-tqs info <task-id>
+# Focus a task
+tqs move 20260309-api now
 
-# Edit a task in your editor
-tqs edit <task-id>
+# Inspect or edit the full Markdown file
+tqs show 20260309-api
+tqs edit 20260309-api
 
-# Mark task as complete
-tqs complete <task-id>
+# Complete the task
+tqs done 20260309-api
 
-# List completed tasks
-tqs list --closed
-
-# Or use fuzzy commands!
-tqs cr "Write documentation"
-tqs l
-tqs i <task-id>
-tqs ed <task-id>
-
-# Or aliases (shell-style)
-tqs new "Write documentation"
-tqs show <task-id>
-tqs done <task-id>
-tqs modify <task-id>
+# Search across all queues
+tqs find latency
 ```
 
-## Storage Location
+Task arguments are resolved in this order:
 
-Tasks are stored as Markdown files with YAML frontmatter. `tasks_root` is resolved in this order:
+1. exact id
+2. unique id prefix
+3. unique title substring
+4. interactive picker if a TTY is available
 
-1. `--root <path>` flag
-2. `TQS_ROOT` environment variable
-3. `$XDG_CONFIG_HOME/tqs/config.toml` or `~/.config/tqs/config.toml`
+## Storage and Configuration
+
+TQS stores tasks as Markdown files under:
+
+```text
+<tasks_root>/<queue>/<id>.md
+```
+
+The logical queue names are always `inbox`, `now`, `next`, `later`, and `done`. The directory names under `tasks_root` can be overridden in config, so a task may be stored at `<tasks_root>/<configured-queue-dir>/<id>.md`.
+
+`tasks_root` is resolved in this order:
+
+1. `--root <path>`
+2. `TQS_ROOT`
+3. config file at `$XDG_CONFIG_HOME/tqs/config.toml` or `~/.config/tqs/config.toml`
 
 Minimal config example:
 
@@ -109,22 +102,43 @@ daily_notes_dir = "/path/to/daily-notes"
 
 [queues]
 inbox = "inbox"
-now = "now"
+now = "focus"
 next = "next"
 later = "later"
-done = "done"
+done = "archive"
 ```
 
-Task frontmatter still uses the built-in queue names. Queue configuration only changes the directory names under `tasks_root`, so files are stored as `<tasks_root>/<configured-queue-dir>/<task-id>.md`.
+If the config file uses relative paths, they are resolved relative to the config file directory. Queue directory overrides must be a single path segment.
+
+Task frontmatter uses the current v2 schema:
+
+```yaml
+---
+id: 20260309-103412-reply-aws-billing
+title: Reply to AWS billing alert
+queue: inbox
+created_at: 2026-03-09T10:34:12Z
+updated_at: 2026-03-09T10:34:12Z
+tags: [aws, finance]
+source: email
+project: platform-costs
+completed_at:
+daily_note:
+---
+```
+
+## Daily Notes
+
+If `daily_notes_dir` is configured, `tqs done` appends a completion entry to today’s Markdown daily note and records the note name in `daily_note`. Re-running `tqs done` for an already completed task is idempotent.
 
 ## Learn More
 
-- [USAGE.md](USAGE.md) - Complete command reference
-- [ARCHITECTURE.md](ARCHITECTURE.md) - How it works internally
-- [docs/v2/overview.md](docs/v2/overview.md) - Canonical high-level plan for the v2 rewrite
+- [USAGE.md](USAGE.md) - Current CLI reference
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Current code structure and data flow
+- [docs/v2/overview.md](docs/v2/overview.md) - Canonical v2 overview
 - [docs/v2/cli-contract.md](docs/v2/cli-contract.md) - Lean-core v2 CLI contract
-- [docs/v2/storage-and-layout.md](docs/v2/storage-and-layout.md) - Planned v2 storage model
-- [docs/v2/implementation-plan.md](docs/v2/implementation-plan.md) - Phase-based v2 rewrite plan
+- [docs/v2/storage-and-layout.md](docs/v2/storage-and-layout.md) - v2 storage model
+- [docs/v2/implementation-plan.md](docs/v2/implementation-plan.md) - Remaining consolidation plan
 
 ## Maintainer Release Process
 
@@ -137,8 +151,6 @@ Install the maintainer tools:
 ```bash
 cargo install cargo-dist cargo-release
 ```
-
-Or use the helper script in this repo (still requires those tools).
 
 ### Preflight checks
 
@@ -153,26 +165,10 @@ dist plan
 
 ### Cut a release
 
-Update `CHANGELOG.md` (`Unreleased` section), then run one command:
+Update `CHANGELOG.md` (`Unreleased` section), then run:
 
 ```bash
 scripts/release.sh patch --execute
 ```
 
 Use `minor`, `major`, or an exact version instead of `patch` as needed.
-
-This will:
-
-- bump `Cargo.toml` version
-- create a `vX.Y.Z` git tag
-- push the release commit and tag to `origin`
-
-Pushing the tag triggers `.github/workflows/release.yml`, which builds archives and checksums and publishes them to GitHub Releases.
-For stable releases, the same workflow also updates the Homebrew formula in
-`andreabergia/homebrew-tap`. Prereleases (`alpha`, `beta`, `rc`) do not update Homebrew.
-
-To preview a release without making changes:
-
-```bash
-scripts/release.sh patch
-```

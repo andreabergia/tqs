@@ -2,388 +2,315 @@
 
 ## Quick Reference
 
-```
-# Creating tasks
-tqs create [summary]                          Create with summary
-tqs create "Task name" --description "..."    Create with description
-tqs create --id <id> "Task name"              Create with custom ID
+```bash
+# Capture tasks
+tqs add <title>
+tqs add <title> --queue <queue>
+tqs add <title> --source <source> --tags <tag1,tag2> --project <project>
+tqs add <title> --edit
 
-# Listing tasks
-tqs list [keywords]                           List open tasks (default)
-tqs list --all                                List all tasks
-tqs list --closed                             List closed tasks
-tqs list --verbose                            Show extra columns
-tqs list bug fix                              Filter by keywords
+# Review work
+tqs list
+tqs list <queue>
+tqs find <query>
+tqs show <task>
 
-# Managing tasks
-tqs complete [id]                             Mark as closed
-tqs reopen [id]                               Mark as open
-tqs info [id]                                 Show details
-tqs edit [id]                                 Edit in $EDITOR
-tqs move [old_id] [new_id]                    Change task ID
-tqs delete <id>                               Delete task
+# Move work forward
+tqs move <task> <queue>
+tqs done <task>
+tqs edit <task>
 
-# Aliases (examples)
-tqs new [summary]                             Alias for create
-tqs show [id]                                 Alias for info
-tqs done [id]                                 Alias for complete
-tqs open [id]                                 Alias for reopen
-tqs modify [id]                               Alias for edit
-tqs remove <id>                               Alias for delete
-tqs rename [old_id] [new_id]                  Alias for move
-
-# Global options
---root <path>                                 Override storage directory
-TQS_ROOT                                      Environment variable for storage
+# Global storage override
+tqs --root <path> <command>
 ```
 
 ## Global Options
 
 ### `--root <path>`
 
-Override the default storage location.
+Override the configured tasks root for a single command.
 
 ```bash
-tqs --root /custom/path create "My task"
+tqs --root /tmp/tasks list
 ```
 
-### `TQS_ROOT` Environment Variable
+### `TQS_ROOT`
 
-Set a default storage location via environment variable.
+Set a default tasks root via environment variable.
 
 ```bash
-export TQS_ROOT=/custom/path
+export TQS_ROOT=/path/to/tasks
 tqs list
 ```
 
-Storage precedence: `--root` → `TQS_ROOT` → `<git-repo>/todos` → `$XDG_DATA_HOME/tqs/todos`
+Storage precedence:
+
+1. `--root <path>`
+2. `TQS_ROOT`
+3. config file at `$XDG_CONFIG_HOME/tqs/config.toml` or `~/.config/tqs/config.toml`
 
 ## Exit Codes
 
-- `0` - Success
-- `1` - Runtime error
-- `2` - Usage/argument error
+- `0` - success
+- `1` - runtime error
+- `2` - usage or argument error
+
+## Queues
+
+Valid queue names:
+
+- `inbox`
+- `now`
+- `next`
+- `later`
+- `done`
+
+These names are the command-line and frontmatter values even when queue directory names are overridden in config.
+
+## Task Resolution
+
+Commands that accept `<task>` resolve it in this order:
+
+1. exact id match
+2. unique id prefix
+3. unique title substring
+4. interactive picker if multiple matches remain and a TTY is available
+
+If the match is ambiguous without a TTY, the command fails with an ambiguity error. If no tasks exist, interactive commands print `No tasks available` and exit successfully.
 
 ## Commands
 
-### Fuzzy Command Matching
+### `add`
 
-Commands support fuzzy matching - enter a subset of characters in order to match:
-
-- `tqs cr` or `tqs crte` → `tqs create`
-- `tqs l` or `tqs ls` → `tqs list`
-- `tqs i` or `tqs inf` → `tqs info`
-- `tqs ed` or `tqs edi` → `tqs edit`
-- `tqs cmp` → `tqs complete`
-- `tqs opn` → `tqs reopen`
-- `tqs d` or `tqs del` → `tqs delete`
-- `tqs m` or `tqs mov` → `tqs move`
-
-Commands also support exact aliases (shell-style synonyms):
-
-- `tqs new` or `tqs add` → `tqs create`
-- `tqs ls` → `tqs list`
-- `tqs show` or `tqs view` → `tqs info`
-- `tqs modify` → `tqs edit`
-- `tqs done`, `tqs finish`, or `tqs close` → `tqs complete`
-- `tqs open` → `tqs reopen`
-- `tqs remove`, `tqs rm`, or `tqs del` → `tqs delete`
-- `tqs rename` or `tqs mv` → `tqs move`
-
-**Resolution behavior** (important for short inputs like `tqs c`):
-1. Exact canonical command (e.g. `create`)
-2. Exact alias (e.g. `new`)
-3. Prefix/fuzzy match on canonical commands
-4. Prefix/fuzzy match on aliases
-
-If a fuzzy/alias match is ambiguous across different commands, TQS leaves it unchanged and shows the normal unknown-command error so you can type a clearer command.
-
-**Examples:**
 ```bash
-# Shortest possible commands
-tqs l                    # List open tasks
-tqs cr "Buy groceries"   # Create a task
-tqs c <task-id>          # Create a task (create > complete)
-tqs i <task-id>          # Show task info
-tqs ed <task-id>         # Edit a task
-
-# Aliases
-tqs new "Buy groceries"  # Create a task
-tqs show <task-id>       # Show task info
-tqs modify <task-id>     # Edit a task
-tqs done <task-id>       # Complete a task
-tqs rename old-id new-id # Move/rename task ID
-
-# Works with flags and arguments
-tqs l --all              # List all tasks
-tqs l bug fix            # Filter by keywords
-tqs cr "Task" --id my-id # Create with custom ID
+tqs add [title] [--source <source>] [--tags <tag1,tag2>] [--project <project>] [--queue <queue>] [--edit]
 ```
 
----
+Creates a new task. If `title` is omitted, TQS prompts for it interactively.
 
-### `create` - Create a new task
+Flags:
 
-```
-tqs create [summary] [--description <text>] [--id <id>]
-```
+- `--source <source>` sets the optional source field
+- `--tags <tag1,tag2>` sets comma-separated tags
+- `--project <project>` sets the optional project field
+- `--queue <queue>` creates the task directly in a queue other than `inbox`
+- `--edit` opens the created file in the configured editor immediately after creation
 
-**Arguments:**
-- `summary` - Task summary (optional, prompts interactively if omitted)
+Behavior:
 
-**Flags:**
-- `--description <text>` - Task description
-- `--id <id>` - Custom task ID (auto-generated if omitted)
+- generates a unique task id
+- creates a Markdown file with the default task template
+- prints `Created task: <id> (<path>)`
 
-**Examples:**
+Examples:
+
 ```bash
-tqs create "Write documentation"
-tqs create "Fix bug" --description "The login page fails"
-tqs create --id my-task-id "Important task"
+tqs add "Reply to AWS billing alert"
+tqs add "Plan release notes" --queue now --project docs
+tqs add "Follow up with finance" --tags billing,aws --source email
+tqs add "Draft incident summary" --edit
 ```
 
-**Interactive:**
-Without a TTY, you must provide the summary. With a TTY, TQS prompts for summary and optionally a multi-line description.
+### `list`
 
----
-
-### `list` - List tasks
-
-```
-tqs list [keywords...] [--all|--closed] [--verbose]
-```
-
-**Arguments:**
-- `keywords...` - Filter by keywords (AND semantics, matches id, summary, description)
-
-**Flags:**
-- `--all` - List all tasks
-- `--closed` - List closed tasks only
-- `--verbose` - Show status and created_at columns
-
-**Examples:**
 ```bash
-tqs list                              # Open tasks only
-tqs list --all                        # All tasks
-tqs list --closed                     # Closed tasks only
-tqs list bug                          # Tasks containing "bug"
-tqs list bug urgent                   # Tasks containing "bug" AND "urgent"
-tqs list --verbose                    # Show extra columns
+tqs list
+tqs list <queue>
 ```
 
-**Default columns:** id, summary
+Behavior:
 
-**Verbose columns:** id, status, created_at, summary
+- `tqs list` prints queue counts for all built-in queues, then the `now` section, then the `inbox` section
+- `tqs list <queue>` prints that queue header and one line per task: `<id>  <title>`
+- empty queue output prints `No tasks found`
 
-**Sort order:** Newest first (by created_at), then by id
+Examples:
 
----
-
-### `complete` - Mark task as closed
-
-```
-tqs complete [id]
-```
-
-**Arguments:**
-- `id` - Task ID (optional, opens interactive picker if omitted)
-
-**Examples:**
 ```bash
-tqs complete cobalt-urial-7f3a
-tqs complete                            # Interactive picker
+tqs list
+tqs list now
+tqs list done
 ```
 
-**Interactive:**
-Without an ID, opens a fuzzy-select picker of open tasks. Requires a TTY.
+### `move`
 
-**Behavior:**
-- Already closed: Prints info message, exits successfully
-- No open tasks: Prints "No open tasks available"
-
----
-
-### `reopen` - Mark task as open
-
-```
-tqs reopen [id]
-```
-
-**Arguments:**
-- `id` - Task ID (optional, opens interactive picker if omitted)
-
-**Examples:**
 ```bash
-tqs reopen cobalt-urial-7f3a
-tqs reopen                             # Interactive picker
+tqs move <task> <queue>
 ```
 
-**Interactive:**
-Without an ID, opens a fuzzy-select picker of closed tasks. Requires a TTY.
+Moves a task into a different queue.
 
-**Behavior:**
-- Already open: Prints info message, exits successfully
-- No closed tasks: Prints "No closed tasks available"
+Behavior:
 
----
+- updates `queue`
+- updates `updated_at`
+- moves the file into the target queue directory
+- if the task is already in the target queue, prints `Task <id> is already in <queue>` and exits successfully
 
-### `info` - Show task details
+Examples:
 
-```
-tqs info [id]
-```
-
-**Arguments:**
-- `id` - Task ID (optional, opens interactive picker if omitted)
-
-**Examples:**
 ```bash
-tqs info cobalt-urial-7f3a
-tqs info                               # Interactive picker
+tqs move 20260309-aws now
+tqs move billing later
 ```
 
-**Interactive:**
-Without an ID, opens a fuzzy-select picker of all tasks. Requires a TTY.
+### `done`
 
-**Output:**
-Displays id, status, created_at, summary, and full markdown description.
-
----
-
-### `edit` - Edit task in editor
-
-```
-tqs edit [id]
-```
-
-**Arguments:**
-- `id` - Task ID (optional, opens interactive picker if omitted)
-
-**Examples:**
 ```bash
-tqs edit cobalt-urial-7f3a
-tqs edit                             # Interactive picker
+tqs done <task>
 ```
 
-**Interactive:**
-Without an ID, opens a fuzzy-select picker of all tasks. Requires a TTY.
+Marks a task as done by moving it to the `done` queue.
 
-**Behavior:**
-- Opens the task file in `$EDITOR` (defaults to `vi`)
-- Validates the edited file after the editor closes
-- Shows recovery options if the file is empty or invalid
-- Validates that the ID in the file matches the filename
-- Provides options to restore, rename, or abort on ID mismatch
+Behavior:
 
-**Recovery options:**
+- updates `queue` to `done`
+- sets `completed_at`
+- updates `updated_at`
+- prints `Completed task: <id> (<path>)`
+- if the task is already done, prints `Task <id> is already done` and exits successfully
+- if `daily_notes_dir` is configured, appends a completion line to today’s daily note and stores the note name in `daily_note`
 
-1. **Empty file:** Three options
-   - "Restore original content" - Restore the file before editing
-   - "Delete task" - Remove the task entirely
-   - "Abort" - Leave the file empty and return an error
+Examples:
 
-2. **Invalid format:** Two options
-   - "Restore original content" - Restore the file before editing
-   - "Abort" - Leave the file malformed and return an error
-
-3. **ID mismatch:** Three options
-   - "Restore original ID in file" - Keep user's edits, fix ID field
-   - "Rename file to match new ID" - Move the file to the new ID
-   - "Abort" - Leave the file as-is and return an error
-
-**Editor configuration:**
-Set the `EDITOR` environment variable to use your preferred editor:
 ```bash
-export EDITOR=nvim
-tqs edit <task-id>
+tqs done 20260309-aws
+tqs done "billing alert"
 ```
 
----
+### `edit`
 
-### `delete` - Delete a task
-
-```
-tqs delete <id>
-```
-
-**Arguments:**
-- `id` - Task ID (required)
-
-**Examples:**
 ```bash
-tqs delete cobalt-urial-7f3a
+tqs edit <task>
 ```
 
-**Behavior:**
-- Hard-deletes the task file
-- No confirmation prompt
-- Fails if task not found
+Opens the resolved task file in the configured editor, then validates and re-saves the edited task.
 
----
+Behavior:
 
-### `move` - Change task ID
+- resolves the editor from `VISUAL`, then `EDITOR`, then `vi`
+- rejects edits that make the file empty
+- rejects edits that change the task id
+- normalizes timestamps and completion metadata after a valid edit
+- restores the original file if validation fails
 
-```
-tqs move [old_id] [new_id]
-```
+Examples:
 
-**Arguments:**
-- `old_id` - Current task ID (optional, opens interactive picker if omitted)
-- `new_id` - New task ID (optional, prompts for input if omitted)
-
-**Examples:**
 ```bash
-tqs move old-id new-id
-tqs move cobalt-urial-7f3a better-name-1234
-tqs move                              # Interactive picker and prompt
+export VISUAL="nvim"
+tqs edit 20260309-aws
 ```
 
-**Interactive:**
-Without arguments, opens a fuzzy-select picker of all tasks for the old ID, then prompts for the new ID. Requires a TTY.
+### `show`
 
-**Behavior:**
-- Renames the task file and updates the ID in the task
-- Fails if old task ID does not exist
-- Fails if new task ID already exists
-- Preserves all other task properties (status, created_at, summary, description)
-
----
-
-## Storage Format
-
-Tasks are stored as Markdown files with YAML frontmatter:
-
-```yaml
----
-id: cobalt-urial-7f3a
-created_at: 2026-02-20T22:15:00Z
-status: open
-summary: Short task summary
----
-
-Markdown description body follows here.
+```bash
+tqs show <task>
 ```
 
-- Files are named `<id>.md`
-- Status is `open` or `closed` (lowercase)
-- Description is optional
-- Malformed files are skipped with a warning
+Displays task metadata and the Markdown body.
 
-## Interactive Features
+Output includes:
 
-Several commands support interactive mode when no ID is provided:
-- `complete` - Picker for open tasks
-- `reopen` - Picker for closed tasks
-- `info` - Picker for all tasks
-- `edit` - Picker for all tasks
-- `move` - Picker for old ID, prompt for new ID
-- `create` - Prompts for summary and description (optional)
+- id
+- queue
+- resolved file path
+- created timestamp
+- updated timestamp
+- title
+- tags, source, project when present
+- completed timestamp when present
+- full body
 
-**TTY Requirement:**
-Interactive features require a TTY. Without a TTY, you must provide the required arguments explicitly.
+Example:
 
-**Picker Behavior:**
-- Fuzzy-select interface
-- Task status filter toggle with `Tab` / `Shift+Tab` (`all`, `open`, `closed`; availability depends on command)
-- Cancel with Ctrl+C or Esc
-- Success with confirmation message
+```bash
+tqs show 20260309-aws
+```
+
+### `find`
+
+```bash
+tqs find <query>
+```
+
+Searches across tasks in all queues.
+
+The search matches case-insensitively against:
+
+- id
+- title
+- body
+- tags
+- source
+- project
+
+Output format:
+
+```text
+[<queue>] <id>  <title>
+```
+
+Example:
+
+```bash
+tqs find billing
+tqs find platform-costs
+```
+
+## File Format
+
+Tasks are stored as Markdown files under:
+
+```text
+<tasks_root>/<queue-dir>/<id>.md
+```
+
+Example task:
+
+```markdown
+---
+id: 20260309-103412-reply-aws-billing
+title: Reply to AWS billing alert
+queue: now
+created_at: 2026-03-09T10:34:12Z
+updated_at: 2026-03-09T11:20:07Z
+tags:
+  - aws
+  - finance
+source: email
+project: platform-costs
+completed_at:
+daily_note:
+---
+# Reply to AWS billing alert
+
+## Context
+
+Finance asked for an explanation of an unexpected cost spike.
+
+## Notes
+```
+
+## Configuration
+
+Minimal config:
+
+```toml
+tasks_root = "/path/to/tasks"
+daily_notes_dir = "/path/to/daily-notes"
+
+[queues]
+inbox = "inbox"
+now = "focus"
+next = "next"
+later = "later"
+done = "archive"
+```
+
+Notes:
+
+- `tasks_root` is required unless supplied via `--root` or `TQS_ROOT`
+- `daily_notes_dir` is optional
+- queue overrides change directory names only
+- relative config paths are resolved relative to the config file directory
+- queue directory overrides must be a single path segment
