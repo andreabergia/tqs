@@ -146,10 +146,7 @@ If `daily_notes_dir` is configured, `tqs done` appends a completion entry to tod
 
 - [USAGE.md](USAGE.md) - Current CLI reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Current code structure and data flow
-- [docs/v2/overview.md](docs/v2/overview.md) - Canonical v2 overview
-- [docs/v2/cli-contract.md](docs/v2/cli-contract.md) - Lean-core v2 CLI contract
-- [docs/v2/storage-and-layout.md](docs/v2/storage-and-layout.md) - v2 storage model
-- [docs/v2/implementation-plan.md](docs/v2/implementation-plan.md) - Remaining consolidation plan
+- [docs/todos/README.md](docs/todos/README.md) - Open gaps and unresolved product decisions
 
 ## Maintainer Release Process
 
