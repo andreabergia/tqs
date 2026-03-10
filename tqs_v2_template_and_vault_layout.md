@@ -1,3 +1,14 @@
+# Superseded Draft
+
+This draft has been superseded by the canonical v2 docs under `docs/v2/`.
+
+Primary replacements:
+
+- `docs/v2/overview.md`
+- `docs/v2/cli-contract.md`
+- `docs/v2/storage-and-layout.md`
+- `docs/v2/implementation-plan.md`
+
 # TQS v2 Task Template and Example Vault Layout
 
 This document defines a practical **task file template** and an

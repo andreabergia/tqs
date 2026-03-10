@@ -108,6 +108,10 @@ Each task is saved as `<storage-root>/<task-id>.md`.
 
 - [USAGE.md](USAGE.md) - Complete command reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) - How it works internally
+- [docs/v2/overview.md](docs/v2/overview.md) - Canonical high-level plan for the v2 rewrite
+- [docs/v2/cli-contract.md](docs/v2/cli-contract.md) - Lean-core v2 CLI contract
+- [docs/v2/storage-and-layout.md](docs/v2/storage-and-layout.md) - Planned v2 storage model
+- [docs/v2/implementation-plan.md](docs/v2/implementation-plan.md) - Phase-based v2 rewrite plan
 
 ## Maintainer Release Process
 
