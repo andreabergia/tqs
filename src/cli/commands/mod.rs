@@ -1,16 +1,22 @@
 pub mod add;
+pub mod config;
 pub mod done;
 pub mod edit;
 pub mod find;
 pub mod helpers;
+pub mod inbox;
 pub mod list;
 pub mod move_cmd;
+pub mod now;
 pub mod show;
 
 pub use add::Add;
+pub use config::Config;
 pub use done::Done;
 pub use edit::Edit;
 pub use find::Find;
+pub use inbox::Inbox;
 pub use list::List;
 pub use move_cmd::Move;
+pub use now::Now;
 pub use show::Show;

@@ -112,6 +112,44 @@ fn list_queue_shows_only_requested_queue() {
 }
 
 #[test]
+fn now_command_shows_only_now_queue() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(temp.path(), "now", "task-1", "Do now", "# Do now");
+    write_task(temp.path(), "inbox", "task-2", "Review PR", "# Review PR");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("now")
+        .assert()
+        .success()
+        .stdout(
+            contains("now")
+                .and(contains("Do now"))
+                .and(contains("Review PR").not()),
+        );
+}
+
+#[test]
+fn inbox_command_shows_only_inbox_queue() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(temp.path(), "now", "task-1", "Do now", "# Do now");
+    write_task(temp.path(), "inbox", "task-2", "Review PR", "# Review PR");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("inbox")
+        .assert()
+        .success()
+        .stdout(
+            contains("inbox")
+                .and(contains("Review PR"))
+                .and(contains("Do now").not()),
+        );
+}
+
+#[test]
 fn move_relocates_file_to_target_queue() {
     let temp = TempDir::new().expect("temp dir should exist");
 
@@ -392,6 +430,89 @@ fn command_fails_cleanly_when_tasks_root_is_not_configured() {
         .assert()
         .failure()
         .stderr(contains("missing tasks_root"));
+}
+
+#[test]
+fn config_command_prints_effective_values_from_root_override() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("config")
+        .assert()
+        .success()
+        .stdout(
+            contains(format!("tasks_root = {}", temp.path().display()))
+                .and(contains("daily_notes_dir = <unset>"))
+                .and(contains("queue.inbox = inbox"))
+                .and(contains("queue.done = done")),
+        );
+}
+
+#[test]
+fn config_command_prints_configured_daily_notes_and_queue_dirs() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    let tasks_root = temp.path().join("configured-tasks");
+    let daily_notes_dir = temp.path().join("daily");
+    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
+    std::fs::write(
+        config_dir.join("config.toml"),
+        format!(
+            "tasks_root = '{}'\ndaily_notes_dir = '{}'\n[queues]\ninbox = 'capture'\nnow = 'focus'\ndone = 'archive'\n",
+            tasks_root.display(),
+            daily_notes_dir.display()
+        ),
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("config")
+        .assert()
+        .success()
+        .stdout(
+            contains(format!("tasks_root = {}", tasks_root.display()))
+                .and(contains(format!(
+                    "daily_notes_dir = {}",
+                    daily_notes_dir.display()
+                )))
+                .and(contains("queue.inbox = capture"))
+                .and(contains("queue.now = focus"))
+                .and(contains("queue.done = archive")),
+        );
+}
+
+#[test]
+fn config_command_respects_root_precedence() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    let cli_root = temp.path().join("cli-root");
+    let env_root = temp.path().join("env-root");
+    let config_root = temp.path().join("config-root");
+    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
+    std::fs::write(
+        config_dir.join("config.toml"),
+        format!("tasks_root = '{}'\n", config_root.display()),
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .env("TQS_ROOT", &env_root)
+        .arg("--root")
+        .arg(&cli_root)
+        .arg("config")
+        .assert()
+        .success()
+        .stdout(
+            contains(format!("tasks_root = {}", cli_root.display()))
+                .and(contains(format!("tasks_root = {}", env_root.display())).not())
+                .and(contains(format!("tasks_root = {}", config_root.display())).not()),
+        );
 }
 
 #[test]

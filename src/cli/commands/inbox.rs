@@ -1,0 +1,25 @@
+use std::path::PathBuf;
+
+use clap::Parser;
+
+use crate::app::app_error::AppError;
+
+use super::list;
+
+#[derive(Debug, Parser)]
+pub struct Inbox;
+
+pub fn handle_inbox(_: Inbox, root: Option<PathBuf>, global: bool) -> Result<(), AppError> {
+    list::print_queue(list::QueueSelection::Inbox, root, global)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Inbox;
+    use clap::Parser;
+
+    #[test]
+    fn parses_inbox_command() {
+        Inbox::parse_from(["inbox"]);
+    }
+}
