@@ -24,6 +24,8 @@ Delivered:
 
 ## Phase 2: Replace the Domain Model and Storage
 
+Status: completed
+
 Goal:
 
 Replace the old `open` and `closed` task model with the new queue-based model and filesystem layout.
@@ -51,7 +53,17 @@ Acceptance criteria:
 - invalid queue names are rejected cleanly
 - parse/render roundtrips preserve the task schema and body
 
+Delivered:
+
+- replaced the old status model with a queue-centric `Task` schema
+- implemented queue-backed storage at `<tasks_root>/<queue>/<id>.md`
+- implemented whole-repo scanning across the built-in queue directories
+- preserved malformed-file warnings during scans
+- centralized queue enumeration in the domain layer so a future configurable-queues feature has a single integration point
+
 ## Phase 3: Replace the CLI Surface
+
+Status: in progress
 
 Goal:
 
@@ -88,6 +100,17 @@ Acceptance criteria:
 - ambiguous references behave correctly in interactive and non-interactive contexts
 - already-done tasks are handled idempotently by `done`
 
+Delivered so far:
+
+- removed the old `create`, `complete`, `reopen`, `info`, and `delete` command paths
+- implemented `add`, `list`, `move`, `done`, `edit`, `show`, and `find`
+- updated fuzzy command expansion and aliases for the new command set
+- implemented shared task resolution with exact id, unique id prefix, search-based matching, and picker fallback
+
+Remaining:
+
+- refine CLI behavior to fully match the documented v2 contract where current output/UX is still minimal
+
 ## Phase 4: Add Minimal Configuration
 
 Goal:
@@ -98,12 +121,14 @@ Deliverables:
 
 - resolve `tasks_root` from CLI flag, environment, and config file
 - resolve optional `daily_notes_dir`
+- make queue definitions configurable without changing the on-disk task schema
 - keep configuration small and implementation-focused
 
 Rules:
 
 - `tasks_root` is the only required effective location
 - `daily_notes_dir` is optional in the first delivery
+- built-in queues remain the default until explicit configuration support is added
 - no `config` command is included in the first delivery
 - no `doctor` command is included in the first delivery
 
@@ -160,4 +185,5 @@ End-to-end scenarios:
 - no compatibility layer will be built for the old storage format or command set
 - old tests may be deleted or rewritten freely
 - daily-note integration is intentionally deferred from the first delivery
+- queue configurability is a future extension; the current implementation keeps queue definitions centralized to make that migration local
 - Obsidian compatibility remains a usage pattern, not a core architectural dependency
