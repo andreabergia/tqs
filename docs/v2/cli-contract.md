@@ -60,9 +60,6 @@ The first implementation milestone includes:
 - `show`
 - `find`
 - `config`
-
-Deferred command:
-
 - `doctor`
 
 ## Commands
@@ -201,6 +198,21 @@ Behavior:
 - display `daily_notes_dir` or an unset marker
 - display queue directory mappings for all built-in queues
 - remain read-only
+
+### `tqs doctor`
+
+```bash
+tqs doctor
+```
+
+Behavior:
+
+- resolve the effective configuration
+- validate queue directory mappings remain non-overlapping
+- inspect `tasks_root` and `daily_notes_dir` directory health
+- scan Markdown task files across all queue directories
+- report malformed files, queue-directory mismatches, and duplicate ids
+- exit non-zero if any error-level issues are found
 
 ## Exit Behavior
 

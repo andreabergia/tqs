@@ -11,6 +11,7 @@ tqs list
 tqs now
 tqs inbox
 tqs config
+tqs doctor
 tqs move 20260309-aws now
 tqs done 20260309-aws
 tqs edit 20260309-aws
@@ -76,6 +77,9 @@ tqs find latency
 
 # Inspect effective configuration
 tqs config
+
+# Run storage diagnostics
+tqs doctor
 ```
 
 Task arguments are resolved in this order:

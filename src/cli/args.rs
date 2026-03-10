@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use super::commands::{Add, Config, Done, Edit, Find, Inbox, List, Move, Now, Show};
+use super::commands::{Add, Config, Doctor, Done, Edit, Find, Inbox, List, Move, Now, Show};
 
 #[derive(Debug, Parser)]
 #[command(name = "tqs", version, about = "Terminal task queue")]
@@ -29,4 +29,5 @@ pub enum Command {
     Show(Show),
     Find(Find),
     Config(Config),
+    Doctor(Doctor),
 }

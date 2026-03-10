@@ -4,6 +4,7 @@ use crate::{
         task::{Queue, Task},
     },
     storage::config::ResolvedConfig,
+    storage::doctor::{DiagnosticSeverity, DoctorReport},
     storage::repo::StoredTask,
 };
 use dialoguer::console::style;
@@ -137,4 +138,22 @@ pub fn print_config(config: &ResolvedConfig) {
     println!("queue.next = {}", config.queue_dirs.next);
     println!("queue.later = {}", config.queue_dirs.later);
     println!("queue.done = {}", config.queue_dirs.done);
+}
+
+pub fn print_doctor_report(report: &DoctorReport) {
+    for diagnostic in &report.diagnostics {
+        let label = match diagnostic.severity {
+            DiagnosticSeverity::Ok => style("ok").green().bold().to_string(),
+            DiagnosticSeverity::Warning => style("warn").yellow().bold().to_string(),
+            DiagnosticSeverity::Error => style("error").red().bold().to_string(),
+        };
+        println!("[{label}] {}: {}", diagnostic.scope, diagnostic.message);
+    }
+
+    println!(
+        "summary: {} ok, {} warning(s), {} error(s)",
+        report.ok_count(),
+        report.warning_count(),
+        report.error_count()
+    );
 }

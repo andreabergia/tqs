@@ -1,7 +1,7 @@
 use crate::app::app_error::AppError;
 
 use super::args::{Cli, Command};
-use super::commands::{add, config, done, edit, find, inbox, list, move_cmd, now, show};
+use super::commands::{add, config, doctor, done, edit, find, inbox, list, move_cmd, now, show};
 
 pub fn handle(cli: Cli) -> Result<(), AppError> {
     match cli.command {
@@ -15,6 +15,7 @@ pub fn handle(cli: Cli) -> Result<(), AppError> {
         Some(Command::Show(command)) => show::handle_show(command, cli.root, cli.global),
         Some(Command::Find(command)) => find::handle_find(command, cli.root, cli.global),
         Some(Command::Config(command)) => config::handle_config(command, cli.root, cli.global),
+        Some(Command::Doctor(command)) => doctor::handle_doctor(command, cli.root, cli.global),
         None => Err(AppError::usage("no command specified")),
     }
 }

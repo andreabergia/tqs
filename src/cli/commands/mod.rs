@@ -1,5 +1,6 @@
 pub mod add;
 pub mod config;
+pub mod doctor;
 pub mod done;
 pub mod edit;
 pub mod find;
@@ -12,6 +13,7 @@ pub mod show;
 
 pub use add::Add;
 pub use config::Config;
+pub use doctor::Doctor;
 pub use done::Done;
 pub use edit::Edit;
 pub use find::Find;

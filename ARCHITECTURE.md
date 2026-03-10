@@ -172,6 +172,8 @@ The shipped lean-core commands are:
 - `edit`
 - `show`
 - `find`
+- `config`
+- `doctor`
 
 ### Task Reference Resolution
 
@@ -191,6 +193,7 @@ If no TTY is available for an ambiguous match, the command returns an error inst
 - dashboard and queue listings for `list`
 - detailed task rendering for `show`
 - search result formatting for `find`
+- diagnostic report formatting for `doctor`
 - informational messages for create, move, done, and edit flows
 
 ## Error Handling

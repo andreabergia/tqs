@@ -516,6 +516,63 @@ fn config_command_respects_root_precedence() {
 }
 
 #[test]
+fn doctor_reports_clean_state_for_empty_root() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("doctor")
+        .assert()
+        .success()
+        .stdout(
+            contains("[ok] config: resolved tasks_root")
+                .and(contains("[ok] tasks_root:"))
+                .and(contains("summary:")),
+        );
+}
+
+#[test]
+fn doctor_fails_when_it_finds_invalid_task_files() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let inbox = temp.path().join("inbox");
+    fs::create_dir_all(&inbox).expect("inbox dir should exist");
+    fs::write(
+        inbox.join("bad.md"),
+        "---\nid: bad\nqueue: inbox\n---\n# Missing required fields\n",
+    )
+    .expect("bad task should be written");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("doctor")
+        .assert()
+        .failure()
+        .stdout(contains("[error] tasks:").and(contains("bad.md is malformed")))
+        .stderr(contains("doctor found 1 error(s)"));
+}
+
+#[test]
+fn doctor_fails_when_task_queue_disagrees_with_directory() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(temp.path(), "inbox", "task-1", "Ship v2", "# Ship v2");
+    let path = temp.path().join("inbox").join("task-1.md");
+    let content = fs::read_to_string(&path).expect("task should exist");
+    fs::write(&path, content.replace("queue: inbox", "queue: now"))
+        .expect("task should be updated");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("doctor")
+        .assert()
+        .failure()
+        .stdout(contains("declares queue 'now' but is stored under 'inbox'"))
+        .stderr(contains("doctor found 1 error(s)"));
+}
+
+#[test]
 fn done_appends_completion_to_daily_note_when_configured() {
     let temp = TempDir::new().expect("temp dir should exist");
     let config_home = temp.path().join("config-home");

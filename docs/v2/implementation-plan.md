@@ -11,6 +11,7 @@ Implemented:
 - lean v2 command set: `add`, `list`, `now`, `inbox`, `move`, `done`, `edit`, `show`, `find`, `config`
 - minimal config loading for `tasks_root`, optional `daily_notes_dir`, and queue directory overrides
 - optional daily-note completion logging
+- read-only `doctor` diagnostics for config and task storage health
 - top-level repository docs aligned with the shipped v2 CLI, storage model, and architecture
 
 Validated:
@@ -21,7 +22,6 @@ Validated:
 
 Still missing:
 
-- `doctor` remains deferred for a future milestone
 - phase 9 query/filter decisions remain open
 
 ## Phase 6: Consolidate Documentation
@@ -88,7 +88,7 @@ Outcome:
 - implemented `now` as a convenience alias for `list now`
 - implemented `inbox` as a convenience alias for `list inbox`
 - implemented `config` as a read-only effective-config view
-- kept `doctor` explicitly deferred for a future milestone because it is additive diagnostics rather than core queue workflow
+- implemented `doctor` as a read-only diagnostic command for config and task storage health
 
 Acceptance criteria:
 

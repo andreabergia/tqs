@@ -25,6 +25,7 @@ tqs edit <task>
 # Global storage override
 tqs --root <path> <command>
 tqs config
+tqs doctor
 ```
 
 ## Global Options
@@ -307,6 +308,28 @@ Behavior:
 - resolves config with the current precedence: `--root`, `TQS_ROOT`, then config file
 - prints effective values only
 - does not modify config files or validate beyond normal command startup
+
+### `doctor`
+
+```bash
+tqs doctor
+```
+
+Runs a read-only diagnostic pass over effective config and on-disk task storage.
+
+Checks include:
+
+- config resolution and queue directory overlap
+- whether `tasks_root` and `daily_notes_dir` exist as directories
+- malformed Markdown task files
+- task files whose frontmatter queue does not match their containing queue directory
+- duplicate task ids across queue directories
+
+Behavior:
+
+- prints each finding with `ok`, `warn`, or `error`
+- exits successfully when no errors are found
+- exits non-zero when any error is found
 
 ## File Format
 
