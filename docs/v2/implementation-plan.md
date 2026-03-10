@@ -21,7 +21,6 @@ Validated:
 
 Still missing:
 
-- several lean-core acceptance scenarios are only partially covered by end-to-end tests
 - all deferred features from the original plan remain deferred
 
 ## Phase 6: Consolidate Documentation
@@ -48,7 +47,7 @@ Acceptance criteria:
 
 ## Phase 7: Close Lean-Core Test Gaps
 
-Status: pending
+Status: complete
 
 Goal:
 
@@ -73,7 +72,7 @@ Acceptance criteria:
 
 - every lean-core command has at least one direct CLI smoke test for its primary happy path
 - lean-core idempotency and no-op behaviors are covered at the CLI layer
-- the remaining end-to-end scenarios from the original plan are either directly tested or explicitly removed from scope
+- the remaining end-to-end scenarios from the original plan are directly covered by CLI tests
 
 ## Phase 8: Decide and Implement Remaining Deferred Commands
 
