@@ -82,6 +82,16 @@ tqs config
 tqs doctor
 ```
 
+New tasks created by `tqs add` start with this default body:
+
+```markdown
+# <title>
+
+## Context
+
+## Notes
+```
+
 Task arguments are resolved in this order:
 
 1. exact id

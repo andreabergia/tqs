@@ -69,7 +69,12 @@ fn add_creates_task_in_inbox() {
         .success()
         .stdout(contains("Created task: task-1"));
 
-    assert!(temp.path().join("inbox").join("task-1.md").exists());
+    let path = temp.path().join("inbox").join("task-1.md");
+    assert!(path.exists());
+    let content = fs::read_to_string(path).expect("task should exist");
+    assert!(content.contains("# Ship v2"));
+    assert!(content.contains("## Context"));
+    assert!(content.contains("## Notes"));
 }
 
 #[test]
@@ -673,13 +678,13 @@ fn edit_updates_body_without_renaming_file() {
         "inbox",
         "task-1",
         "Ship v2",
-        "# Ship v2\n\n## Notes\n\nOld body",
+        "# Ship v2\n\n## Context\n\n## Notes\n\nOld body",
     );
 
     cargo_bin_cmd!("tqs")
         .env(
             "VISUAL",
-            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Notes\n\nUpdated body\nEOF' sh",
+            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nUpdated body\nEOF' sh",
         )
         .arg("--root")
         .arg(temp.path())
@@ -703,7 +708,7 @@ fn add_with_edit_persists_editor_changes() {
     cargo_bin_cmd!("tqs")
         .env(
             "VISUAL",
-            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Notes\n\nEdited during add\nEOF' sh",
+            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nEdited during add\nEOF' sh",
         )
         .arg("--root")
         .arg(temp.path())
@@ -719,7 +724,7 @@ fn add_with_edit_persists_editor_changes() {
     let content =
         fs::read_to_string(temp.path().join("inbox").join("task-1.md")).expect("task should exist");
     assert!(content.contains("Edited during add"));
-    assert!(!content.contains("## Context"));
+    assert!(content.contains("## Context"));
 }
 
 #[test]
