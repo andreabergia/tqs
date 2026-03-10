@@ -276,6 +276,8 @@ The search matches case-insensitively against:
 - source
 - project
 
+`find` does not support structured filter flags in v2. Use a single free-text query.
+
 Output format:
 
 ```text

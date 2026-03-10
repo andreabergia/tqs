@@ -96,27 +96,24 @@ Acceptance criteria:
 
 ## Phase 9: Decide and Implement Deferred Query Features
 
-Status: pending
+Status: complete
 
 Goal:
 
-Resolve the deferred filtering and search work from the original plan.
+Resolve the deferred filtering and search work from the original plan by explicitly freezing the v2 query surface.
 
-Deferred items carried over from the original plan:
+Outcome:
 
-- advanced list filters
-- richer search filters
-
-Work required:
-
-- define whether `list` should remain queue-only or grow additional filters
-- define whether `find` should remain plain text or gain structured filtering
-- implement only after the CLI contract is clear and test coverage is added
+- kept `list` queue-only: `tqs list` remains the dashboard view and `tqs list <queue>` remains the single-queue view
+- kept `find` as plain free-text search with no structured flags
+- made the current `find` behavior the contract: case-insensitive substring matching across `id`, `title`, `body`, `tags`, `source`, and `project`
+- dropped advanced `list` filters and richer structured search filters from the active roadmap
 
 Acceptance criteria:
 
 - the active roadmap no longer contains undefined filter work
-- any adopted filtering or search features are documented and tested end to end
+- the shipped `list` and `find` behavior is documented as the final v2 query scope
+- existing end-to-end coverage remains in place for queue views and metadata-aware text search
 
 ## Completion Criteria
 

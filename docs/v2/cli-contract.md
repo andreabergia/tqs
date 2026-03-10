@@ -96,8 +96,7 @@ Behavior:
 - `tqs list` shows a compact default dashboard
 - default recommendation: show `now`, `inbox`, and queue counts
 - `tqs list <queue>` shows only that queue
-
-Advanced filters remain out of scope for the first milestone.
+- advanced list filters are out of scope for v2
 
 ### `tqs move`
 
@@ -181,9 +180,9 @@ tqs find <query>
 Behavior:
 
 - search across tasks in all queues
-- simple text-based search is acceptable for v1
-- search should cover the title and body at minimum
-- searching tags, source, and project is recommended if implemented in the first milestone
+- case-insensitive substring matching
+- search covers `id`, `title`, `body`, `tags`, `source`, and `project`
+- structured search flags remain out of scope for v2
 
 ### `tqs config`
 
