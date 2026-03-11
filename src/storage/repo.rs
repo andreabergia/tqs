@@ -136,6 +136,28 @@ impl TaskRepo {
         Ok((task, path))
     }
 
+    pub fn finalize_added_edit(
+        &self,
+        original_id: &str,
+        path: &Path,
+        content: &str,
+        now: DateTime<Utc>,
+    ) -> Result<(Task, PathBuf), AppError> {
+        self.ensure_path_is_within_root(path)?;
+
+        let mut task = parse_task_markdown(content).map_err(|error| {
+            AppError::invalid_task_file(path.to_string_lossy().to_string(), error.to_string())
+        })?;
+
+        if task.id != original_id {
+            return Err(AppError::usage("editing a task cannot change its id"));
+        }
+
+        task.normalize(now);
+        let path = self.update(&task)?;
+        Ok((task, path))
+    }
+
     pub fn scan_all(&self) -> Result<Vec<StoredTask>, AppError> {
         let mut tasks = Vec::new();
 

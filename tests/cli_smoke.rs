@@ -844,6 +844,89 @@ fn add_with_edit_persists_editor_changes() {
 }
 
 #[test]
+fn add_with_edit_rejects_empty_file_and_restores_stub() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .env("VISUAL", "sh -c ': > \"$1\"' sh")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("--edit")
+        .arg("Ship v2")
+        .assert()
+        .failure()
+        .stderr(contains("task file cannot be empty"))
+        .stdout(contains("Created task: task-1").not());
+
+    let path = temp.path().join("inbox").join("task-1.md");
+    let content = fs::read_to_string(path).expect("task should exist");
+    assert!(content.contains("id: task-1"));
+    assert!(content.contains("# Ship v2"));
+    assert!(content.contains("## Context"));
+    assert!(content.contains("## Notes"));
+}
+
+#[test]
+fn add_with_edit_rejects_malformed_content_and_restores_stub() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .env(
+            "VISUAL",
+            "sh -c 'printf -- \"---\\nid: task-1\\n\" > \"$1\"' sh",
+        )
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("--edit")
+        .arg("Ship v2")
+        .assert()
+        .failure()
+        .stderr(contains("invalid task file").and(contains("missing frontmatter end delimiter")))
+        .stdout(contains("Created task: task-1").not());
+
+    let path = temp.path().join("inbox").join("task-1.md");
+    let content = fs::read_to_string(path).expect("task should exist");
+    assert!(content.contains("id: task-1"));
+    assert!(content.contains("# Ship v2"));
+    assert!(content.contains("## Context"));
+    assert!(content.contains("## Notes"));
+}
+
+#[test]
+fn add_with_edit_rejects_id_changes_and_restores_stub() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .env(
+            "VISUAL",
+            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: renamed\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\nEOF' sh",
+        )
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("--edit")
+        .arg("Ship v2")
+        .assert()
+        .failure()
+        .stderr(contains("editing a task cannot change its id"))
+        .stdout(contains("Created task: task-1").not());
+
+    let path = temp.path().join("inbox").join("task-1.md");
+    let content = fs::read_to_string(path).expect("task should exist");
+    assert!(content.contains("id: task-1"));
+    assert!(!content.contains("id: renamed"));
+    assert!(content.contains("# Ship v2"));
+}
+
+#[test]
 fn find_matches_tags_source_and_project() {
     let temp = TempDir::new().expect("temp dir should exist");
     write_task_with_metadata(

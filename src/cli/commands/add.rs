@@ -1,4 +1,4 @@
-use std::{path::PathBuf, process::Command};
+use std::{fs, path::PathBuf, process::Command};
 
 use chrono::Utc;
 use clap::Parser;
@@ -79,9 +79,9 @@ pub fn handle_add(
     }
 
     let path = repo.create(&task)?;
-    output::print_info(&format!("Created task: {} ({})", task.id, path.display()));
 
     if edit {
+        let original_content = fs::read_to_string(&path)?;
         let editor = helpers::resolve_editor()?;
         let status = Command::new(&editor.program)
             .args(&editor.args)
@@ -90,7 +90,23 @@ pub fn handle_add(
         if !status.success() {
             return Err(AppError::message("editor command failed"));
         }
+
+        let edited_content = fs::read_to_string(&path)?;
+        if edited_content.trim().is_empty() {
+            fs::write(&path, original_content)?;
+            return Err(AppError::message("task file cannot be empty"));
+        }
+
+        if edited_content != original_content
+            && let Err(error) =
+                repo.finalize_added_edit(&task.id, &path, &edited_content, Utc::now())
+        {
+            fs::write(&path, original_content)?;
+            return Err(error);
+        }
     }
+
+    output::print_info(&format!("Created task: {} ({})", task.id, path.display()));
 
     Ok(())
 }
