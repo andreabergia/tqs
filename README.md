@@ -129,6 +129,19 @@ later = "later"
 done = "archive"
 ```
 
+Obsidian convenience config:
+
+```toml
+obsidian_vault_dir = "/path/to/My Vault"
+```
+
+When `obsidian_vault_dir` is set, TQS derives:
+
+- `tasks_root = <vault>/Tasks`
+- `daily_notes_dir = <vault>/Daily Notes`
+
+`obsidian_vault_dir` is a shortcut for the generic filesystem model. It cannot be combined with `tasks_root`, `daily_notes_dir`, or queue directory overrides.
+
 If the config file uses relative paths, they are resolved relative to the config file directory. Queue directory overrides must be a single path segment.
 
 Task frontmatter uses the current v2 schema:
@@ -151,6 +164,26 @@ daily_note:
 ## Daily Notes
 
 If `daily_notes_dir` is configured, `tqs done` appends a completion entry to today’s Markdown daily note and records the note name in `daily_note`. Re-running `tqs done` for an already completed task is idempotent.
+
+## Obsidian
+
+TQS is filesystem-first: it works with plain Markdown task files in any directory layout that matches the configured paths. Obsidian is supported as a friendly workflow, not a separate storage mode.
+
+Recommended vault layout:
+
+```text
+<vault>/
+  Tasks/
+    inbox/
+    now/
+    next/
+    later/
+    done/
+  Daily Notes/
+    YYYY-MM-DD.md
+```
+
+Using `obsidian_vault_dir` configures exactly this layout. Daily-note completion entries remain plain Markdown (`- [x] Title (id)`), which renders cleanly in Obsidian without making wiki-link syntax part of the core product contract.
 
 ## Learn More
 

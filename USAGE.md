@@ -301,6 +301,7 @@ Displays the effective configuration values used by the CLI.
 
 Output includes:
 
+- `obsidian_vault_dir` when configured
 - `tasks_root`
 - `daily_notes_dir` or `<unset>`
 - queue directory mappings for `inbox`, `now`, `next`, `later`, and `done`
@@ -383,10 +384,36 @@ later = "later"
 done = "archive"
 ```
 
+Obsidian convenience config:
+
+```toml
+obsidian_vault_dir = "/path/to/My Vault"
+```
+
 Notes:
 
 - `tasks_root` is required unless supplied via `--root` or `TQS_ROOT`
 - `daily_notes_dir` is optional
+- `obsidian_vault_dir` derives `tasks_root = <vault>/Tasks` and `daily_notes_dir = <vault>/Daily Notes`
+- `obsidian_vault_dir` cannot be combined with `tasks_root`, `daily_notes_dir`, or queue overrides
 - queue overrides change directory names only
 - relative config paths are resolved relative to the config file directory
 - queue directory overrides must be a single path segment
+
+## Obsidian Layout
+
+TQS remains a generic filesystem-backed task manager. If you use Obsidian, the recommended vault layout is:
+
+```text
+<vault>/
+  Tasks/
+    inbox/
+    now/
+    next/
+    later/
+    done/
+  Daily Notes/
+    YYYY-MM-DD.md
+```
+
+This layout matches `obsidian_vault_dir` directly. Daily-note completion entries stay in plain Markdown checklist form rather than Obsidian wiki-link syntax.

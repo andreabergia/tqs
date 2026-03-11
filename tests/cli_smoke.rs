@@ -491,6 +491,59 @@ fn config_command_prints_configured_daily_notes_and_queue_dirs() {
 }
 
 #[test]
+fn config_command_prints_obsidian_vault_alias_and_derived_paths() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    let vault_dir = temp.path().join("vault");
+    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
+    std::fs::write(
+        config_dir.join("config.toml"),
+        format!("obsidian_vault_dir = '{}'\n", vault_dir.display()),
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("config")
+        .assert()
+        .success()
+        .stdout(
+            contains(format!("obsidian_vault_dir = {}", vault_dir.display()))
+                .and(contains(format!(
+                    "tasks_root = {}",
+                    vault_dir.join("Tasks").display()
+                )))
+                .and(contains(format!(
+                    "daily_notes_dir = {}",
+                    vault_dir.join("Daily Notes").display()
+                ))),
+        );
+}
+
+#[test]
+fn command_fails_when_obsidian_vault_alias_is_mixed_with_tasks_root() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+    let config_dir = config_home.join("tqs");
+    std::fs::create_dir_all(&config_dir).expect("config dir should exist");
+    std::fs::write(
+        config_dir.join("config.toml"),
+        "obsidian_vault_dir = '/vault'\ntasks_root = '/tasks'\n",
+    )
+    .expect("config file should be written");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .arg("config")
+        .assert()
+        .failure()
+        .stderr(contains(
+            "obsidian_vault_dir cannot be combined with tasks_root",
+        ));
+}
+
+#[test]
 fn config_command_respects_root_precedence() {
     let temp = TempDir::new().expect("temp dir should exist");
     let config_home = temp.path().join("config-home");

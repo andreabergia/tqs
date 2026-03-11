@@ -351,6 +351,7 @@ mod tests {
 
     fn config(root: &Path) -> ResolvedConfig {
         ResolvedConfig {
+            obsidian_vault_dir: None,
             tasks_root: root.to_path_buf(),
             daily_notes_dir: None,
             queue_dirs: QueueDirs::default(),
@@ -385,6 +386,7 @@ mod tests {
     fn doctor_reports_queue_dir_overlap() {
         let temp = TempDir::new().expect("temp dir should exist");
         let report = run(&ResolvedConfig {
+            obsidian_vault_dir: None,
             tasks_root: temp.path().to_path_buf(),
             daily_notes_dir: None,
             queue_dirs: QueueDirs {

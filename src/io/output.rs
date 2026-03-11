@@ -126,6 +126,10 @@ pub fn print_search_results(results: &[StoredTask]) {
 }
 
 pub fn print_config(config: &ResolvedConfig) {
+    if let Some(path) = &config.obsidian_vault_dir {
+        println!("obsidian_vault_dir = {}", path.display());
+    }
+
     println!("tasks_root = {}", config.tasks_root.display());
 
     match &config.daily_notes_dir {

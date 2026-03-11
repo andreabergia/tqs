@@ -9,7 +9,7 @@ The earlier docs expect `config` and `doctor` to expose and validate vault-orien
 
 ## Current behavior
 
-`config` prints `tasks_root`, `daily_notes_dir`, and queue-dir mappings. `doctor` validates generic storage health and task-file integrity, but not editor discoverability or vault-specific settings.
+`config` prints `obsidian_vault_dir` when configured, along with the resolved generic paths and queue-dir mappings. `doctor` validates generic storage health and task-file integrity, but not editor discoverability.
 
 ## Evidence
 
@@ -25,4 +25,4 @@ Code:
 
 ## Recommended fix
 
-If vault/editor settings remain part of the product contract, expand resolved config and diagnostics accordingly. Otherwise narrow the docs to the current generic behavior.
+Vault-specific configuration is no longer a separate contract, so this gap is now limited to editor discoverability. If editor checks remain a requirement, narrow this todo to that behavior explicitly.

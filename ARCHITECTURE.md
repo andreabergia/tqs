@@ -116,8 +116,11 @@ Transitions are idempotent where appropriate: moving to the current queue or run
 
 The same config file may also define:
 
+- `obsidian_vault_dir`, which derives `<vault>/Tasks` and `<vault>/Daily Notes`
 - `daily_notes_dir`
 - queue directory overrides for `inbox`, `now`, `next`, `later`, and `done`
+
+`obsidian_vault_dir` is a convenience alias over the same generic storage model, not a separate operating mode. It cannot be combined with the lower-level path or queue override settings.
 
 Relative paths in the config file are resolved relative to the config file directory.
 
