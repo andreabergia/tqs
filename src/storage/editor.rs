@@ -83,57 +83,37 @@ pub fn format_program_name(program: impl AsRef<OsStr>) -> String {
 #[cfg(test)]
 mod tests {
     use super::ResolvedEditor;
-    use std::sync::{Mutex, OnceLock};
-
-    fn env_lock() -> &'static Mutex<()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-    }
+    use crate::test_support::LockedEnv;
 
     #[test]
     fn visual_overrides_editor() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::set_var("VISUAL", "nvim --clean");
-            std::env::set_var("EDITOR", "vim");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.set("VISUAL", "nvim --clean");
+        env.set("EDITOR", "vim");
 
         let editor = ResolvedEditor::resolve().expect("editor should resolve");
         assert_eq!(editor.command, "nvim --clean");
         assert_eq!(editor.program, "nvim");
         assert_eq!(editor.args, vec!["--clean"]);
-
-        unsafe {
-            std::env::remove_var("VISUAL");
-            std::env::remove_var("EDITOR");
-        }
     }
 
     #[test]
     fn editor_is_used_when_visual_is_unset() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::remove_var("VISUAL");
-            std::env::set_var("EDITOR", "hx");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.remove("VISUAL");
+        env.set("EDITOR", "hx");
 
         let editor = ResolvedEditor::resolve().expect("editor should resolve");
         assert_eq!(editor.command, "hx");
         assert_eq!(editor.program, "hx");
         assert!(editor.args.is_empty());
-
-        unsafe {
-            std::env::remove_var("EDITOR");
-        }
     }
 
     #[test]
     fn falls_back_to_vi() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::remove_var("VISUAL");
-            std::env::remove_var("EDITOR");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.remove("VISUAL");
+        env.remove("EDITOR");
 
         let editor = ResolvedEditor::resolve().expect("editor should resolve");
         assert_eq!(editor.command, "vi");
@@ -143,28 +123,20 @@ mod tests {
 
     #[test]
     fn parses_shell_quoted_command() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::set_var("VISUAL", "code --wait \"notes.md\"");
-            std::env::remove_var("EDITOR");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.set("VISUAL", "code --wait \"notes.md\"");
+        env.remove("EDITOR");
 
         let editor = ResolvedEditor::resolve().expect("editor should resolve");
         assert_eq!(editor.program, "code");
         assert_eq!(editor.args, vec!["--wait", "notes.md"]);
-
-        unsafe {
-            std::env::remove_var("VISUAL");
-        }
     }
 
     #[test]
     fn rejects_invalid_shell_syntax() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::set_var("VISUAL", "\"unterminated");
-            std::env::remove_var("EDITOR");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.set("VISUAL", "\"unterminated");
+        env.remove("EDITOR");
 
         let error = ResolvedEditor::resolve().expect_err("resolution should fail");
         assert!(
@@ -172,9 +144,5 @@ mod tests {
                 .to_string()
                 .contains("invalid editor command '\"unterminated'")
         );
-
-        unsafe {
-            std::env::remove_var("VISUAL");
-        }
     }
 }

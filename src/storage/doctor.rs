@@ -385,15 +385,10 @@ fn display_paths(paths: &[PathBuf]) -> String {
 mod tests {
     use super::{DiagnosticSeverity, run};
     use crate::storage::config::{QueueDirs, ResolvedConfig};
+    use crate::test_support::LockedEnv;
     use std::fs;
     use std::path::Path;
-    use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
-
-    fn env_lock() -> &'static Mutex<()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-    }
 
     fn config(root: &Path) -> ResolvedConfig {
         ResolvedConfig {
@@ -455,11 +450,9 @@ mod tests {
 
     #[test]
     fn doctor_reports_resolved_editor_command() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::set_var("VISUAL", "sh -c 'exit 0' sh");
-            std::env::remove_var("EDITOR");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.set("VISUAL", "sh -c 'exit 0' sh");
+        env.remove("EDITOR");
 
         let temp = TempDir::new().expect("temp dir should exist");
         let report = run(&config(temp.path())).expect("doctor should succeed");
@@ -469,19 +462,13 @@ mod tests {
                 && diagnostic.scope == "editor"
                 && diagnostic.message.contains("resolved command to 'sh -c '")
         }));
-
-        unsafe {
-            std::env::remove_var("VISUAL");
-        }
     }
 
     #[test]
     fn doctor_reports_missing_editor_executable() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::set_var("VISUAL", "definitely-not-a-real-editor-tqs");
-            std::env::remove_var("EDITOR");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.set("VISUAL", "definitely-not-a-real-editor-tqs");
+        env.remove("EDITOR");
 
         let temp = TempDir::new().expect("temp dir should exist");
         let report = run(&config(temp.path())).expect("doctor should succeed");
@@ -494,19 +481,13 @@ mod tests {
                     .contains("definitely-not-a-real-editor-tqs")
         }));
         assert!(report.has_errors());
-
-        unsafe {
-            std::env::remove_var("VISUAL");
-        }
     }
 
     #[test]
     fn doctor_reports_invalid_editor_command() {
-        let _guard = env_lock().lock().expect("env lock should work");
-        unsafe {
-            std::env::set_var("VISUAL", "\"unterminated");
-            std::env::remove_var("EDITOR");
-        }
+        let mut env = LockedEnv::new(&["VISUAL", "EDITOR"]);
+        env.set("VISUAL", "\"unterminated");
+        env.remove("EDITOR");
 
         let temp = TempDir::new().expect("temp dir should exist");
         let report = run(&config(temp.path())).expect("doctor should succeed");
@@ -517,9 +498,5 @@ mod tests {
                 && diagnostic.message.contains("invalid editor command")
         }));
         assert!(report.has_errors());
-
-        unsafe {
-            std::env::remove_var("VISUAL");
-        }
     }
 }
