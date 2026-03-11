@@ -3,23 +3,12 @@ use std::{path::PathBuf, str::FromStr};
 use crate::app::app_error::AppError;
 use crate::domain::{filter::title_matches_query, task::Queue};
 use crate::io::{output, picker};
-use crate::storage::{config, config::ResolvedConfig, repo::StoredTask, repo::TaskRepo};
+use crate::storage::{
+    config, config::ResolvedConfig, editor::ResolvedEditor, repo::StoredTask, repo::TaskRepo,
+};
 
-pub fn parse_editor_command() -> Result<(String, Vec<String>), AppError> {
-    let editor = std::env::var("VISUAL")
-        .or_else(|_| std::env::var("EDITOR"))
-        .unwrap_or_else(|_| "vi".to_string());
-
-    let mut parts = shell_words::split(&editor).map_err(|error| {
-        AppError::message(format!("invalid editor command '{}': {}", editor, error))
-    })?;
-
-    if parts.is_empty() {
-        return Err(AppError::message("editor command is empty"));
-    }
-
-    let program = parts.remove(0);
-    Ok((program, parts))
+pub fn resolve_editor() -> Result<ResolvedEditor, AppError> {
+    ResolvedEditor::resolve()
 }
 
 pub fn resolve_repo(root: Option<PathBuf>, global: bool) -> Result<TaskRepo, AppError> {

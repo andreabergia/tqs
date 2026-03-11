@@ -78,7 +78,7 @@ tqs find latency
 # Inspect effective configuration
 tqs config
 
-# Run storage diagnostics
+# Run storage and editor diagnostics
 tqs doctor
 ```
 

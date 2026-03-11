@@ -23,9 +23,9 @@ pub fn handle_edit(
     };
 
     let original_content = fs::read_to_string(&stored.path)?;
-    let (program, args) = helpers::parse_editor_command()?;
-    let status = Command::new(&program)
-        .args(args)
+    let editor = helpers::resolve_editor()?;
+    let status = Command::new(&editor.program)
+        .args(&editor.args)
         .arg(&stored.path)
         .status()?;
     if !status.success() {

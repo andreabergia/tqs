@@ -82,8 +82,11 @@ pub fn handle_add(
     output::print_info(&format!("Created task: {} ({})", task.id, path.display()));
 
     if edit {
-        let (program, args) = helpers::parse_editor_command()?;
-        let status = Command::new(&program).args(args).arg(&path).status()?;
+        let editor = helpers::resolve_editor()?;
+        let status = Command::new(&editor.program)
+            .args(&editor.args)
+            .arg(&path)
+            .status()?;
         if !status.success() {
             return Err(AppError::message("editor command failed"));
         }

@@ -6,4 +6,3 @@ Open issues:
 
 - `daily-note-link-format-mismatch.md`
 - `find-missing-structured-flags.md`
-- `doctor-config-scope-too-narrow.md`

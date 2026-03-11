@@ -324,6 +324,8 @@ Checks include:
 
 - config resolution and queue directory overlap
 - whether `tasks_root` and `daily_notes_dir` exist as directories
+- which editor command would be used from `VISUAL`, `EDITOR`, or the `vi` fallback
+- whether the editor executable is discoverable on `PATH`
 - malformed Markdown task files
 - task files whose frontmatter queue does not match their containing queue directory
 - duplicate task ids across queue directories

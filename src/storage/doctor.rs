@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::app::app_error::AppError;
 use crate::domain::task::Queue;
 use crate::storage::config::ResolvedConfig;
+use crate::storage::editor::{ResolvedEditor, format_program_name, format_program_path};
 use crate::storage::format::parse_task_markdown;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -104,6 +105,8 @@ pub fn run(config: &ResolvedConfig) -> Result<DoctorReport, AppError> {
         }),
     }
 
+    diagnose_editor(&mut diagnostics);
+
     if duplicate_queue_dirs(config).is_empty() {
         diagnose_task_files(&mut diagnostics, config)?;
     } else {
@@ -158,6 +161,43 @@ fn diagnose_path(
     }
 
     Ok(())
+}
+
+fn diagnose_editor(diagnostics: &mut Vec<Diagnostic>) {
+    match ResolvedEditor::resolve() {
+        Ok(editor) => {
+            diagnostics.push(Diagnostic {
+                severity: DiagnosticSeverity::Ok,
+                scope: "editor".to_string(),
+                message: format!("resolved command to '{}'", editor.command),
+            });
+
+            match editor.executable_path() {
+                Some(path) => diagnostics.push(Diagnostic {
+                    severity: DiagnosticSeverity::Ok,
+                    scope: "editor".to_string(),
+                    message: format!(
+                        "executable '{}' is available at {}",
+                        format_program_name(&editor.program),
+                        format_program_path(&path)
+                    ),
+                }),
+                None => diagnostics.push(Diagnostic {
+                    severity: DiagnosticSeverity::Error,
+                    scope: "editor".to_string(),
+                    message: format!(
+                        "executable '{}' was not found on PATH",
+                        format_program_name(&editor.program)
+                    ),
+                }),
+            }
+        }
+        Err(error) => diagnostics.push(Diagnostic {
+            severity: DiagnosticSeverity::Error,
+            scope: "editor".to_string(),
+            message: error.to_string(),
+        }),
+    }
 }
 
 fn diagnose_task_files(
@@ -347,7 +387,13 @@ mod tests {
     use crate::storage::config::{QueueDirs, ResolvedConfig};
     use std::fs;
     use std::path::Path;
+    use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     fn config(root: &Path) -> ResolvedConfig {
         ResolvedConfig {
@@ -405,5 +451,75 @@ mod tests {
                     .message
                     .contains("queue directory 'shared' is assigned to multiple queues")
         }));
+    }
+
+    #[test]
+    fn doctor_reports_resolved_editor_command() {
+        let _guard = env_lock().lock().expect("env lock should work");
+        unsafe {
+            std::env::set_var("VISUAL", "sh -c 'exit 0' sh");
+            std::env::remove_var("EDITOR");
+        }
+
+        let temp = TempDir::new().expect("temp dir should exist");
+        let report = run(&config(temp.path())).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Ok
+                && diagnostic.scope == "editor"
+                && diagnostic.message.contains("resolved command to 'sh -c '")
+        }));
+
+        unsafe {
+            std::env::remove_var("VISUAL");
+        }
+    }
+
+    #[test]
+    fn doctor_reports_missing_editor_executable() {
+        let _guard = env_lock().lock().expect("env lock should work");
+        unsafe {
+            std::env::set_var("VISUAL", "definitely-not-a-real-editor-tqs");
+            std::env::remove_var("EDITOR");
+        }
+
+        let temp = TempDir::new().expect("temp dir should exist");
+        let report = run(&config(temp.path())).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.scope == "editor"
+                && diagnostic
+                    .message
+                    .contains("definitely-not-a-real-editor-tqs")
+        }));
+        assert!(report.has_errors());
+
+        unsafe {
+            std::env::remove_var("VISUAL");
+        }
+    }
+
+    #[test]
+    fn doctor_reports_invalid_editor_command() {
+        let _guard = env_lock().lock().expect("env lock should work");
+        unsafe {
+            std::env::set_var("VISUAL", "\"unterminated");
+            std::env::remove_var("EDITOR");
+        }
+
+        let temp = TempDir::new().expect("temp dir should exist");
+        let report = run(&config(temp.path())).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.scope == "editor"
+                && diagnostic.message.contains("invalid editor command")
+        }));
+        assert!(report.has_errors());
+
+        unsafe {
+            std::env::remove_var("VISUAL");
+        }
     }
 }

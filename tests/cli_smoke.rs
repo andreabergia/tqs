@@ -578,6 +578,7 @@ fn doctor_reports_clean_state_for_empty_root() {
     let temp = TempDir::new().expect("temp dir should exist");
 
     cargo_bin_cmd!("tqs")
+        .env("VISUAL", "sh")
         .arg("--root")
         .arg(temp.path())
         .arg("doctor")
@@ -585,6 +586,8 @@ fn doctor_reports_clean_state_for_empty_root() {
         .success()
         .stdout(
             contains("[ok] config: resolved tasks_root")
+                .and(contains("[ok] editor: resolved command to 'sh'"))
+                .and(contains("[ok] editor: executable 'sh' is available"))
                 .and(contains("[ok] tasks_root:"))
                 .and(contains("summary:")),
         );
@@ -602,6 +605,7 @@ fn doctor_fails_when_it_finds_invalid_task_files() {
     .expect("bad task should be written");
 
     cargo_bin_cmd!("tqs")
+        .env("VISUAL", "sh")
         .arg("--root")
         .arg(temp.path())
         .arg("doctor")
@@ -621,12 +625,45 @@ fn doctor_fails_when_task_queue_disagrees_with_directory() {
         .expect("task should be updated");
 
     cargo_bin_cmd!("tqs")
+        .env("VISUAL", "sh")
         .arg("--root")
         .arg(temp.path())
         .arg("doctor")
         .assert()
         .failure()
         .stdout(contains("declares queue 'now' but is stored under 'inbox'"))
+        .stderr(contains("doctor found 1 error(s)"));
+}
+
+#[test]
+fn doctor_fails_when_editor_executable_is_missing() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .env("VISUAL", "definitely-not-a-real-editor-tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("doctor")
+        .assert()
+        .failure()
+        .stdout(contains(
+            "[error] editor: executable 'definitely-not-a-real-editor-tqs'",
+        ))
+        .stderr(contains("doctor found 1 error(s)"));
+}
+
+#[test]
+fn doctor_fails_when_editor_command_is_invalid() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .env("VISUAL", "\"unterminated")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("doctor")
+        .assert()
+        .failure()
+        .stdout(contains("[error] editor: invalid editor command"))
         .stderr(contains("doctor found 1 error(s)"));
 }
 
