@@ -32,7 +32,10 @@ pub fn append_completion(
         String::new()
     };
 
-    if existing.lines().any(|line| line == entry) {
+    if existing
+        .lines()
+        .any(|line| is_completion_entry_for_task(line, &task.id))
+    {
         return Ok(DailyNoteUpdate {
             note_name,
             note_path,
@@ -51,7 +54,14 @@ pub fn append_completion(
 }
 
 fn completion_entry(task: &Task) -> String {
-    format!("- [x] {} ({})", task.title, task.id)
+    format!("- [x] [[Tasks/done/{}|{}]]", task.id, task.title)
+}
+
+fn is_completion_entry_for_task(line: &str, task_id: &str) -> bool {
+    let wiki_link = format!("- [x] [[Tasks/done/{task_id}|");
+    let plain_text = format!(" ({task_id})");
+
+    line == wiki_link || line.starts_with(&wiki_link) || line.ends_with(&plain_text)
 }
 
 fn append_entry_to_note(existing: &str, entry: &str) -> String {
@@ -154,7 +164,7 @@ mod tests {
         let note = std::fs::read_to_string(update.note_path).expect("note should exist");
         assert_eq!(
             note,
-            format!("{COMPLETED_TASKS_HEADING}\n\n- [x] Ship v2 (task-1)\n")
+            format!("{COMPLETED_TASKS_HEADING}\n\n- [x] [[Tasks/done/task-1|Ship v2]]\n")
         );
     }
 
@@ -164,7 +174,7 @@ mod tests {
         let note_path = temp.path().join("2026-03-10.md");
         std::fs::write(
             &note_path,
-            "# Daily\n\n## Completed Tasks\n\n- [x] Existing (task-0)\n\n## Notes\n\nStuff\n",
+            "# Daily\n\n## Completed Tasks\n\n- [x] [[Tasks/done/task-0|Existing]]\n\n## Notes\n\nStuff\n",
         )
         .expect("note should be written");
 
@@ -178,12 +188,37 @@ mod tests {
         let note = std::fs::read_to_string(note_path).expect("note should exist");
         assert_eq!(
             note,
-            "# Daily\n\n## Completed Tasks\n\n- [x] Existing (task-0)\n- [x] Ship v2 (task-1)\n\n## Notes\n\nStuff\n"
+            "# Daily\n\n## Completed Tasks\n\n- [x] [[Tasks/done/task-0|Existing]]\n- [x] [[Tasks/done/task-1|Ship v2]]\n\n## Notes\n\nStuff\n"
         );
     }
 
     #[test]
     fn skips_duplicate_completion_entries() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let note_path = temp.path().join("2026-03-10.md");
+        std::fs::write(
+            &note_path,
+            "## Completed Tasks\n\n- [x] [[Tasks/done/task-1|Ship v2]]\n",
+        )
+        .expect("note should be written");
+
+        let update = append_completion(
+            temp.path(),
+            NaiveDate::from_ymd_opt(2026, 3, 10).expect("date should exist"),
+            &task(),
+        )
+        .expect("append should succeed");
+
+        assert!(!update.appended);
+        let note = std::fs::read_to_string(note_path).expect("note should exist");
+        assert_eq!(
+            note,
+            "## Completed Tasks\n\n- [x] [[Tasks/done/task-1|Ship v2]]\n"
+        );
+    }
+
+    #[test]
+    fn skips_duplicate_completion_entries_when_plain_text_format_exists() {
         let temp = TempDir::new().expect("temp dir should exist");
         let note_path = temp.path().join("2026-03-10.md");
         std::fs::write(&note_path, "## Completed Tasks\n\n- [x] Ship v2 (task-1)\n")
