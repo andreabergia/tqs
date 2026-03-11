@@ -705,7 +705,7 @@ fn done_appends_completion_to_daily_note_when_configured() {
     let note_name = format!("{}.md", Local::now().format("%F"));
     let note = fs::read_to_string(daily_notes_dir.join(note_name)).expect("note should exist");
     assert!(note.contains("## Completed Tasks"));
-    assert!(note.contains("- [x] [[Tasks/done/task-1|Ship v2]]"));
+    assert!(note.contains("- [x] [[tasks/done/task-1|Ship v2]]"));
 
     let task =
         fs::read_to_string(tasks_root.join("done").join("task-1.md")).expect("task should exist");
@@ -758,7 +758,7 @@ fn done_with_daily_notes_does_not_duplicate_note_entry() {
     let note_name = format!("{}.md", Local::now().format("%F"));
     let note = fs::read_to_string(daily_notes_dir.join(note_name)).expect("note should exist");
     assert_eq!(
-        note.matches("- [x] [[Tasks/done/task-1|Ship v2]]").count(),
+        note.matches("- [x] [[tasks/done/task-1|Ship v2]]").count(),
         1
     );
 }

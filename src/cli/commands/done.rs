@@ -34,7 +34,7 @@ pub fn handle_done(
 
     if let Some(daily_notes_dir) = resolved.daily_notes_dir {
         let note_date = Local::now().date_naive();
-        let note = daily_notes::append_completion(&daily_notes_dir, note_date, &task)?;
+        let note = daily_notes::append_completion(&daily_notes_dir, &path, note_date, &task)?;
         if task.daily_note.as_deref() != Some(note.note_name.as_str()) {
             task.daily_note = Some(note.note_name);
             repo.update(&task)?;

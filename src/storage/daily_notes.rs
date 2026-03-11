@@ -1,6 +1,6 @@
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use chrono::NaiveDate;
@@ -18,6 +18,7 @@ pub struct DailyNoteUpdate {
 
 pub fn append_completion(
     daily_notes_dir: &Path,
+    task_path: &Path,
     note_date: NaiveDate,
     task: &Task,
 ) -> Result<DailyNoteUpdate, AppError> {
@@ -25,7 +26,7 @@ pub fn append_completion(
 
     let note_name = format!("{}.md", note_date.format("%F"));
     let note_path = daily_notes_dir.join(&note_name);
-    let entry = completion_entry(task);
+    let entry = completion_entry(daily_notes_dir, task_path, task);
     let existing = if note_path.exists() {
         fs::read_to_string(&note_path)?
     } else {
@@ -53,15 +54,62 @@ pub fn append_completion(
     })
 }
 
-fn completion_entry(task: &Task) -> String {
-    format!("- [x] [[Tasks/done/{}|{}]]", task.id, task.title)
+fn completion_entry(daily_notes_dir: &Path, task_path: &Path, task: &Task) -> String {
+    format!(
+        "- [x] [[{}|{}]]",
+        wiki_link_target(daily_notes_dir, task_path),
+        task.title
+    )
 }
 
 fn is_completion_entry_for_task(line: &str, task_id: &str) -> bool {
-    let wiki_link = format!("- [x] [[Tasks/done/{task_id}|");
+    let wiki_link_path = format!("/{task_id}|");
+    let wiki_link_basename = format!("[[{task_id}|");
     let plain_text = format!(" ({task_id})");
 
-    line == wiki_link || line.starts_with(&wiki_link) || line.ends_with(&plain_text)
+    (line.starts_with("- [x] [[")
+        && (line.contains(&wiki_link_path) || line.contains(&wiki_link_basename)))
+        || line.ends_with(&plain_text)
+}
+
+fn wiki_link_target(daily_notes_dir: &Path, task_path: &Path) -> String {
+    let without_extension = task_path.with_extension("");
+    let anchor = common_ancestor(daily_notes_dir, task_path);
+    let relative = without_extension
+        .strip_prefix(&anchor)
+        .unwrap_or(without_extension.as_path());
+    path_to_forward_slashes(relative)
+}
+
+fn common_ancestor<'a>(left: &'a Path, right: &'a Path) -> PathBuf {
+    let mut shared = PathBuf::new();
+    let mut left_components = left.components();
+    let mut right_components = right.components();
+
+    loop {
+        match (left_components.next(), right_components.next()) {
+            (Some(left_component), Some(right_component)) if left_component == right_component => {
+                push_component(&mut shared, left_component);
+            }
+            _ => break,
+        }
+    }
+
+    shared
+}
+
+fn push_component(path: &mut PathBuf, component: Component<'_>) {
+    path.push(component.as_os_str());
+}
+
+fn path_to_forward_slashes(path: &Path) -> String {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(value) => Some(value.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn append_entry_to_note(existing: &str, entry: &str) -> String {
@@ -155,6 +203,11 @@ mod tests {
         let temp = TempDir::new().expect("temp dir should exist");
         let update = append_completion(
             temp.path(),
+            temp.path()
+                .join("Tasks")
+                .join("done")
+                .join("task-1.md")
+                .as_path(),
             NaiveDate::from_ymd_opt(2026, 3, 10).expect("date should exist"),
             &task(),
         )
@@ -180,6 +233,11 @@ mod tests {
 
         append_completion(
             temp.path(),
+            temp.path()
+                .join("Tasks")
+                .join("done")
+                .join("task-1.md")
+                .as_path(),
             NaiveDate::from_ymd_opt(2026, 3, 10).expect("date should exist"),
             &task(),
         )
@@ -204,6 +262,11 @@ mod tests {
 
         let update = append_completion(
             temp.path(),
+            temp.path()
+                .join("Tasks")
+                .join("done")
+                .join("task-1.md")
+                .as_path(),
             NaiveDate::from_ymd_opt(2026, 3, 10).expect("date should exist"),
             &task(),
         )
@@ -226,6 +289,11 @@ mod tests {
 
         let update = append_completion(
             temp.path(),
+            temp.path()
+                .join("Tasks")
+                .join("done")
+                .join("task-1.md")
+                .as_path(),
             NaiveDate::from_ymd_opt(2026, 3, 10).expect("date should exist"),
             &task(),
         )
@@ -234,5 +302,26 @@ mod tests {
         assert!(!update.appended);
         let note = std::fs::read_to_string(note_path).expect("note should exist");
         assert_eq!(note, "## Completed Tasks\n\n- [x] Ship v2 (task-1)\n");
+    }
+
+    #[test]
+    fn renders_wiki_link_using_configured_storage_layout() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let daily_notes_dir = temp.path().join("notes");
+        let task_path = temp.path().join("tasks").join("archive").join("task-1.md");
+
+        let update = append_completion(
+            &daily_notes_dir,
+            &task_path,
+            NaiveDate::from_ymd_opt(2026, 3, 10).expect("date should exist"),
+            &task(),
+        )
+        .expect("append should succeed");
+
+        let note = std::fs::read_to_string(update.note_path).expect("note should exist");
+        assert_eq!(
+            note,
+            format!("{COMPLETED_TASKS_HEADING}\n\n- [x] [[tasks/archive/task-1|Ship v2]]\n")
+        );
     }
 }
