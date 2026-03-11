@@ -418,4 +418,4 @@ TQS remains a generic filesystem-backed task manager. If you use Obsidian, the r
     YYYY-MM-DD.md
 ```
 
-This layout matches `obsidian_vault_dir` directly. Daily-note completion entries stay in plain Markdown checklist form rather than Obsidian wiki-link syntax.
+This layout matches `obsidian_vault_dir` directly. Daily-note completion entries are written as wiki-links to the completed task file, such as `- [x] [[Tasks/done/task-1|Ship v2]]`. For other supported layouts, TQS derives the link target from the configured task and daily-note directories.

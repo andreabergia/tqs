@@ -183,7 +183,7 @@ Recommended vault layout:
     YYYY-MM-DD.md
 ```
 
-Using `obsidian_vault_dir` configures exactly this layout. Daily-note completion entries remain plain Markdown (`- [x] Title (id)`), which renders cleanly in Obsidian without making wiki-link syntax part of the core product contract.
+Using `obsidian_vault_dir` configures exactly this layout. Daily-note completion entries are written as wiki-links to the completed task file, for example `- [x] [[Tasks/done/task-1|Ship v2]]`. For other supported layouts, the link target is derived from the configured task and daily-note directories.
 
 ## Learn More
 
