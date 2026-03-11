@@ -5,4 +5,3 @@ This directory tracks the remaining gaps and unresolved design conflicts between
 Open issues:
 
 - `daily-note-link-format-mismatch.md`
-- `find-missing-structured-flags.md`
