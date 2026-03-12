@@ -170,6 +170,8 @@ The shipped lean-core commands are:
 
 - `add`
 - `list`
+- `now`
+- `inbox`
 - `move`
 - `done`
 - `edit`
