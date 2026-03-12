@@ -55,6 +55,16 @@ fn help_command_works() {
 }
 
 #[test]
+fn global_flag_is_rejected() {
+    cargo_bin_cmd!("tqs")
+        .arg("--global")
+        .arg("list")
+        .assert()
+        .failure()
+        .stderr(contains("unexpected argument '--global'"));
+}
+
+#[test]
 fn add_creates_task_in_inbox() {
     let temp = TempDir::new().expect("temp dir should exist");
 
