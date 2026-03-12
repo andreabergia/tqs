@@ -189,7 +189,6 @@ Using `obsidian_vault_dir` configures exactly this layout. Daily-note completion
 
 - [USAGE.md](USAGE.md) - Current CLI reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Current code structure and data flow
-- [docs/todos/README.md](docs/todos/README.md) - Open gaps and unresolved product decisions
 
 ## Maintainer Release Process
 
