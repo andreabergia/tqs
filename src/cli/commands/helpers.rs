@@ -122,3 +122,90 @@ fn unique_match<'a>(mut matches: impl Iterator<Item = &'a StoredTask>) -> Option
         Some(first)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_task_ref;
+    use crate::app::app_error::AppError;
+    use crate::domain::task::{Queue, Task};
+    use crate::storage::{config::QueueDirs, repo::TaskRepo};
+    use chrono::Utc;
+    use tempfile::TempDir;
+
+    fn task(id: &str, title: &str, queue: Queue) -> Task {
+        let mut task = Task::new(id, title, Utc::now());
+        task.queue = queue;
+        task
+    }
+
+    #[test]
+    fn resolve_task_ref_returns_none_for_empty_repo() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+
+        let resolved = resolve_task_ref(Some("task-1".to_string()), &repo, "Select task")
+            .expect("empty repo should not fail");
+
+        assert!(resolved.is_none());
+    }
+
+    #[test]
+    fn resolve_task_ref_prefers_exact_id_over_title_match() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        repo.create(&task("ship-v2", "Review release plan", Queue::Inbox))
+            .expect("exact-id task should be created");
+        repo.create(&task("task-2", "ship-v2", Queue::Inbox))
+            .expect("title-match task should be created");
+
+        let resolved = resolve_task_ref(Some("ship-v2".to_string()), &repo, "Select task")
+            .expect("query should resolve")
+            .expect("task should be found");
+
+        assert_eq!(resolved.task.id, "ship-v2");
+    }
+
+    #[test]
+    fn resolve_task_ref_supports_unique_id_prefixes() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        repo.create(&task("task-1234", "Ship v2", Queue::Inbox))
+            .expect("task should be created");
+        repo.create(&task("other-1", "Review docs", Queue::Inbox))
+            .expect("other task should be created");
+
+        let resolved = resolve_task_ref(Some("task-12".to_string()), &repo, "Select task")
+            .expect("prefix query should resolve")
+            .expect("task should be found");
+
+        assert_eq!(resolved.task.id, "task-1234");
+    }
+
+    #[test]
+    fn resolve_task_ref_returns_ambiguous_error_without_tty() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        repo.create(&task("task-1234", "Ship v2", Queue::Inbox))
+            .expect("first task should be created");
+        repo.create(&task("task-1235", "Ship docs", Queue::Inbox))
+            .expect("second task should be created");
+
+        let err = resolve_task_ref(Some("task-12".to_string()), &repo, "Select task")
+            .expect_err("ambiguous query should fail without a tty");
+
+        assert!(matches!(err, AppError::AmbiguousTaskRef { .. }));
+    }
+
+    #[test]
+    fn resolve_task_ref_returns_no_tty_when_picker_is_required() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        repo.create(&task("task-1", "Ship v2", Queue::Inbox))
+            .expect("task should be created");
+
+        let err = resolve_task_ref(None, &repo, "Select task")
+            .expect_err("picker should fail without a tty");
+
+        assert!(matches!(err, AppError::NoTty));
+    }
+}
