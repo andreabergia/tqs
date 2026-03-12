@@ -499,4 +499,112 @@ mod tests {
         }));
         assert!(report.has_errors());
     }
+
+    #[test]
+    fn doctor_reports_non_directory_tasks_root() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let tasks_root = temp.path().join("tasks.md");
+        fs::write(&tasks_root, "not a directory").expect("file should be written");
+
+        let report = run(&config(&tasks_root)).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.scope == "tasks_root"
+                && diagnostic.message.contains("exists but is not a directory")
+        }));
+    }
+
+    #[test]
+    fn doctor_reports_non_directory_daily_notes_dir() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let daily_notes = temp.path().join("daily.md");
+        fs::write(&daily_notes, "not a directory").expect("file should be written");
+
+        let report = run(&ResolvedConfig {
+            obsidian_vault_dir: None,
+            tasks_root: temp.path().join("tasks"),
+            daily_notes_dir: Some(daily_notes.clone()),
+            queue_dirs: QueueDirs::default(),
+        })
+        .expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.scope == "daily_notes_dir"
+                && diagnostic
+                    .message
+                    .contains(&format!("{} exists but is not a directory", daily_notes.display()))
+        }));
+    }
+
+    #[test]
+    fn doctor_reports_queue_paths_that_are_not_directories() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let root = temp.path();
+        fs::create_dir_all(root).expect("root should exist");
+        fs::write(root.join("inbox"), "not a directory").expect("file should be written");
+
+        let report = run(&config(root)).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.scope == "tasks"
+                && diagnostic.message.contains("queue directory")
+                && diagnostic.message.contains("is not a directory")
+        }));
+    }
+
+    #[test]
+    fn doctor_reports_filename_mismatch_diagnostics() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let root = temp.path();
+        fs::create_dir_all(root.join("inbox")).expect("inbox dir should exist");
+        fs::write(
+            root.join("inbox").join("renamed.md"),
+            "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n",
+        )
+        .expect("task should be written");
+
+        let report = run(&config(root)).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Error
+                && diagnostic.message.contains("renamed.md has id 'task-1' but filename should be task-1.md")
+        }));
+    }
+
+    #[test]
+    fn doctor_warns_and_skips_task_scan_when_queue_mappings_overlap() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let root = temp.path();
+        fs::create_dir_all(root.join("shared")).expect("shared dir should exist");
+        fs::write(
+            root.join("shared").join("bad.md"),
+            "---\nid: bad\nqueue: inbox\n---\n",
+        )
+        .expect("bad task should be written");
+
+        let report = run(&ResolvedConfig {
+            obsidian_vault_dir: None,
+            tasks_root: root.to_path_buf(),
+            daily_notes_dir: None,
+            queue_dirs: QueueDirs {
+                inbox: "shared".to_string(),
+                now: "shared".to_string(),
+                next: "next".to_string(),
+                later: "later".to_string(),
+                done: "done".to_string(),
+            },
+        })
+        .expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Warning
+                && diagnostic.message.contains("skipped task scan because queue directory mappings overlap")
+        }));
+        assert!(!report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.scope == "tasks" && diagnostic.message.contains("bad.md is malformed")
+        }));
+    }
 }
