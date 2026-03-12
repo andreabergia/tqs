@@ -18,12 +18,8 @@ pub enum QueueSelection {
     Now,
 }
 
-pub fn handle_list(
-    List { queue }: List,
-    root: Option<PathBuf>,
-    global: bool,
-) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global)?;
+pub fn handle_list(List { queue }: List, root: Option<PathBuf>) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root)?;
 
     match queue {
         Some(queue) => print_resolved_queue(queue, &repo)?,
@@ -36,12 +32,8 @@ pub fn handle_list(
     Ok(())
 }
 
-pub fn print_queue(
-    selection: QueueSelection,
-    root: Option<PathBuf>,
-    global: bool,
-) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global)?;
+pub fn print_queue(selection: QueueSelection, root: Option<PathBuf>) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root)?;
     let queue = match selection {
         QueueSelection::Inbox => Queue::Inbox,
         QueueSelection::Now => Queue::Now,

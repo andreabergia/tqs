@@ -12,12 +12,8 @@ pub struct Edit {
     pub task: Option<String>,
 }
 
-pub fn handle_edit(
-    Edit { task }: Edit,
-    root: Option<PathBuf>,
-    global: bool,
-) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global)?;
+pub fn handle_edit(Edit { task }: Edit, root: Option<PathBuf>) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root)?;
     let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to edit")? else {
         return Ok(());
     };

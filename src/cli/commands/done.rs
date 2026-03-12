@@ -14,12 +14,8 @@ pub struct Done {
     pub task: Option<String>,
 }
 
-pub fn handle_done(
-    Done { task }: Done,
-    root: Option<PathBuf>,
-    global: bool,
-) -> Result<(), AppError> {
-    let resolved = helpers::resolve_config(root, global)?;
+pub fn handle_done(Done { task }: Done, root: Option<PathBuf>) -> Result<(), AppError> {
+    let resolved = helpers::resolve_config(root)?;
     let repo = TaskRepo::new(resolved.tasks_root, resolved.queue_dirs);
     let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to complete")? else {
         return Ok(());

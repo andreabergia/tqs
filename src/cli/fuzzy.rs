@@ -389,37 +389,6 @@ mod tests {
     }
 
     #[test]
-    fn test_expand_command_with_bool_global_flag_short_before() {
-        let args = vec!["tqs".to_string(), "-g".to_string(), "l".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[2], "list");
-        assert_eq!(expanded[1], "-g");
-    }
-
-    #[test]
-    fn test_expand_command_with_bool_global_flag_long_before() {
-        let args = vec!["tqs".to_string(), "--global".to_string(), "l".to_string()];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[2], "list");
-        assert_eq!(expanded[1], "--global");
-    }
-
-    #[test]
-    fn test_expand_command_with_mixed_globals_before() {
-        let args = vec![
-            "tqs".to_string(),
-            "-g".to_string(),
-            "--root".to_string(),
-            "/path".to_string(),
-            "l".to_string(),
-        ];
-        let expanded = expand_command(args);
-        assert_eq!(expanded[4], "list");
-        assert_eq!(expanded[1], "-g");
-        assert_eq!(expanded[2], "--root");
-    }
-
-    #[test]
     fn test_expand_command_with_global_flag_equals_value_before() {
         let args = vec![
             "tqs".to_string(),

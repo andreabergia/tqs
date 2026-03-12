@@ -11,12 +11,8 @@ pub struct Show {
     pub task: Option<String>,
 }
 
-pub fn handle_show(
-    Show { task }: Show,
-    root: Option<PathBuf>,
-    global: bool,
-) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global)?;
+pub fn handle_show(Show { task }: Show, root: Option<PathBuf>) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root)?;
     let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to show")? else {
         return Ok(());
     };

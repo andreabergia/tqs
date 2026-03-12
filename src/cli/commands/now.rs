@@ -9,8 +9,8 @@ use super::list;
 #[derive(Debug, Parser)]
 pub struct Now;
 
-pub fn handle_now(_: Now, root: Option<PathBuf>, global: bool) -> Result<(), AppError> {
-    list::print_queue(list::QueueSelection::Now, root, global)
+pub fn handle_now(_: Now, root: Option<PathBuf>) -> Result<(), AppError> {
+    list::print_queue(list::QueueSelection::Now, root)
 }
 
 #[cfg(test)]

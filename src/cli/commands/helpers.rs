@@ -11,12 +11,12 @@ pub fn resolve_editor() -> Result<ResolvedEditor, AppError> {
     ResolvedEditor::resolve()
 }
 
-pub fn resolve_repo(root: Option<PathBuf>, global: bool) -> Result<TaskRepo, AppError> {
-    let resolved = resolve_config(root, global)?;
+pub fn resolve_repo(root: Option<PathBuf>) -> Result<TaskRepo, AppError> {
+    let resolved = resolve_config(root)?;
     Ok(TaskRepo::new(resolved.tasks_root, resolved.queue_dirs))
 }
 
-pub fn resolve_config(root: Option<PathBuf>, _global: bool) -> Result<ResolvedConfig, AppError> {
+pub fn resolve_config(root: Option<PathBuf>) -> Result<ResolvedConfig, AppError> {
     config::resolve(root)
 }
 

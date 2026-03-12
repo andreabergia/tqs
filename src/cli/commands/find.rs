@@ -12,12 +12,8 @@ pub struct Find {
     pub query: String,
 }
 
-pub fn handle_find(
-    Find { query }: Find,
-    root: Option<PathBuf>,
-    global: bool,
-) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global)?;
+pub fn handle_find(Find { query }: Find, root: Option<PathBuf>) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root)?;
     let matches = repo
         .scan_all()?
         .into_iter()

@@ -17,7 +17,7 @@ src/
 ├── main.rs              # process entry point
 ├── lib.rs               # library entry point
 ├── cli/
-│   ├── args.rs          # clap definitions for global flags and commands
+│   ├── args.rs          # clap definitions for global options and commands
 │   ├── fuzzy.rs         # command expansion for fuzzy input
 │   ├── handlers.rs      # dispatch from parsed CLI to command handlers
 │   └── commands/        # command implementations

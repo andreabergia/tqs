@@ -9,8 +9,8 @@ use crate::io::output;
 #[derive(Debug, Parser)]
 pub struct Config;
 
-pub fn handle_config(_: Config, root: Option<PathBuf>, global: bool) -> Result<(), AppError> {
-    let resolved = helpers::resolve_config(root, global)?;
+pub fn handle_config(_: Config, root: Option<PathBuf>) -> Result<(), AppError> {
+    let resolved = helpers::resolve_config(root)?;
     output::print_config(&resolved);
     Ok(())
 }

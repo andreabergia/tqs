@@ -10,8 +10,8 @@ use crate::storage::doctor;
 #[derive(Debug, Parser)]
 pub struct Doctor;
 
-pub fn handle_doctor(_: Doctor, root: Option<PathBuf>, global: bool) -> Result<(), AppError> {
-    let resolved = helpers::resolve_config(root, global)?;
+pub fn handle_doctor(_: Doctor, root: Option<PathBuf>) -> Result<(), AppError> {
+    let resolved = helpers::resolve_config(root)?;
     let report = doctor::run(&resolved)?;
     output::print_doctor_report(&report);
 

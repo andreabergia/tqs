@@ -9,8 +9,8 @@ use super::list;
 #[derive(Debug, Parser)]
 pub struct Inbox;
 
-pub fn handle_inbox(_: Inbox, root: Option<PathBuf>, global: bool) -> Result<(), AppError> {
-    list::print_queue(list::QueueSelection::Inbox, root, global)
+pub fn handle_inbox(_: Inbox, root: Option<PathBuf>) -> Result<(), AppError> {
+    list::print_queue(list::QueueSelection::Inbox, root)
 }
 
 #[cfg(test)]

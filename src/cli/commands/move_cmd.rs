@@ -16,12 +16,8 @@ pub struct Move {
     pub queue: Option<Queue>,
 }
 
-pub fn handle_move(
-    Move { task, queue }: Move,
-    root: Option<PathBuf>,
-    global: bool,
-) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root, global)?;
+pub fn handle_move(Move { task, queue }: Move, root: Option<PathBuf>) -> Result<(), AppError> {
+    let repo = helpers::resolve_repo(root)?;
     let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to move")? else {
         return Ok(());
     };
