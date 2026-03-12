@@ -2,7 +2,7 @@ use std::{path::PathBuf, str::FromStr};
 
 use crate::app::app_error::AppError;
 use crate::domain::{filter::title_matches_query, task::Queue};
-use crate::io::{output, picker};
+use crate::io::{input, output, picker};
 use crate::storage::{
     config, config::ResolvedConfig, editor::ResolvedEditor, repo::StoredTask, repo::TaskRepo,
 };
@@ -52,6 +52,33 @@ pub fn resolve_task_ref(
     match query {
         Some(query) => resolve_query_against_tasks(query, tasks, prompt),
         None => pick_from(tasks, prompt, None),
+    }
+}
+
+pub fn resolve_target_queue(
+    current: Queue,
+    queue: Option<Queue>,
+) -> Result<Option<Queue>, AppError> {
+    match queue {
+        Some(queue) => Ok(Some(queue)),
+        None => pick_queue(current),
+    }
+}
+
+fn pick_queue(current: Queue) -> Result<Option<Queue>, AppError> {
+    let options = Queue::all()
+        .iter()
+        .copied()
+        .filter(|queue| *queue != current)
+        .collect::<Vec<_>>();
+    let labels = options.iter().map(ToString::to_string).collect::<Vec<_>>();
+
+    match input::prompt_select("Select target queue", &labels)? {
+        Some(index) => Ok(options.get(index).copied()),
+        None => {
+            output::print_info("Operation cancelled");
+            Ok(None)
+        }
     }
 }
 
@@ -129,7 +156,7 @@ fn unique_match<'a>(mut matches: impl Iterator<Item = &'a StoredTask>) -> Option
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_task_ref;
+    use super::{resolve_target_queue, resolve_task_ref};
     use crate::app::app_error::AppError;
     use crate::domain::task::{Queue, Task};
     use crate::storage::{config::QueueDirs, repo::TaskRepo};
@@ -209,6 +236,22 @@ mod tests {
 
         let err = resolve_task_ref(None, &repo, "Select task")
             .expect_err("picker should fail without a tty");
+
+        assert!(matches!(err, AppError::NoTty));
+    }
+
+    #[test]
+    fn resolve_target_queue_returns_supplied_queue() {
+        let resolved = resolve_target_queue(Queue::Inbox, Some(Queue::Now))
+            .expect("explicit queue should resolve");
+
+        assert_eq!(resolved, Some(Queue::Now));
+    }
+
+    #[test]
+    fn resolve_target_queue_returns_no_tty_without_interaction() {
+        let err = resolve_target_queue(Queue::Inbox, None)
+            .expect_err("missing queue without tty should fail");
 
         assert!(matches!(err, AppError::NoTty));
     }

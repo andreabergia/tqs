@@ -23,7 +23,9 @@ pub fn handle_move(Move { task, queue }: Move, root: Option<PathBuf>) -> Result<
         return Ok(());
     };
 
-    let queue = queue.ok_or_else(|| AppError::usage("missing target queue"))?;
+    let Some(queue) = helpers::resolve_target_queue(stored.task.queue, queue)? else {
+        return Ok(());
+    };
     if stored.task.queue == queue {
         output::print_info(&format!("Task {} is already in {}", stored.task.id, queue));
         return Ok(());

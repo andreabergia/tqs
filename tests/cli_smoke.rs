@@ -303,6 +303,35 @@ fn move_is_noop_when_task_is_already_in_target_queue() {
 }
 
 #[test]
+fn move_prompts_for_queue_when_missing() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("Ship v2")
+        .assert()
+        .success();
+
+    cargo_bin_cmd!("tqs")
+        .env("TQS_TEST_MODE", "1")
+        .write_stdin("now\n")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("move")
+        .arg("task-1")
+        .assert()
+        .success()
+        .stdout(contains("Moved task: task-1"));
+
+    assert!(!temp.path().join("inbox").join("task-1.md").exists());
+    assert!(temp.path().join("now").join("task-1.md").exists());
+}
+
+#[test]
 fn done_is_idempotent() {
     let temp = TempDir::new().expect("temp dir should exist");
 
