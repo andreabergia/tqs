@@ -1,8 +1,5 @@
 use crate::{
-    domain::{
-        filter::queue_counts,
-        task::{Queue, Task},
-    },
+    domain::task::{Queue, Task},
     storage::config::{ConfigInspection, ResolvedConfig},
     storage::doctor::{DiagnosticSeverity, DoctorReport},
     storage::repo::StoredTask,
@@ -23,7 +20,11 @@ pub fn print_error(message: &str) {
 }
 
 pub fn print_queue_tasks(queue: Queue, tasks: &[Task]) {
-    println!("{}", style(queue.to_string()).bold().cyan());
+    println!(
+        "{} {}",
+        style(queue.to_string()).bold().cyan(),
+        style(format!("({})", tasks.len())).yellow()
+    );
 
     if tasks.is_empty() {
         println!("No tasks found");
@@ -36,12 +37,6 @@ pub fn print_queue_tasks(queue: Queue, tasks: &[Task]) {
 }
 
 pub fn print_dashboard(tasks: &[Task]) {
-    let counts = queue_counts(tasks);
-    for (queue, count) in counts {
-        println!("{queue:<5} {count}");
-    }
-
-    println!();
     print_queue_tasks(
         Queue::Now,
         &tasks

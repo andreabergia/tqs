@@ -163,8 +163,8 @@ fn list_without_queue_shows_dashboard() {
         .assert()
         .success()
         .stdout(
-            contains("now")
-                .and(contains("inbox"))
+            contains("now (1)")
+                .and(contains("inbox (1)"))
                 .and(contains("Review PR")),
         );
 }
@@ -183,7 +183,7 @@ fn list_queue_shows_only_requested_queue() {
         .assert()
         .success()
         .stdout(
-            contains("now")
+            contains("now (1)")
                 .and(contains("Do now"))
                 .and(contains("Review PR").not()),
         );
@@ -202,7 +202,7 @@ fn now_command_shows_only_now_queue() {
         .assert()
         .success()
         .stdout(
-            contains("now")
+            contains("now (1)")
                 .and(contains("Do now"))
                 .and(contains("Review PR").not()),
         );
@@ -221,7 +221,7 @@ fn inbox_command_shows_only_inbox_queue() {
         .assert()
         .success()
         .stdout(
-            contains("inbox")
+            contains("inbox (1)")
                 .and(contains("Review PR"))
                 .and(contains("Do now").not()),
         );
