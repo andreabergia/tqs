@@ -532,9 +532,10 @@ mod tests {
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
                 && diagnostic.scope == "daily_notes_dir"
-                && diagnostic
-                    .message
-                    .contains(&format!("{} exists but is not a directory", daily_notes.display()))
+                && diagnostic.message.contains(&format!(
+                    "{} exists but is not a directory",
+                    daily_notes.display()
+                ))
         }));
     }
 
@@ -570,7 +571,9 @@ mod tests {
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
-                && diagnostic.message.contains("renamed.md has id 'task-1' but filename should be task-1.md")
+                && diagnostic
+                    .message
+                    .contains("renamed.md has id 'task-1' but filename should be task-1.md")
         }));
     }
 
@@ -601,7 +604,9 @@ mod tests {
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Warning
-                && diagnostic.message.contains("skipped task scan because queue directory mappings overlap")
+                && diagnostic
+                    .message
+                    .contains("skipped task scan because queue directory mappings overlap")
         }));
         assert!(!report.diagnostics.iter().any(|diagnostic| {
             diagnostic.scope == "tasks" && diagnostic.message.contains("bad.md is malformed")

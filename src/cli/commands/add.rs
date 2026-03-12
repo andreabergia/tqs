@@ -141,11 +141,7 @@ mod tests {
     fn parse_tags_trims_and_drops_empty_entries() {
         assert_eq!(
             parse_tags(Some(" rust, cli ,,  backend  , ".to_string())),
-            vec![
-                "rust".to_string(),
-                "cli".to_string(),
-                "backend".to_string()
-            ]
+            vec!["rust".to_string(), "cli".to_string(), "backend".to_string()]
         );
     }
 }

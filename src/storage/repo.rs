@@ -375,7 +375,10 @@ mod tests {
         repo.delete("task-1").expect("task should be deleted");
 
         assert!(!temp.path().join("inbox").join("task-1.md").exists());
-        assert!(matches!(repo.read("task-1"), Err(AppError::NotFound { .. })));
+        assert!(matches!(
+            repo.read("task-1"),
+            Err(AppError::NotFound { .. })
+        ));
     }
 
     #[test]
@@ -387,8 +390,11 @@ mod tests {
 
         fs::create_dir_all(temp.path().join("inbox")).expect("inbox should exist");
         fs::create_dir_all(temp.path().join("now")).expect("now should exist");
-        fs::write(temp.path().join("inbox").join("task-1.md"), render(&inbox_task))
-            .expect("inbox task should be written");
+        fs::write(
+            temp.path().join("inbox").join("task-1.md"),
+            render(&inbox_task),
+        )
+        .expect("inbox task should be written");
         fs::write(temp.path().join("now").join("task-1.md"), render(&now_task))
             .expect("now task should be written");
 

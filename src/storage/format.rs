@@ -204,8 +204,7 @@ mod tests {
 
     #[test]
     fn parse_rejects_invalid_yaml_frontmatter() {
-        let markdown =
-            "---\nid: task-1\ntitle: Ship v2\nqueue: [inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\n---\n";
+        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: [inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\n---\n";
         let err = parse_task_markdown(markdown).expect_err("markdown should fail to parse");
         assert!(matches!(err, FormatError::InvalidFrontmatter(_)));
     }
