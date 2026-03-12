@@ -266,16 +266,22 @@ impl TaskRepo {
 #[cfg(test)]
 mod tests {
     use super::TaskRepo;
+    use crate::app::app_error::AppError;
     use crate::domain::task::{Queue, Task};
     use crate::storage::config::QueueDirs;
+    use crate::storage::format::render_task_markdown;
     use chrono::Utc;
-    use std::fs;
+    use std::{fs, path::Path};
     use tempfile::TempDir;
 
     fn task(id: &str, title: &str, queue: Queue) -> Task {
         let mut task = Task::new(id, title, Utc::now());
         task.queue = queue;
         task
+    }
+
+    fn render(task: &Task) -> String {
+        render_task_markdown(task).expect("task should render")
     }
 
     #[test]
@@ -357,5 +363,107 @@ mod tests {
 
         assert!(temp.path().join("capture").join("task-1.md").exists());
         assert!(!temp.path().join("inbox").join("task-1.md").exists());
+    }
+
+    #[test]
+    fn delete_removes_task_file() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        repo.create(&task("task-1", "Ship v2", Queue::Inbox))
+            .expect("task should be created");
+
+        repo.delete("task-1").expect("task should be deleted");
+
+        assert!(!temp.path().join("inbox").join("task-1.md").exists());
+        assert!(matches!(repo.read("task-1"), Err(AppError::NotFound { .. })));
+    }
+
+    #[test]
+    fn find_by_id_rejects_duplicate_ids_across_queues() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        let inbox_task = task("task-1", "Inbox task", Queue::Inbox);
+        let now_task = task("task-1", "Now task", Queue::Now);
+
+        fs::create_dir_all(temp.path().join("inbox")).expect("inbox should exist");
+        fs::create_dir_all(temp.path().join("now")).expect("now should exist");
+        fs::write(temp.path().join("inbox").join("task-1.md"), render(&inbox_task))
+            .expect("inbox task should be written");
+        fs::write(temp.path().join("now").join("task-1.md"), render(&now_task))
+            .expect("now task should be written");
+
+        let err = repo
+            .find_by_id("task-1")
+            .expect_err("duplicate ids should fail lookup");
+        assert_eq!(err.to_string(), "multiple tasks found with id 'task-1'");
+    }
+
+    #[test]
+    fn read_task_from_path_rejects_filename_mismatch() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        let path = temp.path().join("inbox").join("renamed.md");
+        let task = task("task-1", "Ship v2", Queue::Inbox);
+
+        fs::create_dir_all(path.parent().expect("path should have a parent"))
+            .expect("inbox should exist");
+        fs::write(&path, render(&task)).expect("task should be written");
+
+        let err = repo
+            .read_task_from_path(&path)
+            .expect_err("filename mismatch should fail");
+        assert_eq!(
+            err.to_string(),
+            format!(
+                "invalid task file {}: task id does not match filename",
+                path.display()
+            )
+        );
+    }
+
+    #[test]
+    fn replace_edited_rejects_id_changes() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        let task = task("task-1", "Ship v2", Queue::Inbox);
+        repo.create(&task).expect("task should be created");
+
+        let edited = render(&task).replace("id: task-1", "id: renamed");
+        let err = repo
+            .replace_edited("task-1", &edited, Utc::now())
+            .expect_err("changing the id should fail");
+        assert_eq!(err.to_string(), "editing a task cannot change its id");
+    }
+
+    #[test]
+    fn finalize_added_edit_rejects_paths_outside_root() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        let task = task("task-1", "Ship v2", Queue::Inbox);
+        repo.create(&task).expect("task should be created");
+
+        let outside = temp
+            .path()
+            .parent()
+            .expect("temp dir should have a parent")
+            .join("outside.md");
+
+        let err = repo
+            .finalize_added_edit("task-1", Path::new(&outside), &render(&task), Utc::now())
+            .expect_err("path traversal should fail");
+        assert!(matches!(err, AppError::PathTraversalAttempt(_)));
+    }
+
+    #[test]
+    fn finalize_added_edit_rejects_invalid_content() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let repo = TaskRepo::new(temp.path().to_path_buf(), QueueDirs::default());
+        let task = task("task-1", "Ship v2", Queue::Inbox);
+        let path = repo.create(&task).expect("task should be created");
+
+        let err = repo
+            .finalize_added_edit("task-1", &path, "---\nqueue: [inbox\n", Utc::now())
+            .expect_err("invalid content should fail");
+        assert!(matches!(err, AppError::InvalidTaskFile { .. }));
     }
 }

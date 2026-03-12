@@ -1,6 +1,6 @@
 ---
 id: tqs-txb9
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-12T09:41:11Z
@@ -18,3 +18,9 @@ Cover untested safety and correctness paths in src/storage/repo.rs. Focus on del
 
 Tests exercise delete, duplicate-ID lookup failures, filename mismatch rejection, path traversal rejection, and replace_edited/finalize_added_edit validation paths.
 
+
+## Notes
+
+**2026-03-12T10:43:14Z**
+
+Added repository invariant coverage in src/storage/repo.rs for delete behavior, duplicate-ID lookup failures across queues, filename mismatch rejection, path traversal protection in finalize_added_edit, and replace_edited/finalize_added_edit validation failures. Verified with cargo test storage::repo::tests.
