@@ -1,0 +1,20 @@
+---
+id: tqs-txb9
+status: open
+deps: []
+links: []
+created: 2026-03-12T09:41:11Z
+type: task
+priority: 1
+assignee: andrea.bergia
+parent: tqs-oq3n
+tags: [testing, coverage, storage]
+---
+# Add tests for repository filesystem invariants
+
+Cover untested safety and correctness paths in src/storage/repo.rs. Focus on delete behavior, duplicate ID detection, filename and task ID mismatch handling, path traversal protection, and the repo-level edit finalization helpers.
+
+## Acceptance Criteria
+
+Tests exercise delete, duplicate-ID lookup failures, filename mismatch rejection, path traversal rejection, and replace_edited/finalize_added_edit validation paths.
+
