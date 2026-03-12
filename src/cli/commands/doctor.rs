@@ -8,6 +8,7 @@ use crate::io::output;
 use crate::storage::doctor;
 
 #[derive(Debug, Parser)]
+#[command(about = "Check configuration and task storage health")]
 pub struct Doctor;
 
 pub fn handle_doctor(_: Doctor, root: Option<PathBuf>) -> Result<(), AppError> {

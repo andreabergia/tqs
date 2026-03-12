@@ -51,7 +51,25 @@ fn help_command_works() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(contains("Terminal task queue"));
+        .stdout(
+            contains("Terminal task queue")
+                .and(contains("Task Commands:"))
+                .and(contains("Workflow Commands:"))
+                .and(contains("Setup Commands:"))
+                .and(contains("Add a task"))
+                .and(contains("List tasks"))
+                .and(contains("Check configuration and task storage health"))
+                .and(contains("Options:")),
+        );
+}
+
+#[test]
+fn bare_command_suggests_help_and_config() {
+    cargo_bin_cmd!("tqs").assert().failure().stderr(
+        contains("no command specified")
+            .and(contains("tqs help"))
+            .and(contains("tqs config")),
+    );
 }
 
 #[test]
@@ -469,14 +487,43 @@ fn command_fails_cleanly_when_tasks_root_is_not_configured() {
         .arg("list")
         .assert()
         .failure()
-        .stderr(contains("missing tasks_root"));
+        .stderr(
+            contains("missing tasks_root")
+                .and(contains("To get started:"))
+                .and(contains("tqs --root ~/tasks add \"My first task\"")),
+        );
+}
+
+#[test]
+fn config_command_prints_getting_started_guide_when_tasks_root_is_missing() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
+
+    cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
+        .env_remove("TQS_ROOT")
+        .arg("config")
+        .assert()
+        .success()
+        .stdout(
+            contains(format!(
+                "config_path = {}",
+                config_home.join("tqs").join("config.toml").display()
+            ))
+            .and(contains("config_file = missing"))
+            .and(contains("tasks_root = <unset>"))
+            .and(contains("To get started:"))
+            .and(contains("tasks_root = \"~/tasks\"")),
+        );
 }
 
 #[test]
 fn config_command_prints_effective_values_from_root_override() {
     let temp = TempDir::new().expect("temp dir should exist");
+    let config_home = temp.path().join("config-home");
 
     cargo_bin_cmd!("tqs")
+        .env("XDG_CONFIG_HOME", &config_home)
         .arg("--root")
         .arg(temp.path())
         .arg("config")

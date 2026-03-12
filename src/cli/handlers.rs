@@ -16,7 +16,9 @@ pub fn handle(cli: Cli) -> Result<(), AppError> {
         Some(Command::Find(command)) => find::handle_find(command, cli.root),
         Some(Command::Config(command)) => config::handle_config(command, cli.root),
         Some(Command::Doctor(command)) => doctor::handle_doctor(command, cli.root),
-        None => Err(AppError::usage("no command specified")),
+        None => Err(AppError::usage(
+            "no command specified; run `tqs help` for usage or `tqs config` to get started",
+        )),
     }
 }
 
@@ -35,6 +37,9 @@ mod tests {
         .expect_err("missing command should fail");
 
         assert!(matches!(err, AppError::Usage(_)));
-        assert_eq!(err.to_string(), "no command specified");
+        assert_eq!(
+            err.to_string(),
+            "no command specified; run `tqs help` for usage or `tqs config` to get started"
+        );
     }
 }

@@ -8,6 +8,7 @@ use crate::cli::commands::helpers;
 use crate::io::output;
 
 #[derive(Debug, Parser)]
+#[command(about = "Edit a task")]
 pub struct Edit {
     pub task: Option<String>,
 }

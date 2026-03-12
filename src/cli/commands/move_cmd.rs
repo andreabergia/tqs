@@ -9,6 +9,7 @@ use crate::domain::task::Queue;
 use crate::io::output;
 
 #[derive(Debug, Parser)]
+#[command(about = "Move a task to a different queue")]
 pub struct Move {
     pub task: Option<String>,
 

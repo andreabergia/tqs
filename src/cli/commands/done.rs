@@ -10,6 +10,7 @@ use crate::io::output;
 use crate::storage::{daily_notes, repo::TaskRepo};
 
 #[derive(Debug, Parser)]
+#[command(about = "Mark a task as done")]
 pub struct Done {
     pub task: Option<String>,
 }

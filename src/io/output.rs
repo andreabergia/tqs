@@ -3,7 +3,7 @@ use crate::{
         filter::queue_counts,
         task::{Queue, Task},
     },
-    storage::config::ResolvedConfig,
+    storage::config::{ConfigInspection, ResolvedConfig},
     storage::doctor::{DiagnosticSeverity, DoctorReport},
     storage::repo::StoredTask,
 };
@@ -142,6 +142,47 @@ pub fn print_config(config: &ResolvedConfig) {
     println!("queue.next = {}", config.queue_dirs.next);
     println!("queue.later = {}", config.queue_dirs.later);
     println!("queue.done = {}", config.queue_dirs.done);
+}
+
+pub fn print_config_inspection(inspection: &ConfigInspection) {
+    match &inspection.config_path {
+        Some(path) => println!("config_path = {}", path.display()),
+        None => println!("config_path = <unavailable>"),
+    }
+
+    println!(
+        "config_file = {}",
+        if inspection.file_exists {
+            "present"
+        } else {
+            "missing"
+        }
+    );
+
+    match &inspection.explicit_root {
+        Some(path) => println!("root_cli = {}", path.display()),
+        None => println!("root_cli = <unset>"),
+    }
+
+    match &inspection.env_root {
+        Some(path) => println!("root_env = {}", path.display()),
+        None => println!("root_env = <unset>"),
+    }
+
+    match &inspection.resolved {
+        Some(config) => {
+            println!();
+            print_config(config);
+        }
+        None => {
+            println!("tasks_root = <unset>");
+            println!();
+            println!(
+                "{}",
+                crate::storage::config::starter_config(inspection.config_path.as_deref())
+            );
+        }
+    }
 }
 
 pub fn print_doctor_report(report: &DoctorReport) {

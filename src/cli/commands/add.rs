@@ -12,6 +12,7 @@ use crate::domain::{
 use crate::io::{input, output};
 
 #[derive(Debug, Parser)]
+#[command(about = "Add a task")]
 pub struct Add {
     pub title: Option<String>,
 

@@ -7,6 +7,7 @@ use crate::app::app_error::AppError;
 use super::list;
 
 #[derive(Debug, Parser)]
+#[command(about = "List tasks in the now queue")]
 pub struct Now;
 
 pub fn handle_now(_: Now, root: Option<PathBuf>) -> Result<(), AppError> {

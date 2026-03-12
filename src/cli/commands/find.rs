@@ -8,6 +8,7 @@ use crate::domain::filter::matches_query;
 use crate::io::output;
 
 #[derive(Debug, Parser)]
+#[command(about = "Find tasks by text")]
 pub struct Find {
     pub query: String,
 }

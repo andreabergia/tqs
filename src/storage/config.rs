@@ -10,6 +10,15 @@ use crate::{app::app_error::AppError, domain::task::Queue};
 const CONFIG_FILE_NAME: &str = "config.toml";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigInspection {
+    pub config_path: Option<PathBuf>,
+    pub file_exists: bool,
+    pub explicit_root: Option<PathBuf>,
+    pub env_root: Option<PathBuf>,
+    pub resolved: Option<ResolvedConfig>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedConfig {
     pub obsidian_vault_dir: Option<PathBuf>,
     pub tasks_root: PathBuf,
@@ -82,12 +91,12 @@ pub fn resolve(explicit_root: Option<PathBuf>) -> Result<ResolvedConfig, AppErro
     let file_config = load_file_config()?;
     let tasks_root = explicit_root
         .or_else(|| env_path("TQS_ROOT"))
-        .or_else(|| file_config.as_ref().and_then(|config| config.tasks_root.clone()))
-        .ok_or_else(|| {
-            AppError::message(
-                "missing tasks_root; pass --root, set TQS_ROOT, or configure it in ~/.config/tqs/config.toml",
-            )
-        })?;
+        .or_else(|| {
+            file_config
+                .as_ref()
+                .and_then(|config| config.tasks_root.clone())
+        })
+        .ok_or_else(missing_tasks_root_error)?;
 
     let daily_notes_dir = file_config
         .as_ref()
@@ -106,6 +115,52 @@ pub fn resolve(explicit_root: Option<PathBuf>) -> Result<ResolvedConfig, AppErro
         daily_notes_dir,
         queue_dirs,
     })
+}
+
+pub fn inspect(explicit_root: Option<PathBuf>) -> Result<ConfigInspection, AppError> {
+    let config_path = config_path();
+    let file_exists = config_path.as_ref().is_some_and(|path| path.exists());
+    let env_root = env_path("TQS_ROOT");
+    let resolved = match resolve(explicit_root.clone()) {
+        Ok(resolved) => Some(resolved),
+        Err(error) if error.to_string().starts_with("missing tasks_root;") => None,
+        Err(error) => return Err(error),
+    };
+
+    Ok(ConfigInspection {
+        config_path,
+        file_exists,
+        explicit_root,
+        env_root,
+        resolved,
+    })
+}
+
+pub fn starter_config(config_path: Option<&Path>) -> String {
+    let mut message = String::new();
+    let config_display = config_path
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "~/.config/tqs/config.toml".to_string());
+    message.push_str("To get started:\n");
+    message.push_str("  1. Try a one-off root: tqs --root ~/tasks add \"My first task\"\n");
+    message.push_str(&format!("  2. Or create {config_display} with:\n"));
+    message.push_str("     tasks_root = \"~/tasks\"\n");
+    message.push_str("     # Optional for Obsidian users:\n");
+    message.push_str("     # obsidian_vault_dir = \"~/vault\"\n");
+    message
+}
+
+fn missing_tasks_root_error() -> AppError {
+    let config_path = config_path();
+    let location = config_path
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "~/.config/tqs/config.toml".to_string());
+
+    AppError::message(format!(
+        "missing tasks_root; pass --root, set TQS_ROOT, or configure it in {location}\n\n{}",
+        starter_config(config_path.as_deref())
+    ))
 }
 
 fn load_file_config() -> Result<Option<FileConfig>, AppError> {
@@ -227,7 +282,7 @@ fn absolutize_from(base_dir: &Path, value: PathBuf) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{QueueDirsOverride, build_queue_dirs, resolve};
+    use super::{QueueDirsOverride, build_queue_dirs, inspect, resolve};
     use crate::test_support::LockedEnv;
     use std::{fs, path::PathBuf};
     use tempfile::TempDir;
@@ -281,6 +336,47 @@ mod tests {
                 .queue_dirs
                 .dir_name(crate::domain::task::Queue::Done),
             "archive"
+        );
+    }
+
+    #[test]
+    fn inspect_reports_missing_config_file_and_root_sources() {
+        let mut env = LockedEnv::new(&["XDG_CONFIG_HOME", "TQS_ROOT"]);
+        let temp = TempDir::new().expect("temp dir should exist");
+        let config_home = temp.path().join("config-home");
+        env.set("XDG_CONFIG_HOME", config_home.as_os_str());
+
+        let inspection = inspect(None).expect("inspection should succeed");
+
+        assert_eq!(
+            inspection.config_path,
+            Some(config_home.join("tqs").join("config.toml"))
+        );
+        assert!(!inspection.file_exists);
+        assert!(inspection.resolved.is_none());
+    }
+
+    #[test]
+    fn missing_tasks_root_error_includes_starter_config() {
+        let mut env = LockedEnv::new(&["XDG_CONFIG_HOME", "TQS_ROOT"]);
+        let temp = TempDir::new().expect("temp dir should exist");
+        let config_home = temp.path().join("config-home");
+        env.set("XDG_CONFIG_HOME", config_home.as_os_str());
+
+        let error = resolve(None).expect_err("missing root should fail");
+        let message = error.to_string();
+
+        assert!(message.contains("missing tasks_root"));
+        assert!(message.contains("To get started:"));
+        assert!(message.contains("tqs --root ~/tasks add \"My first task\""));
+        assert!(
+            message.contains(
+                &config_home
+                    .join("tqs")
+                    .join("config.toml")
+                    .display()
+                    .to_string()
+            )
         );
     }
 

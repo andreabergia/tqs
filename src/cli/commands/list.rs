@@ -8,6 +8,7 @@ use crate::domain::task::Queue;
 use crate::io::output;
 
 #[derive(Debug, Parser)]
+#[command(about = "List tasks")]
 pub struct List {
     #[arg(value_parser = helpers::parse_queue)]
     pub queue: Option<Queue>,

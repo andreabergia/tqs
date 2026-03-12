@@ -7,6 +7,7 @@ use crate::cli::commands::helpers;
 use crate::io::output;
 
 #[derive(Debug, Parser)]
+#[command(about = "Show task details")]
 pub struct Show {
     pub task: Option<String>,
 }

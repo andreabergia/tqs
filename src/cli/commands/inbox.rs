@@ -7,6 +7,7 @@ use crate::app::app_error::AppError;
 use super::list;
 
 #[derive(Debug, Parser)]
+#[command(about = "List tasks in the inbox queue")]
 pub struct Inbox;
 
 pub fn handle_inbox(_: Inbox, root: Option<PathBuf>) -> Result<(), AppError> {
