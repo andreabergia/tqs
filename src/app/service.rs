@@ -10,11 +10,36 @@ pub fn run() -> i32 {
         e.exit();
     });
 
-    match handlers::handle(cli) {
+    exit_code_for(handlers::handle(cli))
+}
+
+fn exit_code_for(result: Result<(), crate::app::app_error::AppError>) -> i32 {
+    match result {
         Ok(()) => 0,
         Err(error) => {
             eprintln!("{error}");
             error.exit_code()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::exit_code_for;
+    use crate::app::app_error::AppError;
+
+    #[test]
+    fn exit_code_for_success_is_zero() {
+        assert_eq!(exit_code_for(Ok(())), 0);
+    }
+
+    #[test]
+    fn exit_code_for_usage_errors_is_two() {
+        assert_eq!(exit_code_for(Err(AppError::usage("bad args"))), 2);
+    }
+
+    #[test]
+    fn exit_code_for_operational_errors_is_one() {
+        assert_eq!(exit_code_for(Err(AppError::message("boom"))), 1);
     }
 }

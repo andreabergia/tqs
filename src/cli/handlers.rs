@@ -19,3 +19,22 @@ pub fn handle(cli: Cli) -> Result<(), AppError> {
         None => Err(AppError::usage("no command specified")),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::handle;
+    use crate::app::app_error::AppError;
+    use crate::cli::args::Cli;
+
+    #[test]
+    fn handle_returns_usage_error_when_no_command_is_specified() {
+        let err = handle(Cli {
+            root: None,
+            command: None,
+        })
+        .expect_err("missing command should fail");
+
+        assert!(matches!(err, AppError::Usage(_)));
+        assert_eq!(err.to_string(), "no command specified");
+    }
+}
