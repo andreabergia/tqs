@@ -13,11 +13,15 @@ pub fn resolve_editor() -> Result<ResolvedEditor, AppError> {
 
 pub fn resolve_repo(root: Option<PathBuf>) -> Result<TaskRepo, AppError> {
     let resolved = resolve_config(root)?;
-    Ok(TaskRepo::new(resolved.tasks_root, resolved.queue_dirs))
+    Ok(repo_from_config(&resolved))
 }
 
 pub fn resolve_config(root: Option<PathBuf>) -> Result<ResolvedConfig, AppError> {
     config::resolve(root)
+}
+
+pub fn repo_from_config(resolved: &ResolvedConfig) -> TaskRepo {
+    TaskRepo::new(resolved.tasks_root.clone(), resolved.queue_dirs.clone())
 }
 
 pub fn parse_queue(value: &str) -> Result<Queue, String> {

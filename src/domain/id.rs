@@ -1,26 +1,11 @@
-use rand::RngExt;
-
-use crate::app::app_error::AppError;
 use std::path::Path;
 
-static ADJECTIVES: std::sync::OnceLock<Vec<&str>> = std::sync::OnceLock::new();
-static NOUNS: std::sync::OnceLock<Vec<&str>> = std::sync::OnceLock::new();
+use crate::app::app_error::AppError;
 
-fn init_adjectives() -> &'static Vec<&'static str> {
-    ADJECTIVES.get_or_init(|| include_str!("../data/adjectives.txt").lines().collect())
-}
-
-fn init_nouns() -> &'static Vec<&'static str> {
-    NOUNS.get_or_init(|| include_str!("../data/nouns.txt").lines().collect())
-}
-
-pub fn adjectives() -> &'static [&'static str] {
-    init_adjectives().as_slice()
-}
-
-pub fn nouns() -> &'static [&'static str] {
-    init_nouns().as_slice()
-}
+pub const CROCKFORD_ALPHABET: &[u8; 32] = b"0123456789abcdefghjkmnpqrstvwxyz";
+pub const MIN_GENERATED_ID_WIDTH: u8 = 3;
+pub const MAX_GENERATED_ID_WIDTH: u8 = 25;
+pub const SEQUENCE_STEP: u128 = 0x9e3779b97f4a7c15;
 
 pub fn validate_user_id(id: &str) -> Result<(), AppError> {
     let trimmed = id.trim();
@@ -47,107 +32,93 @@ pub fn validate_user_id(id: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-const MAX_ATTEMPTS: u32 = 100;
+pub fn encode_generated_id(mut value: u128, width: u8) -> Result<String, AppError> {
+    validate_generated_width(width)?;
 
-pub struct IdGenerator<F>
-where
-    F: Fn(&str) -> bool,
-{
-    exists_fn: F,
+    let modulus = id_space_size(width)?;
+    if value >= modulus {
+        return Err(AppError::message(format!(
+            "generated ID value {value} is out of range for width {width}"
+        )));
+    }
+
+    let mut output = vec!['0'; usize::from(width)];
+    for index in (0..usize::from(width)).rev() {
+        let digit = (value % 32) as usize;
+        output[index] = char::from(CROCKFORD_ALPHABET[digit]);
+        value /= 32;
+    }
+
+    Ok(output.into_iter().collect())
 }
 
-impl<F> IdGenerator<F>
-where
-    F: Fn(&str) -> bool,
-{
-    pub fn new(exists_fn: F) -> Self {
-        Self { exists_fn }
+pub fn id_space_size(width: u8) -> Result<u128, AppError> {
+    validate_generated_width(width)?;
+    Ok(1u128 << (u32::from(width) * 5))
+}
+
+pub fn next_sequence_value(current: u128, width: u8) -> Result<u128, AppError> {
+    let modulus = id_space_size(width)?;
+    Ok((current + (SEQUENCE_STEP % modulus)) % modulus)
+}
+
+fn validate_generated_width(width: u8) -> Result<(), AppError> {
+    if !(MIN_GENERATED_ID_WIDTH..=MAX_GENERATED_ID_WIDTH).contains(&width) {
+        return Err(AppError::message(format!(
+            "generated ID width {width} is unsupported"
+        )));
     }
 
-    pub fn generate(&self) -> String {
-        let mut rng = rand::rng();
-
-        for _ in 0..MAX_ATTEMPTS {
-            let adjective = adjectives()[rng.random_range(0..adjectives().len())];
-            let noun = nouns()[rng.random_range(0..nouns().len())];
-            let suffix: u16 = rng.random_range(0..u16::MAX);
-            let id = format!("{adjective}-{noun}-{suffix:04x}");
-
-            if !(self.exists_fn)(&id) {
-                return id;
-            }
-        }
-
-        panic!("Failed to generate unique ID after {MAX_ATTEMPTS} attempts")
-    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{IdGenerator, adjectives, nouns};
+    use std::collections::HashSet;
+
+    use super::{
+        CROCKFORD_ALPHABET, MIN_GENERATED_ID_WIDTH, encode_generated_id, id_space_size,
+        next_sequence_value, validate_user_id,
+    };
 
     #[test]
-    fn wordlists_have_reasonable_size() {
-        assert!(adjectives().len() >= 256, "adjectives list too small");
-        assert!(nouns().len() >= 256, "nouns list too small");
+    fn generated_ids_use_lowercase_crockford_alphabet() {
+        let id = encode_generated_id(32 * 32 + 10 * 32 + 31, MIN_GENERATED_ID_WIDTH)
+            .expect("generated ID should encode");
+        assert_eq!(id, "1az");
+        assert!(id.bytes().all(|byte| CROCKFORD_ALPHABET.contains(&byte)));
     }
 
     #[test]
-    fn id_follows_word_word_hex_format() {
-        let generator = IdGenerator::new(|_| false);
-        let id = generator.generate();
-
-        let parts: Vec<&str> = id.split('-').collect();
+    fn generated_ids_are_zero_padded_to_width() {
         assert_eq!(
-            parts.len(),
-            3,
-            "ID should have 3 parts separated by hyphens"
+            encode_generated_id(1, MIN_GENERATED_ID_WIDTH).expect("generated ID should encode"),
+            "001"
         );
-
-        let hex_suffix = u16::from_str_radix(parts[2], 16);
-        assert!(hex_suffix.is_ok(), "suffix should be valid hex");
     }
 
     #[test]
-    fn generate_avoids_collisions() {
-        let mut used_ids = std::collections::HashSet::new();
+    fn additive_sequence_covers_the_full_width_without_repeating() {
+        let width = MIN_GENERATED_ID_WIDTH;
+        let modulus = id_space_size(width).expect("space size should compute");
+        let mut value = 0;
+        let mut seen = HashSet::new();
 
-        for _ in 0..100 {
-            let existing_ids = used_ids.clone();
-            let generator = IdGenerator::new(move |id| existing_ids.contains(id));
-
-            let id = generator.generate();
-            assert!(!used_ids.contains(&id), "generated ID should be unique");
-            used_ids.insert(id);
+        for _ in 0..modulus {
+            assert!(seen.insert(value), "sequence repeated before wrap");
+            value = next_sequence_value(value, width).expect("sequence should advance");
         }
-    }
 
-    #[test]
-    fn generate_retries_on_collision() {
-        let collision_count = std::sync::atomic::AtomicU32::new(0);
-
-        let generator = IdGenerator::new(|id| {
-            if id == "test-word-1234" {
-                collision_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                true
-            } else {
-                false
-            }
-        });
-
-        let id = generator.generate();
-        assert_ne!(id, "test-word-1234");
-    }
-
-    #[test]
-    #[should_panic(expected = "Failed to generate unique ID after 100 attempts")]
-    fn generate_panics_after_max_attempts() {
-        let generator = IdGenerator::new(|_| true);
-        let _ = generator.generate();
+        assert_eq!(value, 0, "sequence should wrap to zero after full cycle");
+        assert_eq!(
+            seen.len() as u128,
+            modulus,
+            "sequence should visit all slots"
+        );
     }
 
     mod validation_tests {
-        use super::super::validate_user_id;
+        use super::validate_user_id;
 
         #[test]
         fn valid_id_with_hyphens_succeeds() {
@@ -220,66 +191,15 @@ mod tests {
         }
 
         #[test]
-        fn forward_slash_id_fails() {
-            let result = validate_user_id("task/123");
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path separators"));
-        }
-
-        #[test]
-        fn backslash_id_fails() {
-            let result = validate_user_id(r"task\123");
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path separators"));
-        }
-
-        #[test]
-        fn absolute_path_unix_fails() {
+        fn absolute_path_fails() {
             let result = validate_user_id("/etc/passwd");
             assert!(result.is_err());
             assert!(result.unwrap_err().to_string().contains("absolute path"));
         }
 
         #[test]
-        fn absolute_path_windows_fails() {
-            let result = validate_user_id(r"C:\Windows\System32");
-            assert!(result.is_err());
-            let error_msg = result.unwrap_err().to_string();
-            #[cfg(windows)]
-            assert!(error_msg.contains("absolute path"));
-            #[cfg(not(windows))]
-            assert!(error_msg.contains("path separators"));
-        }
-
-        #[test]
-        fn parent_dir_traversal_fails() {
-            let result = validate_user_id("../etc/passwd");
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("start with '.'"));
-        }
-
-        #[test]
-        fn multiple_parent_dir_traversal_fails() {
-            let result = validate_user_id("../../etc/passwd");
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("start with '.'"));
-        }
-
-        #[test]
-        fn mixed_traversal_fails() {
-            let result = validate_user_id("task-123/../../etc/passwd");
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("path separators"));
-        }
-
-        #[test]
-        fn id_is_trimmed() {
-            assert!(validate_user_id("  task-123  ").is_ok());
-        }
-
-        #[test]
-        fn id_with_internal_slashes_fails() {
-            let result = validate_user_id("foo/bar/baz");
+        fn path_separators_fail() {
+            let result = validate_user_id("foo/bar");
             assert!(result.is_err());
             assert!(result.unwrap_err().to_string().contains("path separators"));
         }

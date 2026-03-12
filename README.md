@@ -12,10 +12,10 @@ tqs now
 tqs inbox
 tqs config
 tqs doctor
-tqs move 20260309-aws now
-tqs done 20260309-aws
-tqs edit 20260309-aws
-tqs show 20260309-aws
+tqs move a7k now
+tqs done a7k
+tqs edit a7k
+tqs show a7k
 tqs find billing
 ```
 
@@ -63,14 +63,14 @@ tqs now
 tqs inbox
 
 # Focus a task
-tqs move 20260309-api now
+tqs move 0f3 now
 
 # Inspect or edit the full Markdown file
-tqs show 20260309-api
-tqs edit 20260309-api
+tqs show 0f3
+tqs edit 0f3
 
 # Complete the task
-tqs done 20260309-api
+tqs done 0f3
 
 # Search across all queues
 tqs find latency
@@ -139,6 +139,13 @@ When `obsidian_vault_dir` is set, TQS derives:
 
 - `tasks_root = <vault>/Tasks`
 - `daily_notes_dir = <vault>/Daily Notes`
+
+TQS also stores allocator metadata in a hidden `.tqs/` directory:
+
+- `<vault>/.tqs/` when `obsidian_vault_dir` is configured
+- `<tasks_root>/.tqs/` otherwise
+
+Auto-generated IDs are bare lowercase Crockford-style codes. TQS starts with 3-character IDs such as `0f3` and grows to 4, 5, and more characters only as earlier widths are exhausted.
 
 `obsidian_vault_dir` is a shortcut for the generic filesystem model. It cannot be combined with `tasks_root`, `daily_notes_dir`, or queue directory overrides.
 

@@ -394,6 +394,7 @@ mod tests {
         ResolvedConfig {
             obsidian_vault_dir: None,
             tasks_root: root.to_path_buf(),
+            state_dir: root.join(".tqs"),
             daily_notes_dir: None,
             queue_dirs: QueueDirs::default(),
         }
@@ -429,6 +430,7 @@ mod tests {
         let report = run(&ResolvedConfig {
             obsidian_vault_dir: None,
             tasks_root: temp.path().to_path_buf(),
+            state_dir: temp.path().join(".tqs"),
             daily_notes_dir: None,
             queue_dirs: QueueDirs {
                 inbox: "shared".to_string(),
@@ -524,6 +526,7 @@ mod tests {
         let report = run(&ResolvedConfig {
             obsidian_vault_dir: None,
             tasks_root: temp.path().join("tasks"),
+            state_dir: temp.path().join("tasks").join(".tqs"),
             daily_notes_dir: Some(daily_notes.clone()),
             queue_dirs: QueueDirs::default(),
         })
@@ -591,6 +594,7 @@ mod tests {
         let report = run(&ResolvedConfig {
             obsidian_vault_dir: None,
             tasks_root: root.to_path_buf(),
+            state_dir: root.join(".tqs"),
             daily_notes_dir: None,
             queue_dirs: QueueDirs {
                 inbox: "shared".to_string(),

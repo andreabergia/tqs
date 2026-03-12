@@ -123,6 +123,7 @@ pub fn print_config(config: &ResolvedConfig) {
     }
 
     println!("tasks_root = {}", config.tasks_root.display());
+    println!("state_dir = {}", config.state_dir.display());
 
     match &config.daily_notes_dir {
         Some(path) => println!("daily_notes_dir = {}", path.display()),

@@ -100,7 +100,9 @@ Flags:
 
 Behavior:
 
-- generates a unique task id
+- generates a unique lowercase Crockford-style task id
+- starts with 3-character ids and grows to wider ids only as needed
+- stores allocator state in `<vault>/.tqs/` when using `obsidian_vault_dir`, otherwise in `<tasks_root>/.tqs/`
 - creates a Markdown file with the default task template
 - prints `Created task: <id> (<path>)`
 

@@ -32,6 +32,7 @@ src/
 │   ├── config.rs        # config loading and root resolution
 │   ├── repo.rs          # repository for task files
 │   ├── format.rs        # Markdown/frontmatter parsing and rendering
+│   ├── id_state.rs      # shared generated-id allocator state and locking
 │   └── daily_notes.rs   # optional completion logging
 └── io/
     ├── input.rs         # interactive text prompts
@@ -48,12 +49,12 @@ Handlers (handlers.rs)
     ↓
 Command implementation (cli/commands/*)
     ↓
-Config + Repository (storage/config.rs, storage/repo.rs)
+Config + Repository + ID State (storage/config.rs, storage/repo.rs, storage/id_state.rs)
     ↓
 Markdown task files (<tasks_root>/<queue-dir>/<id>.md)
 ```
 
-The `done` command may also call `storage/daily_notes.rs` to append to today’s daily note when that integration is configured.
+The `add` command also uses `storage/id_state.rs` to allocate the next shared generated ID, and `done` may call `storage/daily_notes.rs` to append to today’s daily note when that integration is configured.
 
 ## Domain Model
 
@@ -104,6 +105,17 @@ Transitions are idempotent where appropriate: moving to the current queue or run
 
 ## Storage Model
 
+### ID Generation
+
+Auto-generated task IDs are bare lowercase Crockford-style codes such as `0f3` or `a7k9`.
+
+- generation starts at width `3`
+- once a width is exhausted, generation advances to `4`, then `5`, and so on
+- each width uses a deterministic additive sequence over the full `32^width` space
+- generated IDs are still checked against the repository so manual IDs remain authoritative
+
+The sequence state is shared through a hidden `.tqs/` metadata directory and guarded with a local lock so concurrent `tqs add` processes on one machine do not allocate the same ID.
+
 ### Root Resolution
 
 `storage/config.rs` resolves `tasks_root` in this order:
@@ -121,6 +133,15 @@ The same config file may also define:
 `obsidian_vault_dir` is a convenience alias over the same generic storage model, not a separate operating mode. It cannot be combined with the lower-level path or queue override settings.
 
 Relative paths in the config file are resolved relative to the config file directory.
+
+### Shared Metadata
+
+TQS stores generator metadata separately from task Markdown files:
+
+- `<vault>/.tqs/` when `obsidian_vault_dir` is configured
+- `<tasks_root>/.tqs/` otherwise
+
+The generated-ID allocator stores one state file per resolved `tasks_root` under that metadata directory. This keeps normal multi-computer use aligned when the task storage is synced, while leaving duplicate detection as the backstop for true offline concurrent edits.
 
 ### Repository Behavior
 

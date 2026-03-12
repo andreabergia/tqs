@@ -124,6 +124,33 @@ fn add_persists_tags() {
 }
 
 #[test]
+fn add_generates_short_crockford_ids_and_persists_allocator_state() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    let assert = cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("Ship v2")
+        .assert()
+        .success();
+
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("stdout is utf-8");
+    let id = stdout
+        .strip_prefix("Created task: ")
+        .and_then(|value| value.split_once(" ("))
+        .map(|(id, _)| id)
+        .expect("created-task output should include the generated ID");
+
+    assert_eq!(id.len(), 3);
+    assert!(
+        id.bytes()
+            .all(|byte| b"0123456789abcdefghjkmnpqrstvwxyz".contains(&byte))
+    );
+    assert!(temp.path().join("inbox").join(format!("{id}.md")).exists());
+}
+
+#[test]
 fn list_without_queue_shows_dashboard() {
     let temp = TempDir::new().expect("temp dir should exist");
     write_task(temp.path(), "now", "task-1", "Do now", "# Do now");

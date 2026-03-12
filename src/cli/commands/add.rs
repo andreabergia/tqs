@@ -5,11 +5,11 @@ use clap::Parser;
 
 use crate::app::app_error::AppError;
 use crate::cli::commands::helpers;
-use crate::domain::{
-    id::{IdGenerator, validate_user_id},
-    task::Task,
+use crate::domain::{id::validate_user_id, task::Task};
+use crate::{
+    io::{input, output},
+    storage::id_state::SharedIdAllocator,
 };
-use crate::io::{input, output};
 
 #[derive(Debug, Parser)]
 #[command(about = "Add a task")]
@@ -39,7 +39,8 @@ pub fn handle_add(
     }: Add,
     root: Option<PathBuf>,
 ) -> Result<(), AppError> {
-    let repo = helpers::resolve_repo(root)?;
+    let resolved = helpers::resolve_config(root)?;
+    let repo = helpers::repo_from_config(&resolved);
     let title = match title {
         Some(title) => title,
         None => input::prompt_input("Title:")?,
@@ -53,7 +54,7 @@ pub fn handle_add(
             }
             id
         }
-        None => IdGenerator::new(|candidate| repo.id_exists(candidate)).generate(),
+        None => SharedIdAllocator::new(&resolved).generate(&repo)?,
     };
 
     let now = Utc::now();

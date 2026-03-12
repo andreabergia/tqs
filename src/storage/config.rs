@@ -22,6 +22,7 @@ pub struct ConfigInspection {
 pub struct ResolvedConfig {
     pub obsidian_vault_dir: Option<PathBuf>,
     pub tasks_root: PathBuf,
+    pub state_dir: PathBuf,
     pub daily_notes_dir: Option<PathBuf>,
     pub queue_dirs: QueueDirs,
 }
@@ -106,12 +107,18 @@ pub fn resolve(explicit_root: Option<PathBuf>) -> Result<ResolvedConfig, AppErro
         .map(|config| build_queue_dirs(&config.queues))
         .transpose()?
         .unwrap_or_default();
+    let state_dir = file_config
+        .as_ref()
+        .and_then(|config| config.obsidian_vault_dir.clone())
+        .unwrap_or_else(|| tasks_root.clone())
+        .join(".tqs");
 
     Ok(ResolvedConfig {
         obsidian_vault_dir: file_config
             .as_ref()
             .and_then(|config| config.obsidian_vault_dir.clone()),
         tasks_root,
+        state_dir,
         daily_notes_dir,
         queue_dirs,
     })
@@ -304,6 +311,7 @@ mod tests {
 
         let resolved = resolve(Some(PathBuf::from("/cli/tasks"))).expect("config should resolve");
         assert_eq!(resolved.tasks_root, PathBuf::from("/cli/tasks"));
+        assert_eq!(resolved.state_dir, PathBuf::from("/cli/tasks").join(".tqs"));
     }
 
     #[test]
@@ -324,6 +332,7 @@ mod tests {
         let resolved = resolve(None).expect("config should resolve");
         assert_eq!(resolved.obsidian_vault_dir, None);
         assert_eq!(resolved.tasks_root, config_dir.join("tasks"));
+        assert_eq!(resolved.state_dir, config_dir.join("tasks").join(".tqs"));
         assert_eq!(resolved.daily_notes_dir, Some(config_dir.join("daily")));
         assert_eq!(
             resolved
@@ -431,6 +440,7 @@ mod tests {
         let resolved = resolve(None).expect("config should resolve");
         assert_eq!(resolved.obsidian_vault_dir, Some(config_dir.join("vault")));
         assert_eq!(resolved.tasks_root, config_dir.join("vault").join("Tasks"));
+        assert_eq!(resolved.state_dir, config_dir.join("vault").join(".tqs"));
         assert_eq!(
             resolved.daily_notes_dir,
             Some(config_dir.join("vault").join("Daily Notes"))
