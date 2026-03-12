@@ -1,6 +1,6 @@
 ---
 id: tqs-apgz
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-12T09:41:18Z
@@ -18,3 +18,9 @@ Expand src/storage/format.rs test coverage for malformed input and parse-time va
 
 Tests cover missing frontmatter start, missing frontmatter end, invalid YAML frontmatter, and parse-time rejection of completed_at on non-done tasks.
 
+
+## Notes
+
+**2026-03-12T10:42:07Z**
+
+Added malformed markdown parsing coverage in src/storage/format.rs for missing frontmatter start/end delimiters, invalid YAML frontmatter, and parse-time rejection of completed_at outside the done queue. Verified with cargo test storage::format::tests.

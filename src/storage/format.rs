@@ -187,4 +187,33 @@ mod tests {
         let parsed = parse_task_markdown(markdown).expect("markdown should parse");
         assert!(parsed.body.is_empty());
     }
+
+    #[test]
+    fn parse_rejects_missing_frontmatter_start_delimiter() {
+        let markdown = "id: task-1\ntitle: Ship v2\nqueue: inbox\n";
+        let err = parse_task_markdown(markdown).expect_err("markdown should fail to parse");
+        assert!(matches!(err, FormatError::MissingFrontmatter));
+    }
+
+    #[test]
+    fn parse_rejects_missing_frontmatter_end_delimiter() {
+        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\n";
+        let err = parse_task_markdown(markdown).expect_err("markdown should fail to parse");
+        assert!(matches!(err, FormatError::MissingFrontmatterEnd));
+    }
+
+    #[test]
+    fn parse_rejects_invalid_yaml_frontmatter() {
+        let markdown =
+            "---\nid: task-1\ntitle: Ship v2\nqueue: [inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\n---\n";
+        let err = parse_task_markdown(markdown).expect_err("markdown should fail to parse");
+        assert!(matches!(err, FormatError::InvalidFrontmatter(_)));
+    }
+
+    #[test]
+    fn parse_rejects_completed_at_for_non_done_task() {
+        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: 2026-03-10T08:00:00Z\ndaily_note: null\n---\n";
+        let err = parse_task_markdown(markdown).expect_err("markdown should fail validation");
+        assert!(matches!(err, FormatError::CompletedAtWithoutDoneQueue));
+    }
 }
