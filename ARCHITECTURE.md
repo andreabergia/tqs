@@ -79,8 +79,6 @@ The queue value is stored in frontmatter and used by CLI parsing, filtering, and
 - `created_at`
 - `updated_at`
 - `tags`
-- `source`
-- `project`
 - `completed_at`
 - `daily_note`
 - `body`
@@ -153,8 +151,6 @@ queue: now
 created_at: 2026-03-09T10:34:12Z
 updated_at: 2026-03-09T11:20:07Z
 tags: [aws, finance]
-source: email
-project: platform-costs
 completed_at:
 daily_note:
 ---

@@ -89,14 +89,6 @@ pub fn print_task_detail(task: &Task, path: &Path) {
         println!("{} {}", styled_field_label("Tags:"), task.tags.join(", "));
     }
 
-    if let Some(source) = &task.source {
-        println!("{} {}", styled_field_label("Source:"), source);
-    }
-
-    if let Some(project) = &task.project {
-        println!("{} {}", styled_field_label("Project:"), project);
-    }
-
     if let Some(completed_at) = task.completed_at {
         println!(
             "{} {}",

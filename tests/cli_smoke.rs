@@ -11,7 +11,7 @@ fn write_task(root: &std::path::Path, queue: &str, id: &str, title: &str, body: 
     fs::write(
         queue_dir.join(format!("{id}.md")),
         format!(
-            "---\nid: {id}\ntitle: {title}\nqueue: {queue}\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n{body}"
+            "---\nid: {id}\ntitle: {title}\nqueue: {queue}\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n{body}"
         ),
     )
     .expect("task file should be written");
@@ -24,8 +24,6 @@ fn write_task_with_metadata(
     title: &str,
     body: &str,
     tags: &[&str],
-    source: Option<&str>,
-    project: Option<&str>,
 ) {
     let queue_dir = root.join(queue);
     fs::create_dir_all(&queue_dir).expect("queue dir should exist");
@@ -34,12 +32,10 @@ fn write_task_with_metadata(
     } else {
         format!("[{}]", tags.join(", "))
     };
-    let source = source.unwrap_or("null");
-    let project = project.unwrap_or("null");
     fs::write(
         queue_dir.join(format!("{id}.md")),
         format!(
-            "---\nid: {id}\ntitle: {title}\nqueue: {queue}\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: {tags}\nsource: {source}\nproject: {project}\ncompleted_at: null\ndaily_note: null\n---\n{body}"
+            "---\nid: {id}\ntitle: {title}\nqueue: {queue}\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: {tags}\ncompleted_at: null\ndaily_note: null\n---\n{body}"
         ),
     )
     .expect("task file should be written");
@@ -106,7 +102,7 @@ fn add_creates_task_in_inbox() {
 }
 
 #[test]
-fn add_persists_tags_and_project_metadata() {
+fn add_persists_tags() {
     let temp = TempDir::new().expect("temp dir should exist");
 
     cargo_bin_cmd!("tqs")
@@ -117,8 +113,6 @@ fn add_persists_tags_and_project_metadata() {
         .arg("task-1")
         .arg("--tags")
         .arg(" aws, finance ,, ")
-        .arg("--project")
-        .arg("platform-costs")
         .arg("Ship v2")
         .assert()
         .success()
@@ -127,7 +121,6 @@ fn add_persists_tags_and_project_metadata() {
     let path = temp.path().join("inbox").join("task-1.md");
     let content = fs::read_to_string(path).expect("task should exist");
     assert!(content.contains("tags:\n- aws\n- finance"));
-    assert!(content.contains("project: platform-costs"));
 }
 
 #[test]
@@ -859,7 +852,7 @@ fn edit_updates_body_without_renaming_file() {
     cargo_bin_cmd!("tqs")
         .env(
             "VISUAL",
-            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nUpdated body\nEOF' sh",
+            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nUpdated body\nEOF' sh",
         )
         .arg("--root")
         .arg(temp.path())
@@ -879,7 +872,7 @@ fn edit_updates_body_without_renaming_file() {
 #[test]
 fn edit_with_unchanged_file_preserves_updated_at() {
     let temp = TempDir::new().expect("temp dir should exist");
-    let original = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nOld body";
+    let original = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nOld body";
     fs::create_dir_all(temp.path().join("inbox")).expect("queue dir should exist");
     fs::write(temp.path().join("inbox").join("task-1.md"), original).expect("task should exist");
 
@@ -906,7 +899,7 @@ fn add_with_edit_persists_editor_changes() {
     cargo_bin_cmd!("tqs")
         .env(
             "VISUAL",
-            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nEdited during add\nEOF' sh",
+            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\n\nEdited during add\nEOF' sh",
         )
         .arg("--root")
         .arg(temp.path())
@@ -987,7 +980,7 @@ fn add_with_edit_rejects_id_changes_and_restores_stub() {
     cargo_bin_cmd!("tqs")
         .env(
             "VISUAL",
-            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: renamed\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\nEOF' sh",
+            "sh -c 'cat <<\"EOF\" > \"$1\"\n---\nid: renamed\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n\n## Context\n\n## Notes\nEOF' sh",
         )
         .arg("--root")
         .arg(temp.path())
@@ -1009,7 +1002,7 @@ fn add_with_edit_rejects_id_changes_and_restores_stub() {
 }
 
 #[test]
-fn find_matches_tags_source_and_project() {
+fn find_matches_tags() {
     let temp = TempDir::new().expect("temp dir should exist");
     write_task_with_metadata(
         temp.path(),
@@ -1018,8 +1011,6 @@ fn find_matches_tags_source_and_project() {
         "Investigate billing",
         "# Investigate billing",
         &["aws", "finance"],
-        Some("email"),
-        Some("platform-costs"),
     );
 
     cargo_bin_cmd!("tqs")
@@ -1027,24 +1018,6 @@ fn find_matches_tags_source_and_project() {
         .arg(temp.path())
         .arg("find")
         .arg("finance")
-        .assert()
-        .success()
-        .stdout(contains("task-1").and(contains("Investigate billing")));
-
-    cargo_bin_cmd!("tqs")
-        .arg("--root")
-        .arg(temp.path())
-        .arg("find")
-        .arg("email")
-        .assert()
-        .success()
-        .stdout(contains("task-1").and(contains("Investigate billing")));
-
-    cargo_bin_cmd!("tqs")
-        .arg("--root")
-        .arg(temp.path())
-        .arg("find")
-        .arg("platform-costs")
         .assert()
         .success()
         .stdout(contains("task-1").and(contains("Investigate billing")));

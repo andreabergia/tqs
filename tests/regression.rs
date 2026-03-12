@@ -42,7 +42,7 @@ fn malformed_files_are_skipped_during_list() {
         temp.path(),
         "inbox",
         "good",
-        "tags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n",
+        "tags: []\ncompleted_at: null\ndaily_note: null\n",
         "# Good task",
     );
     write_raw_task(
@@ -71,7 +71,7 @@ fn done_moves_file_and_sets_completed_at() {
         temp.path(),
         "inbox",
         "task-1",
-        "tags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n",
+        "tags: []\ncompleted_at: null\ndaily_note: null\n",
         "# Task",
     );
 
@@ -113,7 +113,7 @@ fn add_with_explicit_done_queue_sets_completed_at() {
 }
 
 #[test]
-fn add_without_source_persists_null_source() {
+fn add_omits_removed_metadata_fields() {
     let temp = TempDir::new().expect("temp dir should exist");
 
     cargo_bin_cmd!("tqs")
@@ -128,28 +128,8 @@ fn add_without_source_persists_null_source() {
 
     let content = std::fs::read_to_string(temp.path().join("inbox").join("task-1.md"))
         .expect("task file should exist");
-    assert!(content.contains("source: null"));
-}
-
-#[test]
-fn add_with_explicit_source_persists_source_value() {
-    let temp = TempDir::new().expect("temp dir should exist");
-
-    cargo_bin_cmd!("tqs")
-        .arg("--root")
-        .arg(temp.path())
-        .arg("add")
-        .arg("--id")
-        .arg("task-1")
-        .arg("--source")
-        .arg("manual")
-        .arg("Ship v2")
-        .assert()
-        .success();
-
-    let content = std::fs::read_to_string(temp.path().join("inbox").join("task-1.md"))
-        .expect("task file should exist");
-    assert!(content.contains("source: manual"));
+    assert!(!content.contains("source:"));
+    assert!(!content.contains("project:"));
 }
 
 #[test]

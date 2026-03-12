@@ -17,13 +17,7 @@ pub struct Add {
     pub title: Option<String>,
 
     #[arg(long)]
-    pub source: Option<String>,
-
-    #[arg(long)]
     pub tags: Option<String>,
-
-    #[arg(long)]
-    pub project: Option<String>,
 
     #[arg(long, value_parser = helpers::parse_queue)]
     pub queue: Option<crate::domain::task::Queue>,
@@ -38,9 +32,7 @@ pub struct Add {
 pub fn handle_add(
     Add {
         title,
-        source,
         tags,
-        project,
         queue,
         edit,
         id,
@@ -66,8 +58,6 @@ pub fn handle_add(
 
     let now = Utc::now();
     let mut task = Task::new(task_id, title, now);
-    task.source = source;
-    task.project = project;
     task.tags = parse_tags(tags);
 
     if let Some(queue) = queue {
@@ -130,12 +120,6 @@ mod tests {
         let add = Add::parse_from(["add", "Ship v2", "--tags", "rust,cli"]);
         assert_eq!(add.title.as_deref(), Some("Ship v2"));
         assert_eq!(add.tags.as_deref(), Some("rust,cli"));
-    }
-
-    #[test]
-    fn parses_project_metadata() {
-        let add = Add::parse_from(["add", "Ship v2", "--project", "platform-costs"]);
-        assert_eq!(add.project.as_deref(), Some("platform-costs"));
     }
 
     #[test]

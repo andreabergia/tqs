@@ -80,10 +80,6 @@ pub struct Task {
     #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub project: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<DateTime<Utc>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub daily_note: Option<String>,
@@ -102,8 +98,6 @@ impl Task {
             created_at: now,
             updated_at: now,
             tags: Vec::new(),
-            source: None,
-            project: None,
             completed_at: None,
             daily_note: None,
             body: Self::default_body(&title),

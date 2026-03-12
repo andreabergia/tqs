@@ -407,12 +407,12 @@ mod tests {
         fs::create_dir_all(root.join("next")).expect("next dir should exist");
         fs::write(
             root.join("inbox").join("task-1.md"),
-            "---\nid: task-1\ntitle: Inbox copy\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Inbox\n",
+            "---\nid: task-1\ntitle: Inbox copy\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n# Inbox\n",
         )
         .expect("inbox task should be written");
         fs::write(
             root.join("next").join("task-1.md"),
-            "---\nid: task-1\ntitle: Next copy\nqueue: next\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Next\n",
+            "---\nid: task-1\ntitle: Next copy\nqueue: next\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n# Next\n",
         )
         .expect("next task should be written");
 
@@ -563,7 +563,7 @@ mod tests {
         fs::create_dir_all(root.join("inbox")).expect("inbox dir should exist");
         fs::write(
             root.join("inbox").join("renamed.md"),
-            "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n",
+            "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n# Ship v2\n",
         )
         .expect("task should be written");
 

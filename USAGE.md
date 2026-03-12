@@ -6,7 +6,7 @@
 # Capture tasks
 tqs add <title>
 tqs add <title> --queue <queue>
-tqs add <title> --source <source> --tags <tag1,tag2> --project <project>
+tqs add <title> --tags <tag1,tag2>
 tqs add <title> --edit
 
 # Review work
@@ -87,16 +87,14 @@ If the match is ambiguous without a TTY, the command fails with an ambiguity err
 ### `add`
 
 ```bash
-tqs add [title] [--source <source>] [--tags <tag1,tag2>] [--project <project>] [--queue <queue>] [--edit]
+tqs add [title] [--tags <tag1,tag2>] [--queue <queue>] [--edit]
 ```
 
 Creates a new task. If `title` is omitted, TQS prompts for it interactively.
 
 Flags:
 
-- `--source <source>` sets the optional source field
 - `--tags <tag1,tag2>` sets comma-separated tags
-- `--project <project>` sets the optional project field
 - `--queue <queue>` creates the task directly in a queue other than `inbox`
 - `--edit` opens the created file in the configured editor immediately after creation
 
@@ -110,8 +108,8 @@ Examples:
 
 ```bash
 tqs add "Reply to AWS billing alert"
-tqs add "Plan release notes" --queue now --project docs
-tqs add "Follow up with finance" --tags billing,aws --source email
+tqs add "Plan release notes" --queue now
+tqs add "Follow up with finance" --tags billing,aws
 tqs add "Draft incident summary" --edit
 ```
 
@@ -249,7 +247,7 @@ Output includes:
 - created timestamp
 - updated timestamp
 - title
-- tags, source, project when present
+- tags when present
 - completed timestamp when present
 - full body
 
@@ -273,8 +271,6 @@ The search matches case-insensitively against:
 - title
 - body
 - tags
-- source
-- project
 
 `find` does not support structured filter flags in v2. Use a single free-text query.
 
@@ -288,7 +284,7 @@ Example:
 
 ```bash
 tqs find billing
-tqs find platform-costs
+tqs find finance
 ```
 
 ### `config`
@@ -356,8 +352,6 @@ updated_at: 2026-03-09T11:20:07Z
 tags:
   - aws
   - finance
-source: email
-project: platform-costs
 completed_at:
 daily_note:
 ---

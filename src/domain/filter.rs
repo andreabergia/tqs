@@ -7,13 +7,8 @@ pub fn matches_query(task: &Task, query: &str) -> bool {
     }
 
     let tags = task.tags.join(" ");
-    let source = task.source.as_deref().unwrap_or_default();
-    let project = task.project.as_deref().unwrap_or_default();
-    let haystack = format!(
-        "{} {} {} {} {} {}",
-        task.id, task.title, task.body, tags, source, project
-    )
-    .to_ascii_lowercase();
+    let haystack =
+        format!("{} {} {} {}", task.id, task.title, task.body, tags).to_ascii_lowercase();
 
     haystack.contains(&query)
 }
@@ -52,17 +47,16 @@ mod tests {
                 .expect("timestamp should parse"),
         );
         task.tags = vec!["aws".to_string(), "finance".to_string()];
-        task.project = Some("platform-costs".to_string());
         task.body = "Check cost explorer".to_string();
         task
     }
 
     #[test]
-    fn matches_query_uses_metadata_and_body() {
+    fn matches_query_uses_tags_and_body() {
         let task = task();
         assert!(matches_query(&task, "billing"));
         assert!(matches_query(&task, "cost explorer"));
-        assert!(matches_query(&task, "platform-costs"));
+        assert!(matches_query(&task, "finance"));
         assert!(!matches_query(&task, "missing"));
     }
 

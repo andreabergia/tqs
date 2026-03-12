@@ -36,10 +36,6 @@ struct TaskFrontmatter {
     #[serde(default)]
     tags: Vec<String>,
     #[serde(default)]
-    source: Option<String>,
-    #[serde(default)]
-    project: Option<String>,
-    #[serde(default)]
     completed_at: Option<DateTime<Utc>>,
     #[serde(default)]
     daily_note: Option<String>,
@@ -54,8 +50,6 @@ impl From<TaskFrontmatter> for Task {
             created_at: frontmatter.created_at,
             updated_at: frontmatter.updated_at,
             tags: frontmatter.tags,
-            source: frontmatter.source,
-            project: frontmatter.project,
             completed_at: frontmatter.completed_at,
             daily_note: frontmatter.daily_note,
             body: String::new(),
@@ -72,8 +66,6 @@ impl From<&Task> for TaskFrontmatter {
             created_at: task.created_at,
             updated_at: task.updated_at,
             tags: task.tags.clone(),
-            source: task.source.clone(),
-            project: task.project.clone(),
             completed_at: task.completed_at,
             daily_note: task.daily_note.clone(),
         }
@@ -159,8 +151,6 @@ mod tests {
             .parse()
             .expect("timestamp should parse");
         task.tags = vec!["aws".to_string(), "finance".to_string()];
-        task.source = Some("email".to_string());
-        task.project = Some("platform-costs".to_string());
         task.body = "# Reply to AWS billing alert\n\n## Notes\n\nCheck Cost Explorer.".to_string();
         task
     }
@@ -183,7 +173,7 @@ mod tests {
 
     #[test]
     fn parse_keeps_empty_body_empty() {
-        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: null\ndaily_note: null\n---\n";
+        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n";
         let parsed = parse_task_markdown(markdown).expect("markdown should parse");
         assert!(parsed.body.is_empty());
     }
@@ -211,7 +201,7 @@ mod tests {
 
     #[test]
     fn parse_rejects_completed_at_for_non_done_task() {
-        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\nsource: null\nproject: null\ncompleted_at: 2026-03-10T08:00:00Z\ndaily_note: null\n---\n";
+        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: 2026-03-10T08:00:00Z\ndaily_note: null\n---\n";
         let err = parse_task_markdown(markdown).expect_err("markdown should fail validation");
         assert!(matches!(err, FormatError::CompletedAtWithoutDoneQueue));
     }

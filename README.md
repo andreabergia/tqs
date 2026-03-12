@@ -6,7 +6,7 @@ TQS is a Rust CLI for managing queue-based tasks stored as Markdown files with Y
 
 ```bash
 tqs add "Reply to AWS billing alert"
-tqs add "Plan rollout" --queue now --tags ops,release --project platform
+tqs add "Plan rollout" --queue now --tags ops,release
 tqs list
 tqs now
 tqs inbox
@@ -54,8 +54,8 @@ The binary will be at `target/release/tqs`.
 # Capture a task in inbox
 tqs add "Write v2 release notes"
 
-# Add metadata at creation time
-tqs add "Investigate API latency" --tags api,perf --source pager --project platform
+# Add tags at creation time
+tqs add "Investigate API latency" --tags api,perf
 
 # Review the default dashboard
 tqs list
@@ -154,8 +154,6 @@ queue: inbox
 created_at: 2026-03-09T10:34:12Z
 updated_at: 2026-03-09T10:34:12Z
 tags: [aws, finance]
-source: email
-project: platform-costs
 completed_at:
 daily_note:
 ---
