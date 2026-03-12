@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 
 use crate::app::app_error::AppError;
 use std::path::Path;
@@ -65,12 +65,12 @@ where
     }
 
     pub fn generate(&self) -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..MAX_ATTEMPTS {
-            let adjective = adjectives()[rng.gen_range(0..adjectives().len())];
-            let noun = nouns()[rng.gen_range(0..nouns().len())];
-            let suffix: u16 = rng.gen_range(0..u16::MAX);
+            let adjective = adjectives()[rng.random_range(0..adjectives().len())];
+            let noun = nouns()[rng.random_range(0..nouns().len())];
+            let suffix: u16 = rng.random_range(0..u16::MAX);
             let id = format!("{adjective}-{noun}-{suffix:04x}");
 
             if !(self.exists_fn)(&id) {
