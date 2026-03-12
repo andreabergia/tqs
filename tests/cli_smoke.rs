@@ -88,6 +88,31 @@ fn add_creates_task_in_inbox() {
 }
 
 #[test]
+fn add_persists_tags_and_project_metadata() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("--tags")
+        .arg(" aws, finance ,, ")
+        .arg("--project")
+        .arg("platform-costs")
+        .arg("Ship v2")
+        .assert()
+        .success()
+        .stdout(contains("Created task: task-1"));
+
+    let path = temp.path().join("inbox").join("task-1.md");
+    let content = fs::read_to_string(path).expect("task should exist");
+    assert!(content.contains("tags:\n- aws\n- finance"));
+    assert!(content.contains("project: platform-costs"));
+}
+
+#[test]
 fn list_without_queue_shows_dashboard() {
     let temp = TempDir::new().expect("temp dir should exist");
     write_task(temp.path(), "now", "task-1", "Do now", "# Do now");

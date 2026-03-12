@@ -121,7 +121,7 @@ fn parse_tags(tags: Option<String>) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::Add;
+    use super::{Add, parse_tags};
     use clap::Parser;
 
     #[test]
@@ -129,5 +129,23 @@ mod tests {
         let add = Add::parse_from(["add", "Ship v2", "--tags", "rust,cli"]);
         assert_eq!(add.title.as_deref(), Some("Ship v2"));
         assert_eq!(add.tags.as_deref(), Some("rust,cli"));
+    }
+
+    #[test]
+    fn parses_project_metadata() {
+        let add = Add::parse_from(["add", "Ship v2", "--project", "platform-costs"]);
+        assert_eq!(add.project.as_deref(), Some("platform-costs"));
+    }
+
+    #[test]
+    fn parse_tags_trims_and_drops_empty_entries() {
+        assert_eq!(
+            parse_tags(Some(" rust, cli ,,  backend  , ".to_string())),
+            vec![
+                "rust".to_string(),
+                "cli".to_string(),
+                "backend".to_string()
+            ]
+        );
     }
 }

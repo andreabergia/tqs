@@ -186,6 +186,22 @@ mod tests {
     }
 
     #[test]
+    fn move_to_same_queue_is_a_noop() {
+        let mut task = Task::new("task-1", "Ship v2", now());
+        let changed = task.move_to(
+            Queue::Inbox,
+            "2026-03-10T08:00:00Z"
+                .parse()
+                .expect("timestamp should parse"),
+        );
+
+        assert!(!changed);
+        assert_eq!(task.queue, Queue::Inbox);
+        assert_eq!(task.updated_at, now());
+        assert!(task.completed_at.is_none());
+    }
+
+    #[test]
     fn normalize_clears_completed_at_outside_done() {
         let mut task = Task::new("task-1", "Ship v2", now());
         task.completed_at = Some(now());
@@ -196,5 +212,19 @@ mod tests {
         );
 
         assert!(task.completed_at.is_none());
+    }
+
+    #[test]
+    fn normalize_sets_completed_at_for_done_tasks_without_it() {
+        let mut task = Task::new("task-1", "Ship v2", now());
+        let normalized_at = "2026-03-10T08:00:00Z"
+            .parse()
+            .expect("timestamp should parse");
+        task.queue = Queue::Done;
+
+        task.normalize(normalized_at);
+
+        assert_eq!(task.updated_at, normalized_at);
+        assert_eq!(task.completed_at, Some(normalized_at));
     }
 }
