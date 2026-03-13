@@ -23,7 +23,7 @@ pub struct Add {
     pub queue: Option<crate::domain::task::Queue>,
 
     #[arg(long)]
-    pub edit: bool,
+    pub no_edit: bool,
 
     #[arg(long, hide = true)]
     pub id: Option<String>,
@@ -34,7 +34,7 @@ pub fn handle_add(
         title,
         tags,
         queue,
-        edit,
+        no_edit,
         id,
     }: Add,
     root: Option<PathBuf>,
@@ -71,7 +71,7 @@ pub fn handle_add(
 
     let path = repo.create(&task)?;
 
-    if edit {
+    if !no_edit {
         let original_content = fs::read_to_string(&path)?;
         let editor = helpers::resolve_editor()?;
         let status = Command::new(&editor.program)
