@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::{fs, process::Command};
 
 use chrono::{Local, Utc};
 use clap::Parser;
@@ -38,6 +39,35 @@ pub fn handle_done(Done { task }: Done, root: Option<PathBuf>) -> Result<(), App
         }
     }
 
-    output::print_info(&format!("Completed task: {} ({})", task.id, path.display()));
+    let original_content = fs::read_to_string(&path)?;
+    let editor = helpers::resolve_editor()?;
+    let status = Command::new(&editor.program)
+        .args(&editor.args)
+        .arg(&path)
+        .status()?;
+    if !status.success() {
+        return Err(AppError::message("editor command failed"));
+    }
+
+    let edited_content = fs::read_to_string(&path)?;
+    if edited_content.trim().is_empty() {
+        fs::write(&path, original_content)?;
+        return Err(AppError::message("task file cannot be empty"));
+    }
+
+    if edited_content != original_content {
+        match repo.replace_edited(&task.id, &edited_content, Utc::now()) {
+            Ok((task, path)) => {
+                output::print_info(&format!("Completed task: {} ({})", task.id, path.display()));
+            }
+            Err(error) => {
+                fs::write(&path, original_content)?;
+                return Err(error);
+            }
+        }
+    } else {
+        output::print_info(&format!("Completed task: {} ({})", task.id, path.display()));
+    }
+
     Ok(())
 }
