@@ -1,4 +1,5 @@
 use crate::app::app_error::AppError;
+use crate::domain::task::Queue;
 use crate::storage::repo::StoredTask;
 use dialoguer::console::{Key, Term, style};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
@@ -44,6 +45,7 @@ struct VisibleItem {
 struct RenderState<'a> {
     prompt: &'a str,
     search: &'a str,
+    queue_filter: Option<Queue>,
     selected: Option<usize>,
     scroll: usize,
     prev_rendered_lines: usize,
@@ -64,19 +66,21 @@ pub fn pick_task(
 
     let matcher = SkimMatcherV2::default();
     let mut search = String::new();
+    let mut queue_filter: Option<Queue> = None;
     let mut selected = Some(0usize);
     let mut scroll = 0usize;
     let mut rendered_lines = 0usize;
     let mut guard = TerminalGuard::new(&term)?;
 
     loop {
-        let visible = build_visible_items(tasks, &search, &matcher);
+        let visible = build_visible_items(tasks, &search, queue_filter, &matcher);
         sync_selection(&visible, &mut selected, &mut scroll);
         rendered_lines = render_picker(
             &term,
             RenderState {
                 prompt: options.prompt,
                 search: &search,
+                queue_filter,
                 selected,
                 scroll,
                 prev_rendered_lines: rendered_lines,
@@ -90,6 +94,11 @@ pub fn pick_task(
             Key::Escape => break Ok(None),
             Key::ArrowUp => move_selection_up(&visible, &mut selected, &mut scroll),
             Key::ArrowDown => move_selection_down(&visible, &mut selected, &mut scroll),
+            Key::Tab => {
+                queue_filter = next_queue_filter(queue_filter);
+                selected = Some(0);
+                scroll = 0;
+            }
             Key::Backspace => {
                 search.pop();
                 selected = Some(0);
@@ -110,15 +119,33 @@ pub fn pick_task(
     }
 }
 
+fn next_queue_filter(current: Option<Queue>) -> Option<Queue> {
+    match current {
+        None => Some(Queue::Inbox),
+        Some(Queue::Inbox) => Some(Queue::Now),
+        Some(Queue::Now) => Some(Queue::Next),
+        Some(Queue::Next) => Some(Queue::Later),
+        Some(Queue::Later) => Some(Queue::Done),
+        Some(Queue::Done) => None,
+    }
+}
+
 fn build_visible_items(
     tasks: &[StoredTask],
     search: &str,
+    queue_filter: Option<Queue>,
     matcher: &SkimMatcherV2,
 ) -> Vec<VisibleItem> {
     let mut visible = tasks
         .iter()
         .enumerate()
         .filter_map(|(index, stored)| {
+            if let Some(q) = queue_filter {
+                if stored.task.queue != q {
+                    return None;
+                }
+            }
+
             let display = format!(
                 "[{}] {} - {}",
                 stored.task.queue, stored.task.id, stored.task.title
@@ -165,16 +192,18 @@ fn render_picker(
         term.clear_last_lines(state.prev_rendered_lines)?;
     }
 
-    let prompt_line = if state.search.is_empty() {
-        state.prompt.to_string()
-    } else {
-        format!("{} search: {}", state.prompt, state.search)
-    };
+    let mut prompt_line = state.prompt.to_string();
+    if let Some(q) = state.queue_filter {
+        prompt_line.push_str(&format!("  [queue: {}]", q));
+    }
+    if !state.search.is_empty() {
+        prompt_line.push_str(&format!("  search: {}", state.search));
+    }
 
     term.write_line(&prompt_line)?;
     term.write_line(&format!(
         "{}",
-        style("Up/Down: navigate  Enter: select  Esc: cancel").cyan()
+        style("Up/Down: navigate  Tab: filter by queue  Enter: select  Esc: cancel").cyan()
     ))?;
 
     let rows = term.size().0 as usize;
@@ -267,7 +296,7 @@ mod tests {
     fn build_visible_items_uses_fuzzy_search() {
         let matcher = SkimMatcherV2::default();
         let items = vec![stored_task("task-1", "Reply to AWS billing alert")];
-        let visible = build_visible_items(&items, "aws", &matcher);
+        let visible = build_visible_items(&items, "aws", None, &matcher);
         assert_eq!(visible.len(), 1);
     }
 
