@@ -30,7 +30,7 @@ pub fn append_completion(
     let existing = if note_path.exists() {
         fs::read_to_string(&note_path)?
     } else {
-        String::new()
+        format!("# {}\n", note_date.format("%Y-%m-%d"))
     };
 
     if existing
@@ -217,7 +217,7 @@ mod tests {
         let note = std::fs::read_to_string(update.note_path).expect("note should exist");
         assert_eq!(
             note,
-            format!("{COMPLETED_TASKS_HEADING}\n\n- [x] [[Tasks/done/task-1|Ship v2]]\n")
+            format!("# 2026-03-10\n\n{COMPLETED_TASKS_HEADING}\n\n- [x] [[Tasks/done/task-1|Ship v2]]\n")
         );
     }
 
@@ -321,7 +321,7 @@ mod tests {
         let note = std::fs::read_to_string(update.note_path).expect("note should exist");
         assert_eq!(
             note,
-            format!("{COMPLETED_TASKS_HEADING}\n\n- [x] [[tasks/archive/task-1|Ship v2]]\n")
+            format!("# 2026-03-10\n\n{COMPLETED_TASKS_HEADING}\n\n- [x] [[tasks/archive/task-1|Ship v2]]\n")
         );
     }
 }
