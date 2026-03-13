@@ -79,6 +79,7 @@ fn done_moves_file_and_sets_completed_at() {
         .arg("--root")
         .arg(temp.path())
         .arg("done")
+        .arg("--no-edit")
         .arg("task-1")
         .assert()
         .success();
