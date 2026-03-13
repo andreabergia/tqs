@@ -105,7 +105,7 @@ impl Task {
     }
 
     pub fn default_body(title: &str) -> String {
-        format!("# {title}\n")
+        format!("# {title}\n\n")
     }
 
     pub fn move_to(&mut self, queue: Queue, now: DateTime<Utc>) -> bool {
