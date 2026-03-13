@@ -25,6 +25,9 @@ pub struct Add {
     #[arg(long)]
     pub no_edit: bool,
 
+    #[arg(long)]
+    pub content: Option<String>,
+
     #[arg(long, hide = true)]
     pub id: Option<String>,
 }
@@ -35,6 +38,7 @@ pub fn handle_add(
         tags,
         queue,
         no_edit,
+        content,
         id,
     }: Add,
     root: Option<PathBuf>,
@@ -61,6 +65,10 @@ pub fn handle_add(
     let mut task = Task::new(task_id, title, now);
     task.tags = parse_tags(tags);
 
+    if let Some(ref body) = content {
+        task.body = format!("# {}\n\n{}\n", task.title, body);
+    }
+
     if let Some(queue) = queue {
         task.move_to(queue, now);
         if task.queue != queue {
@@ -71,7 +79,7 @@ pub fn handle_add(
 
     let path = repo.create(&task)?;
 
-    if !no_edit {
+    if !no_edit && content.is_none() {
         let original_content = fs::read_to_string(&path)?;
         let editor = helpers::resolve_editor()?;
         let status = Command::new(&editor.program)

@@ -167,3 +167,26 @@ fn ambiguous_task_reference_is_reported_cleanly_without_tty() {
         .failure()
         .stderr(contains("task reference is ambiguous: Ship release"));
 }
+
+#[test]
+fn add_with_content_sets_body_and_skips_editor() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    cargo_bin_cmd!("tqs")
+        .arg("--root")
+        .arg(temp.path())
+        .arg("add")
+        .arg("--id")
+        .arg("task-1")
+        .arg("--content")
+        .arg("Some details here")
+        .arg("Ship v2")
+        .assert()
+        .success()
+        .stdout(contains("Created task: task-1"));
+
+    let content = std::fs::read_to_string(temp.path().join("inbox").join("task-1.md"))
+        .expect("task file should exist");
+    assert!(content.contains("# Ship v2"));
+    assert!(content.contains("Some details here"));
+}
