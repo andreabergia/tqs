@@ -8,7 +8,6 @@ type: task
 priority: 2
 assignee: andrea.bergia
 parent: tqs-oq3n
-tags: [testing, coverage, doctor]
 ---
 # Add tests for doctor diagnostic edge cases
 

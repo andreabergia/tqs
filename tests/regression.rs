@@ -42,7 +42,7 @@ fn malformed_files_are_skipped_during_list() {
         temp.path(),
         "inbox",
         "good",
-        "tags: []\ncompleted_at: null\ndaily_note: null\n",
+        "completed_at: null\ndaily_note: null\n",
         "# Good task",
     );
     write_raw_task(
@@ -71,7 +71,7 @@ fn done_moves_file_and_sets_completed_at() {
         temp.path(),
         "inbox",
         "task-1",
-        "tags: []\ncompleted_at: null\ndaily_note: null\n",
+        "completed_at: null\ndaily_note: null\n",
         "# Task",
     );
 

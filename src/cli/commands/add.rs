@@ -16,9 +16,6 @@ use crate::{
 pub struct Add {
     pub title: Option<String>,
 
-    #[arg(long)]
-    pub tags: Option<String>,
-
     #[arg(long, value_parser = helpers::parse_queue)]
     pub queue: Option<crate::domain::task::Queue>,
 
@@ -35,7 +32,6 @@ pub struct Add {
 pub fn handle_add(
     Add {
         title,
-        tags,
         queue,
         no_edit,
         content,
@@ -63,7 +59,6 @@ pub fn handle_add(
 
     let now = Utc::now();
     let mut task = Task::new(task_id, title, now);
-    task.tags = parse_tags(tags);
 
     if let Some(ref body) = content {
         task.body = format!("# {}\n\n{}\n", task.title, body);
@@ -110,32 +105,14 @@ pub fn handle_add(
     Ok(())
 }
 
-fn parse_tags(tags: Option<String>) -> Vec<String> {
-    tags.unwrap_or_default()
-        .split(',')
-        .map(str::trim)
-        .filter(|tag| !tag.is_empty())
-        .map(str::to_string)
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Add, parse_tags};
+    use super::Add;
     use clap::Parser;
 
     #[test]
     fn parses_add_command() {
-        let add = Add::parse_from(["add", "Ship v2", "--tags", "rust,cli"]);
+        let add = Add::parse_from(["add", "Ship v2"]);
         assert_eq!(add.title.as_deref(), Some("Ship v2"));
-        assert_eq!(add.tags.as_deref(), Some("rust,cli"));
-    }
-
-    #[test]
-    fn parse_tags_trims_and_drops_empty_entries() {
-        assert_eq!(
-            parse_tags(Some(" rust, cli ,,  backend  , ".to_string())),
-            vec!["rust".to_string(), "cli".to_string(), "backend".to_string()]
-        );
     }
 }

@@ -80,10 +80,6 @@ pub fn print_task_detail(task: &Task, path: &Path) {
     );
     println!("{} {}", styled_field_label("Title:"), task.title);
 
-    if !task.tags.is_empty() {
-        println!("{} {}", styled_field_label("Tags:"), task.tags.join(", "));
-    }
-
     if let Some(completed_at) = task.completed_at {
         println!(
             "{} {}",

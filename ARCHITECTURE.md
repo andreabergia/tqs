@@ -79,7 +79,6 @@ The queue value is stored in frontmatter and used by CLI parsing, filtering, and
 - `queue`
 - `created_at`
 - `updated_at`
-- `tags`
 - `completed_at`
 - `daily_note`
 - `body`
@@ -171,7 +170,6 @@ title: Reply to AWS billing alert
 queue: now
 created_at: 2026-03-09T10:34:12Z
 updated_at: 2026-03-09T11:20:07Z
-tags: [aws, finance]
 completed_at:
 daily_note:
 ---

@@ -8,7 +8,6 @@ type: task
 priority: 3
 assignee: andrea.bergia
 parent: tqs-oq3n
-tags: [testing, coverage, cli]
 ---
 # Add tests for CLI dispatch and exit-code handling
 

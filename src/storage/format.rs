@@ -34,8 +34,6 @@ struct TaskFrontmatter {
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
     #[serde(default)]
-    tags: Vec<String>,
-    #[serde(default)]
     completed_at: Option<DateTime<Utc>>,
     #[serde(default)]
     daily_note: Option<String>,
@@ -49,7 +47,6 @@ impl From<TaskFrontmatter> for Task {
             queue: frontmatter.queue,
             created_at: frontmatter.created_at,
             updated_at: frontmatter.updated_at,
-            tags: frontmatter.tags,
             completed_at: frontmatter.completed_at,
             daily_note: frontmatter.daily_note,
             body: String::new(),
@@ -65,7 +62,6 @@ impl From<&Task> for TaskFrontmatter {
             queue: task.queue,
             created_at: task.created_at,
             updated_at: task.updated_at,
-            tags: task.tags.clone(),
             completed_at: task.completed_at,
             daily_note: task.daily_note.clone(),
         }
@@ -150,7 +146,6 @@ mod tests {
         task.updated_at = "2026-03-09T11:20:07Z"
             .parse()
             .expect("timestamp should parse");
-        task.tags = vec!["aws".to_string(), "finance".to_string()];
         task.body = "# Reply to AWS billing alert\n\n## Notes\n\nCheck Cost Explorer.".to_string();
         task
     }
@@ -173,7 +168,7 @@ mod tests {
 
     #[test]
     fn parse_keeps_empty_body_empty() {
-        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ntags: []\ncompleted_at: null\ndaily_note: null\n---\n";
+        let markdown = "---\nid: task-1\ntitle: Ship v2\nqueue: inbox\ncreated_at: 2026-03-09T10:34:12Z\nupdated_at: 2026-03-09T10:34:12Z\ncompleted_at: null\ndaily_note: null\n---\n";
         let parsed = parse_task_markdown(markdown).expect("markdown should parse");
         assert!(parsed.body.is_empty());
     }

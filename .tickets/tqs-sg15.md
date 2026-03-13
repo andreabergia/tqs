@@ -8,7 +8,6 @@ type: task
 priority: 1
 assignee: andrea.bergia
 parent: tqs-oq3n
-tags: [testing, coverage, cli]
 ---
 # Add tests for task reference resolution branches
 

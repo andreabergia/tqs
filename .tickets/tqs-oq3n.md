@@ -7,7 +7,6 @@ created: 2026-03-12T09:41:02Z
 type: epic
 priority: 1
 assignee: andrea.bergia
-tags: [testing, coverage, review]
 ---
 # Improve missing test coverage from coverage review
 
