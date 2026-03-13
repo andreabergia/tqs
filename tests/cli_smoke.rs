@@ -97,8 +97,8 @@ fn add_creates_task_in_inbox() {
     assert!(path.exists());
     let content = fs::read_to_string(path).expect("task should exist");
     assert!(content.contains("# Ship v2"));
-    assert!(content.contains("## Context"));
-    assert!(content.contains("## Notes"));
+    assert!(!content.contains("## Context"));
+    assert!(!content.contains("## Notes"));
 }
 
 #[test]
@@ -996,8 +996,6 @@ fn add_with_edit_rejects_empty_file_and_restores_stub() {
     let content = fs::read_to_string(path).expect("task should exist");
     assert!(content.contains("id: task-1"));
     assert!(content.contains("# Ship v2"));
-    assert!(content.contains("## Context"));
-    assert!(content.contains("## Notes"));
 }
 
 #[test]
@@ -1025,8 +1023,6 @@ fn add_with_edit_rejects_malformed_content_and_restores_stub() {
     let content = fs::read_to_string(path).expect("task should exist");
     assert!(content.contains("id: task-1"));
     assert!(content.contains("# Ship v2"));
-    assert!(content.contains("## Context"));
-    assert!(content.contains("## Notes"));
 }
 
 #[test]
