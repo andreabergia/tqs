@@ -37,23 +37,20 @@ pub fn print_queue_tasks(queue: Queue, tasks: &[Task]) {
 }
 
 pub fn print_dashboard(tasks: &[Task]) {
-    print_queue_tasks(
-        Queue::Now,
-        &tasks
-            .iter()
-            .filter(|task| task.queue == Queue::Now)
-            .cloned()
-            .collect::<Vec<_>>(),
-    );
-    println!();
-    print_queue_tasks(
-        Queue::Inbox,
-        &tasks
-            .iter()
-            .filter(|task| task.queue == Queue::Inbox)
-            .cloned()
-            .collect::<Vec<_>>(),
-    );
+    let queues = [Queue::Now, Queue::Inbox, Queue::Next];
+    for (i, queue) in queues.iter().enumerate() {
+        if i > 0 {
+            println!();
+        }
+        print_queue_tasks(
+            *queue,
+            &tasks
+                .iter()
+                .filter(|task| task.queue == *queue)
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+    }
 }
 
 pub fn print_task_detail(task: &Task, path: &Path) {
