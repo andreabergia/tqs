@@ -22,7 +22,7 @@ pub fn print_error(message: &str) {
 pub fn print_queue_tasks(queue: Queue, tasks: &[Task]) {
     println!(
         "{} {}",
-        style(queue.to_string()).bold().cyan(),
+        style(queue.to_string()).bold().magenta(),
         style(format!("({})", tasks.len())).yellow()
     );
 
@@ -58,7 +58,7 @@ pub fn print_task_detail(task: &Task, path: &Path) {
     println!(
         "{} {}",
         styled_field_label("Queue:"),
-        style(task.queue.to_string()).cyan()
+        style(task.queue.to_string()).magenta()
     );
     println!(
         "{} {}",
