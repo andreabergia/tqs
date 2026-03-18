@@ -3,6 +3,12 @@ use assert_fs::TempDir;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 
+fn tqs_cmd() -> assert_cmd::Command {
+    let mut cmd = cargo_bin_cmd!("tqs");
+    cmd.env("XDG_CONFIG_HOME", "/dev/null/tqs-test-config");
+    cmd
+}
+
 fn write_raw_task(
     root: &std::path::Path,
     queue: &str,
@@ -25,7 +31,7 @@ fn write_raw_task(
 fn invalid_queue_is_rejected_cleanly() {
     let temp = TempDir::new().expect("temp dir should exist");
 
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("list")
@@ -53,7 +59,7 @@ fn malformed_files_are_skipped_during_list() {
         "# Bad task",
     );
 
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("list")
@@ -75,7 +81,7 @@ fn done_moves_file_and_sets_completed_at() {
         "# Task",
     );
 
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("done")
@@ -95,7 +101,7 @@ fn done_moves_file_and_sets_completed_at() {
 fn add_with_explicit_done_queue_sets_completed_at() {
     let temp = TempDir::new().expect("temp dir should exist");
 
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("add")
@@ -118,7 +124,7 @@ fn add_with_explicit_done_queue_sets_completed_at() {
 fn add_omits_removed_metadata_fields() {
     let temp = TempDir::new().expect("temp dir should exist");
 
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("add")
@@ -138,7 +144,7 @@ fn add_omits_removed_metadata_fields() {
 #[test]
 fn ambiguous_task_reference_is_reported_cleanly_without_tty() {
     let temp = TempDir::new().expect("temp dir should exist");
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("add")
@@ -148,7 +154,7 @@ fn ambiguous_task_reference_is_reported_cleanly_without_tty() {
         .arg("Ship release")
         .assert()
         .success();
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("add")
@@ -159,7 +165,7 @@ fn ambiguous_task_reference_is_reported_cleanly_without_tty() {
         .assert()
         .success();
 
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("show")
@@ -173,7 +179,7 @@ fn ambiguous_task_reference_is_reported_cleanly_without_tty() {
 fn add_with_content_sets_body_and_skips_editor() {
     let temp = TempDir::new().expect("temp dir should exist");
 
-    cargo_bin_cmd!("tqs")
+    tqs_cmd()
         .arg("--root")
         .arg(temp.path())
         .arg("add")
