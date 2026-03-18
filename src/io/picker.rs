@@ -17,12 +17,7 @@ impl<'a> TerminalGuard<'a> {
     fn new(term: &'a Term) -> Result<Self, AppError> {
         #[cfg(unix)]
         let (saved_termios, tty_fd) = {
-            let fd = unsafe {
-                libc::open(
-                    c"/dev/tty".as_ptr(),
-                    libc::O_RDWR,
-                )
-            };
+            let fd = unsafe { libc::open(c"/dev/tty".as_ptr(), libc::O_RDWR) };
             if fd >= 0 {
                 let mut termios = unsafe { std::mem::zeroed::<libc::termios>() };
                 if unsafe { libc::tcgetattr(fd, &mut termios) } == 0 {
