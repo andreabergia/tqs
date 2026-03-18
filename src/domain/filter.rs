@@ -6,8 +6,7 @@ pub fn matches_query(task: &Task, query: &str) -> bool {
         return true;
     }
 
-    let haystack =
-        format!("{} {} {}", task.id, task.title, task.body).to_ascii_lowercase();
+    let haystack = format!("{} {} {}", task.id, task.title, task.body).to_ascii_lowercase();
 
     haystack.contains(&query)
 }
