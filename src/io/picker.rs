@@ -7,14 +7,39 @@ use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 struct TerminalGuard<'a> {
     term: &'a Term,
     rendered_lines: usize,
+    #[cfg(unix)]
+    saved_termios: Option<libc::termios>,
+    #[cfg(unix)]
+    tty_fd: Option<std::os::unix::io::RawFd>,
 }
 
 impl<'a> TerminalGuard<'a> {
     fn new(term: &'a Term) -> Result<Self, AppError> {
+        #[cfg(unix)]
+        let (saved_termios, tty_fd) = {
+            use std::ffi::CStr;
+            let fd = unsafe { libc::open(CStr::from_bytes_with_nul(b"/dev/tty\0").unwrap().as_ptr(), libc::O_RDWR) };
+            if fd >= 0 {
+                let mut termios = unsafe { std::mem::zeroed::<libc::termios>() };
+                if unsafe { libc::tcgetattr(fd, &mut termios) } == 0 {
+                    (Some(termios), Some(fd))
+                } else {
+                    unsafe { libc::close(fd) };
+                    (None, None)
+                }
+            } else {
+                (None, None)
+            }
+        };
+
         term.hide_cursor()?;
         Ok(Self {
             term,
             rendered_lines: 0,
+            #[cfg(unix)]
+            saved_termios,
+            #[cfg(unix)]
+            tty_fd,
         })
     }
 
@@ -27,6 +52,14 @@ impl Drop for TerminalGuard<'_> {
     fn drop(&mut self) {
         let _ = self.term.clear_last_lines(self.rendered_lines);
         let _ = self.term.show_cursor();
+
+        #[cfg(unix)]
+        if let (Some(termios), Some(fd)) = (self.saved_termios.as_ref(), self.tty_fd) {
+            unsafe {
+                libc::tcsetattr(fd, libc::TCSANOW, termios);
+                libc::close(fd);
+            }
+        }
     }
 }
 
@@ -91,7 +124,7 @@ pub fn pick_task(
         guard.set_rendered_lines(rendered_lines);
 
         match term.read_key()? {
-            Key::Escape => break Ok(None),
+            Key::Escape | Key::Char('\x03') => break Ok(None),
             Key::ArrowUp => move_selection_up(&visible, &mut selected, &mut scroll),
             Key::ArrowDown => move_selection_down(&visible, &mut selected, &mut scroll),
             Key::Tab => {

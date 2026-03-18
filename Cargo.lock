@@ -892,6 +892,7 @@ dependencies = [
  "clap",
  "dialoguer",
  "fuzzy-matcher",
+ "libc",
  "predicates",
  "rand",
  "serde",
