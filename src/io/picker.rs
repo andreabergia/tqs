@@ -60,7 +60,7 @@ pub fn pick_task(
     }
 
     let term = Term::stderr();
-    if !term.is_term() {
+    if !term.is_term() || cfg!(test) {
         return Err(AppError::NoTty);
     }
 
