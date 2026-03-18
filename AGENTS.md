@@ -17,8 +17,8 @@ This project uses a CLI ticket system for task management. Run `tk help` when yo
 
 ## Rules
 
+- **Always** ensure that `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` are clean before saying "done"
 - Use Conventional Commits
 - Keep commits short and focused
-- Run `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` before marking work done
 - Split work into logical commits
 - Keep documentation updated when behavior changes

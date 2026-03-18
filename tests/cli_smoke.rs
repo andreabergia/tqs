@@ -25,20 +25,16 @@ fn write_task(root: &std::path::Path, queue: &str, id: &str, title: &str, body: 
 
 #[test]
 fn help_command_works() {
-    tqs_cmd()
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(
-            contains("Terminal task queue")
-                .and(contains("Task Commands:"))
-                .and(contains("Workflow Commands:"))
-                .and(contains("Setup Commands:"))
-                .and(contains("Add a task"))
-                .and(contains("List tasks"))
-                .and(contains("Check configuration and task storage health"))
-                .and(contains("Options:")),
-        );
+    tqs_cmd().arg("--help").assert().success().stdout(
+        contains("Terminal task queue")
+            .and(contains("Task Commands:"))
+            .and(contains("Workflow Commands:"))
+            .and(contains("Setup Commands:"))
+            .and(contains("Add a task"))
+            .and(contains("List tasks"))
+            .and(contains("Check configuration and task storage health"))
+            .and(contains("Options:")),
+    );
 }
 
 #[test]

@@ -18,7 +18,12 @@ impl<'a> TerminalGuard<'a> {
         #[cfg(unix)]
         let (saved_termios, tty_fd) = {
             use std::ffi::CStr;
-            let fd = unsafe { libc::open(CStr::from_bytes_with_nul(b"/dev/tty\0").unwrap().as_ptr(), libc::O_RDWR) };
+            let fd = unsafe {
+                libc::open(
+                    CStr::from_bytes_with_nul(b"/dev/tty\0").unwrap().as_ptr(),
+                    libc::O_RDWR,
+                )
+            };
             if fd >= 0 {
                 let mut termios = unsafe { std::mem::zeroed::<libc::termios>() };
                 if unsafe { libc::tcgetattr(fd, &mut termios) } == 0 {
