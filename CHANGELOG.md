@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y.Z`).
 
+## [0.2.0] - 2026-03-18
+
+Complete rework, changed totally the design - it went from a "per project task queue" to a "personal todo list with some optional Obsidian integration". I'm not going to document the changes because it makes little sense; go read the README or ARCHITECTURE if you are interested in the new system.
+
 ## [0.1.2] - 2026-02-25
 
 ### Fixed
