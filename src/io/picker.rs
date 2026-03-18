@@ -131,6 +131,11 @@ pub fn pick_task(
                 selected = Some(0);
                 scroll = 0;
             }
+            Key::BackTab => {
+                queue_filter = prev_queue_filter(queue_filter);
+                selected = Some(0);
+                scroll = 0;
+            }
             Key::Backspace => {
                 search.pop();
                 selected = Some(0);
@@ -162,6 +167,17 @@ fn next_queue_filter(current: Option<Queue>) -> Option<Queue> {
     }
 }
 
+fn prev_queue_filter(current: Option<Queue>) -> Option<Queue> {
+    match current {
+        None => Some(Queue::Done),
+        Some(Queue::Done) => Some(Queue::Later),
+        Some(Queue::Later) => Some(Queue::Next),
+        Some(Queue::Next) => Some(Queue::Now),
+        Some(Queue::Now) => Some(Queue::Inbox),
+        Some(Queue::Inbox) => None,
+    }
+}
+
 fn build_visible_items(
     tasks: &[StoredTask],
     search: &str,
@@ -179,7 +195,7 @@ fn build_visible_items(
             }
 
             let display = format!(
-                "[{}] {} - {}",
+                "{} {} - {}",
                 stored.task.queue, stored.task.id, stored.task.title
             );
             let score = if search.is_empty() {
@@ -226,7 +242,7 @@ fn render_picker(
 
     let mut prompt_line = state.prompt.to_string();
     if let Some(q) = state.queue_filter {
-        prompt_line.push_str(&format!("  [queue: {}]", q));
+        prompt_line.push_str(&format!("  queue: {}", style(q).magenta()));
     }
     if !state.search.is_empty() {
         prompt_line.push_str(&format!("  search: {}", state.search));
@@ -235,7 +251,8 @@ fn render_picker(
     term.write_line(&prompt_line)?;
     term.write_line(&format!(
         "{}",
-        style("Up/Down: navigate  Tab: filter by queue  Enter: select  Esc: cancel").cyan()
+        style("Up/Down: navigate  Tab/Shift-Tab: filter by queue  Enter: select  Esc: cancel")
+            .cyan()
     ))?;
 
     let rows = term.size().0 as usize;
@@ -256,19 +273,18 @@ fn render_picker(
     for (visible_index, item) in visible.iter().enumerate().skip(start).take(max_items) {
         let is_selected = Some(visible_index) == state.selected;
         let stored = &tasks[item.task_index];
-        let line_text = format!(
-            "[{:<5}] {} - {}",
-            stored.task.queue, stored.task.id, stored.task.title
-        );
+        let queue_str = format!("{:<5}", stored.task.queue);
+        let rest = format!("  {} - {}", stored.task.id, stored.task.title);
 
         if is_selected {
             term.write_line(&format!(
-                "{} {}",
+                "{} {}{}",
                 style(">").bold().black().on_cyan(),
-                style(line_text).bold().black().on_cyan()
+                style(queue_str).bold().black().on_cyan(),
+                style(rest).bold().black().on_cyan()
             ))?;
         } else {
-            term.write_line(&format!("  {}", line_text))?;
+            term.write_line(&format!("  {}{}", style(queue_str).magenta(), rest))?;
         }
 
         line_count += 1;
