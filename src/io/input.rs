@@ -3,7 +3,7 @@ use dialoguer::{Input, Select, theme::ColorfulTheme};
 use std::io::Read;
 
 fn has_tty() -> bool {
-    dialoguer::console::Term::stderr().is_term()
+    !cfg!(test) && dialoguer::console::Term::stderr().is_term()
 }
 
 fn is_test_mode() -> bool {
