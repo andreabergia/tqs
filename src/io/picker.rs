@@ -140,10 +140,10 @@ fn build_visible_items(
         .iter()
         .enumerate()
         .filter_map(|(index, stored)| {
-            if let Some(q) = queue_filter {
-                if stored.task.queue != q {
-                    return None;
-                }
+            if let Some(q) = queue_filter
+                && stored.task.queue != q
+            {
+                return None;
             }
 
             let display = format!(
