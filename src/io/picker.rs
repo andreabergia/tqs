@@ -17,10 +17,9 @@ impl<'a> TerminalGuard<'a> {
     fn new(term: &'a Term) -> Result<Self, AppError> {
         #[cfg(unix)]
         let (saved_termios, tty_fd) = {
-            use std::ffi::CStr;
             let fd = unsafe {
                 libc::open(
-                    CStr::from_bytes_with_nul(b"/dev/tty\0").unwrap().as_ptr(),
+                    c"/dev/tty".as_ptr(),
                     libc::O_RDWR,
                 )
             };
