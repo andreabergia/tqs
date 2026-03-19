@@ -10,6 +10,7 @@ pub mod list;
 pub mod move_cmd;
 pub mod now;
 pub mod show;
+pub mod start;
 
 pub use add::Add;
 pub use config::Config;
@@ -22,3 +23,4 @@ pub use list::List;
 pub use move_cmd::Move;
 pub use now::Now;
 pub use show::Show;
+pub use start::Start;

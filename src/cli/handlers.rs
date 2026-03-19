@@ -1,7 +1,9 @@
 use crate::app::app_error::AppError;
 
 use super::args::{Cli, Command};
-use super::commands::{add, config, doctor, done, edit, find, inbox, list, move_cmd, now, show};
+use super::commands::{
+    add, config, doctor, done, edit, find, inbox, list, move_cmd, now, show, start,
+};
 
 pub fn handle(cli: Cli) -> Result<(), AppError> {
     match cli.command {
@@ -10,6 +12,7 @@ pub fn handle(cli: Cli) -> Result<(), AppError> {
         Some(Command::Now(command)) => now::handle_now(command, cli.root),
         Some(Command::Inbox(command)) => inbox::handle_inbox(command, cli.root),
         Some(Command::Move(command)) => move_cmd::handle_move(command, cli.root),
+        Some(Command::Start(command)) => start::handle_start(command, cli.root),
         Some(Command::Done(command)) => done::handle_done(command, cli.root),
         Some(Command::Edit(command)) => edit::handle_edit(command, cli.root),
         Some(Command::Show(command)) => show::handle_show(command, cli.root),
