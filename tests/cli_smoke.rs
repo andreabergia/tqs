@@ -38,12 +38,38 @@ fn help_command_works() {
 }
 
 #[test]
-fn bare_command_suggests_help_and_config() {
-    tqs_cmd().assert().failure().stderr(
-        contains("no command specified")
-            .and(contains("tqs help"))
+fn bare_command_shows_getting_started_without_config() {
+    tqs_cmd().assert().success().stdout(
+        contains("Welcome to tqs!")
+            .and(contains("To get started:"))
             .and(contains("tqs config")),
     );
+}
+
+#[test]
+fn bare_command_shows_dashboard_when_tasks_exist() {
+    let temp = TempDir::new().expect("temp dir should exist");
+    write_task(temp.path(), "now", "task-1", "Ship v2", "# Ship v2");
+    write_task(temp.path(), "inbox", "task-2", "Review PR", "# Review PR");
+
+    tqs_cmd()
+        .arg("--root")
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(contains("Ship v2").and(contains("Review PR")));
+}
+
+#[test]
+fn bare_command_shows_getting_started_when_no_tasks() {
+    let temp = TempDir::new().expect("temp dir should exist");
+
+    tqs_cmd()
+        .arg("--root")
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(contains("Welcome to tqs!").and(contains("To get started:")));
 }
 
 #[test]

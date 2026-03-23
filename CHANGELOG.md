@@ -9,6 +9,7 @@ The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y
 ### Added
 
 - `start` command — moves a task to the now queue (shortcut for `move <task> now`).
+- Running `tqs` with no arguments now shows the task dashboard if a config and tasks exist, or a getting-started guide otherwise.
 
 ## [0.2.0] - 2026-03-18
 
