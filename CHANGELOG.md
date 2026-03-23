@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y.Z`).
 
-## [Unreleased]
+## [0.2.1] - 2026-03-23
 
 ### Added
 
