@@ -17,6 +17,7 @@ tqs find <query>
 tqs show <task>
 
 # Move work forward
+tqs start <task>
 tqs move <task> <queue>
 tqs done <task>
 tqs edit <task>
@@ -160,6 +161,27 @@ Behavior:
 - equivalent to `tqs list inbox`
 - prints the `inbox` header and one line per task: `<id>  <title>`
 - empty queue output prints `No tasks found`
+
+### `start`
+
+```bash
+tqs start <task>
+```
+
+Moves a task to the `now` queue. Equivalent to `tqs move <task> now`.
+
+Behavior:
+
+- resolves `<task>` using standard task resolution
+- if the task is already in `now`, prints `Task <id> is already in now` and exits successfully
+- otherwise moves the task to `now`, updates `updated_at`, and prints `Started task: <id> (<path>)`
+
+Examples:
+
+```bash
+tqs start 0f3
+tqs start "billing alert"
+```
 
 ### `move`
 

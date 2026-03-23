@@ -33,7 +33,9 @@ src/
 │   ├── repo.rs          # repository for task files
 │   ├── format.rs        # Markdown/frontmatter parsing and rendering
 │   ├── id_state.rs      # shared generated-id allocator state and locking
-│   └── daily_notes.rs   # optional completion logging
+│   ├── daily_notes.rs   # optional completion logging
+│   ├── editor.rs        # editor resolution from VISUAL/EDITOR/vi
+│   └── doctor.rs        # diagnostic checks for config and storage
 └── io/
     ├── input.rs         # interactive text prompts
     ├── output.rs        # CLI output formatting
@@ -83,15 +85,7 @@ The queue value is stored in frontmatter and used by CLI parsing, filtering, and
 - `daily_note`
 - `body`
 
-New tasks are created in `inbox` with a default Markdown body template:
-
-```markdown
-# <title>
-
-## Context
-
-## Notes
-```
+New tasks are created in `inbox` with a default Markdown body containing just the title as a heading.
 
 ### Queue Transitions
 
@@ -187,6 +181,7 @@ The shipped lean-core commands are:
 - `list`
 - `now`
 - `inbox`
+- `start`
 - `move`
 - `done`
 - `edit`

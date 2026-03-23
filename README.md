@@ -12,6 +12,7 @@ tqs now
 tqs inbox
 tqs config
 tqs doctor
+tqs start a7k
 tqs move a7k now
 tqs done a7k
 tqs edit a7k
@@ -79,15 +80,7 @@ tqs config
 tqs doctor
 ```
 
-New tasks created by `tqs add` start with this default body:
-
-```markdown
-# <title>
-
-## Context
-
-## Notes
-```
+New tasks created by `tqs add` start with a default body containing just the title as a heading.
 
 Task arguments are resolved in this order:
 
