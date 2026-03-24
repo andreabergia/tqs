@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y.Z`).
 
+## [Unreleased]
+
+### Changed
+
+- Dashboard (`list` without a queue) now shows **now**, **next**, a separator, then **inbox** (previously: now, inbox, next).
+
 ## [0.2.2] - 2026-03-24
 
 ### Added
