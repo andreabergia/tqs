@@ -22,3 +22,5 @@ This project uses a CLI ticket system for task management. Run `tk help` when yo
 - Keep commits short and focused
 - Split work into logical commits
 - Keep documentation updated when behavior changes
+- Ensure CHANGELOG.md gets updated for new features or bug fixes
+- When in doubt, _ask_!
