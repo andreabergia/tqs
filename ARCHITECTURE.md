@@ -181,6 +181,7 @@ The shipped lean-core commands are:
 - `list`
 - `now`
 - `inbox`
+- `triage`
 - `start`
 - `move`
 - `done`

@@ -17,6 +17,7 @@ tqs find <query>
 tqs show <task>
 
 # Move work forward
+tqs triage
 tqs start <task>
 tqs move <task> <queue>
 tqs done <task>
@@ -161,6 +162,44 @@ Behavior:
 - equivalent to `tqs list inbox`
 - prints the `inbox` header and one line per task: `<id>  <title>`
 - empty queue output prints `No tasks found`
+
+### `triage`
+
+```bash
+tqs triage
+```
+
+Interactively walk through each inbox task and decide what to do with it.
+
+Behavior:
+
+- requires a TTY — fails with `NoTty` if not connected to a terminal
+- if the inbox is empty, prints a message and exits
+- shows a header with the number of inbox tasks
+- for each task, displays `<id>  <title>` and prompts for an action:
+  - **move to now / next / later** — moves the task to that queue
+  - **mark done** — moves to `done` and writes a daily-note entry if configured
+  - **edit** — opens the task in the editor, then re-shows the same task
+  - **delete** — removes the task file
+  - **skip** — leaves the task in inbox and advances to the next one
+  - **quit** (or Esc) — stops triaging immediately
+- prints a summary of actions taken at the end of the session
+
+Example:
+
+```bash
+tqs triage
+# Triaging inbox (3 tasks)
+#
+# 0f3  Reply to AWS billing alert
+# ? Action: move to now
+# a7k  Plan release notes
+# ? Action: skip
+# b2x  Draft incident summary
+# ? Action: mark done
+#
+# 2 to now, 1 done, 1 skipped
+```
 
 ### `start`
 

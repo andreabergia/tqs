@@ -11,6 +11,7 @@ pub mod move_cmd;
 pub mod now;
 pub mod show;
 pub mod start;
+pub mod triage;
 
 pub use add::Add;
 pub use config::Config;
@@ -24,3 +25,4 @@ pub use move_cmd::Move;
 pub use now::Now;
 pub use show::Show;
 pub use start::Start;
+pub use triage::Triage;

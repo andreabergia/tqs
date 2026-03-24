@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use super::commands::{Add, Config, Doctor, Done, Edit, Find, Inbox, List, Move, Now, Show, Start};
+use super::commands::{
+    Add, Config, Doctor, Done, Edit, Find, Inbox, List, Move, Now, Show, Start, Triage,
+};
 
 const TOP_LEVEL_HELP: &str = "\
 Task Commands:
@@ -18,6 +20,7 @@ Workflow Commands:
   move    Move a task to a different queue
   done    Mark a task as done
   edit    Edit a task
+  triage  Triage inbox tasks interactively
 
 Setup Commands:
   config  Show effective configuration and setup help
@@ -56,5 +59,6 @@ pub enum Command {
     Show(Show),
     Find(Find),
     Config(Config),
+    Triage(Triage),
     Doctor(Doctor),
 }

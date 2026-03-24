@@ -8,6 +8,7 @@ The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y
 
 ### Added
 
+- `triage` command — interactively walk through inbox tasks and dispatch them to queues, mark done, edit, or delete.
 - `doctor` now detects orphaned ID-generator state files in `.tqs/id-generator/` and warns about them.
 - `doctor --fix` removes orphaned state files automatically.
 

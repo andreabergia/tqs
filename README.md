@@ -12,6 +12,7 @@ tqs now
 tqs inbox
 tqs config
 tqs doctor
+tqs triage
 tqs start a7k
 tqs move a7k now
 tqs done a7k
@@ -59,6 +60,9 @@ tqs add "Write v2 release notes"
 tqs list
 tqs now
 tqs inbox
+
+# Triage inbox tasks interactively
+tqs triage
 
 # Focus a task
 tqs move 0f3 now
