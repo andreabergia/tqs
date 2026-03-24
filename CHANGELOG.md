@@ -11,6 +11,10 @@ The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y
 - `doctor` now detects orphaned ID-generator state files in `.tqs/id-generator/` and warns about them.
 - `doctor --fix` removes orphaned state files automatically.
 
+### Fixed
+
+- Config file paths starting with `~` (e.g. `tasks_root = "~/o/tasks"`) are now correctly expanded to the user's home directory instead of being treated as relative to the config file location.
+
 ## [0.2.1] - 2026-03-23
 
 ### Added

@@ -280,6 +280,11 @@ fn env_path(name: &str) -> Option<PathBuf> {
 }
 
 fn absolutize_from(base_dir: &Path, value: PathBuf) -> PathBuf {
+    if let Ok(stripped) = value.strip_prefix("~")
+        && let Some(home) = env_path("HOME")
+    {
+        return home.join(stripped);
+    }
     if value.is_absolute() {
         value
     } else {
@@ -514,5 +519,23 @@ mod tests {
                 .to_string()
                 .contains("obsidian_vault_dir cannot be combined with queue directory overrides")
         );
+    }
+
+    #[test]
+    fn resolve_expands_tilde_in_tasks_root() {
+        let mut env = LockedEnv::new(&["XDG_CONFIG_HOME", "TQS_ROOT", "HOME"]);
+        let temp = TempDir::new().expect("temp dir should exist");
+        let config_home = temp.path().join("config-home");
+        let config_dir = config_home.join("tqs");
+        let fake_home = temp.path().join("fake-home");
+        fs::create_dir_all(&config_dir).expect("config dir should exist");
+        fs::write(config_dir.join("config.toml"), "tasks_root = '~/o/tasks'\n")
+            .expect("config file should exist");
+        env.remove("TQS_ROOT");
+        env.set("XDG_CONFIG_HOME", config_home.as_os_str());
+        env.set("HOME", fake_home.as_os_str());
+
+        let resolved = resolve(None).expect("config should resolve");
+        assert_eq!(resolved.tasks_root, fake_home.join("o/tasks"));
     }
 }
