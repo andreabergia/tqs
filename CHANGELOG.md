@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y.Z`).
 
+## [Unreleased]
+
+### Added
+
+- `doctor` now detects orphaned ID-generator state files in `.tqs/id-generator/` and warns about them.
+- `doctor --fix` removes orphaned state files automatically.
+
 ## [0.2.1] - 2026-03-23
 
 ### Added

@@ -9,11 +9,15 @@ use crate::storage::doctor;
 
 #[derive(Debug, Parser)]
 #[command(about = "Check configuration and task storage health")]
-pub struct Doctor;
+pub struct Doctor {
+    /// Automatically fix problems that can be repaired
+    #[arg(long)]
+    pub fix: bool,
+}
 
-pub fn handle_doctor(_: Doctor, root: Option<PathBuf>) -> Result<(), AppError> {
+pub fn handle_doctor(command: Doctor, root: Option<PathBuf>) -> Result<(), AppError> {
     let resolved = helpers::resolve_config(root)?;
-    let report = doctor::run(&resolved)?;
+    let report = doctor::run(&resolved, command.fix)?;
     output::print_doctor_report(&report);
 
     if report.has_errors() {
@@ -34,6 +38,13 @@ mod tests {
 
     #[test]
     fn parses_doctor_command() {
-        Doctor::parse_from(["doctor"]);
+        let cmd = Doctor::parse_from(["doctor"]);
+        assert!(!cmd.fix);
+    }
+
+    #[test]
+    fn parses_doctor_fix_flag() {
+        let cmd = Doctor::parse_from(["doctor", "--fix"]);
+        assert!(cmd.fix);
     }
 }

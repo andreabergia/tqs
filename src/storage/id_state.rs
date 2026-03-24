@@ -176,7 +176,7 @@ impl From<&GeneratorState> for PersistedGeneratorState {
     }
 }
 
-fn state_file_path(state_dir: &Path, tasks_root: &Path) -> PathBuf {
+pub(crate) fn state_file_path(state_dir: &Path, tasks_root: &Path) -> PathBuf {
     let root = tasks_root
         .canonicalize()
         .unwrap_or_else(|_| tasks_root.to_path_buf());

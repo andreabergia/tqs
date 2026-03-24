@@ -7,6 +7,7 @@ use crate::domain::task::Queue;
 use crate::storage::config::ResolvedConfig;
 use crate::storage::editor::{ResolvedEditor, format_program_name, format_program_path};
 use crate::storage::format::parse_task_markdown;
+use crate::storage::id_state;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DiagnosticSeverity {
@@ -54,7 +55,7 @@ impl DoctorReport {
     }
 }
 
-pub fn run(config: &ResolvedConfig) -> Result<DoctorReport, AppError> {
+pub fn run(config: &ResolvedConfig, fix: bool) -> Result<DoctorReport, AppError> {
     let mut diagnostics = Vec::new();
 
     diagnostics.push(Diagnostic {
@@ -116,6 +117,8 @@ pub fn run(config: &ResolvedConfig) -> Result<DoctorReport, AppError> {
             message: "skipped task scan because queue directory mappings overlap".to_string(),
         });
     }
+
+    diagnose_state_files(&mut diagnostics, config, fix)?;
 
     Ok(DoctorReport { diagnostics })
 }
@@ -373,6 +376,74 @@ fn duplicate_queue_dirs(config: &ResolvedConfig) -> Vec<(String, Vec<String>)> {
     duplicates
 }
 
+fn diagnose_state_files(
+    diagnostics: &mut Vec<Diagnostic>,
+    config: &ResolvedConfig,
+    fix: bool,
+) -> Result<(), AppError> {
+    let id_gen_dir = config.state_dir.join("id-generator");
+
+    let entries = match fs::read_dir(&id_gen_dir) {
+        Ok(entries) => entries,
+        Err(error)
+            if error.kind() == std::io::ErrorKind::NotFound
+                || error.kind() == std::io::ErrorKind::NotADirectory =>
+        {
+            return Ok(());
+        }
+        Err(error) => return Err(AppError::Io(error)),
+    };
+
+    let active_path = id_state::state_file_path(&config.state_dir, &config.tasks_root);
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+            continue;
+        }
+
+        if path == active_path {
+            continue;
+        }
+
+        if fix {
+            match fs::remove_file(&path) {
+                Ok(()) => {
+                    diagnostics.push(Diagnostic {
+                        severity: DiagnosticSeverity::Ok,
+                        scope: "state".to_string(),
+                        message: format!("removed orphaned state file {}", path.display()),
+                    });
+                }
+                Err(error) => {
+                    diagnostics.push(Diagnostic {
+                        severity: DiagnosticSeverity::Error,
+                        scope: "state".to_string(),
+                        message: format!(
+                            "failed to remove orphaned state file {}: {}",
+                            path.display(),
+                            error
+                        ),
+                    });
+                }
+            }
+        } else {
+            diagnostics.push(Diagnostic {
+                severity: DiagnosticSeverity::Warning,
+                scope: "state".to_string(),
+                message: format!(
+                    "orphaned state file {} (use --fix to remove)",
+                    path.display()
+                ),
+            });
+        }
+    }
+
+    Ok(())
+}
+
 fn display_paths(paths: &[PathBuf]) -> String {
     paths
         .iter()
@@ -417,7 +488,7 @@ mod tests {
         )
         .expect("next task should be written");
 
-        let report = run(&config(root)).expect("doctor should succeed");
+        let report = run(&config(root), false).expect("doctor should succeed");
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
                 && diagnostic.message.contains("duplicate task id 'task-1'")
@@ -427,19 +498,22 @@ mod tests {
     #[test]
     fn doctor_reports_queue_dir_overlap() {
         let temp = TempDir::new().expect("temp dir should exist");
-        let report = run(&ResolvedConfig {
-            obsidian_vault_dir: None,
-            tasks_root: temp.path().to_path_buf(),
-            state_dir: temp.path().join(".tqs"),
-            daily_notes_dir: None,
-            queue_dirs: QueueDirs {
-                inbox: "shared".to_string(),
-                now: "shared".to_string(),
-                next: "next".to_string(),
-                later: "later".to_string(),
-                done: "done".to_string(),
+        let report = run(
+            &ResolvedConfig {
+                obsidian_vault_dir: None,
+                tasks_root: temp.path().to_path_buf(),
+                state_dir: temp.path().join(".tqs"),
+                daily_notes_dir: None,
+                queue_dirs: QueueDirs {
+                    inbox: "shared".to_string(),
+                    now: "shared".to_string(),
+                    next: "next".to_string(),
+                    later: "later".to_string(),
+                    done: "done".to_string(),
+                },
             },
-        })
+            false,
+        )
         .expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
@@ -457,7 +531,7 @@ mod tests {
         env.remove("EDITOR");
 
         let temp = TempDir::new().expect("temp dir should exist");
-        let report = run(&config(temp.path())).expect("doctor should succeed");
+        let report = run(&config(temp.path()), false).expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Ok
@@ -473,7 +547,7 @@ mod tests {
         env.remove("EDITOR");
 
         let temp = TempDir::new().expect("temp dir should exist");
-        let report = run(&config(temp.path())).expect("doctor should succeed");
+        let report = run(&config(temp.path()), false).expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
@@ -492,7 +566,7 @@ mod tests {
         env.remove("EDITOR");
 
         let temp = TempDir::new().expect("temp dir should exist");
-        let report = run(&config(temp.path())).expect("doctor should succeed");
+        let report = run(&config(temp.path()), false).expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
@@ -508,7 +582,7 @@ mod tests {
         let tasks_root = temp.path().join("tasks.md");
         fs::write(&tasks_root, "not a directory").expect("file should be written");
 
-        let report = run(&config(&tasks_root)).expect("doctor should succeed");
+        let report = run(&config(&tasks_root), false).expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
@@ -523,13 +597,16 @@ mod tests {
         let daily_notes = temp.path().join("daily.md");
         fs::write(&daily_notes, "not a directory").expect("file should be written");
 
-        let report = run(&ResolvedConfig {
-            obsidian_vault_dir: None,
-            tasks_root: temp.path().join("tasks"),
-            state_dir: temp.path().join("tasks").join(".tqs"),
-            daily_notes_dir: Some(daily_notes.clone()),
-            queue_dirs: QueueDirs::default(),
-        })
+        let report = run(
+            &ResolvedConfig {
+                obsidian_vault_dir: None,
+                tasks_root: temp.path().join("tasks"),
+                state_dir: temp.path().join("tasks").join(".tqs"),
+                daily_notes_dir: Some(daily_notes.clone()),
+                queue_dirs: QueueDirs::default(),
+            },
+            false,
+        )
         .expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
@@ -549,7 +626,7 @@ mod tests {
         fs::create_dir_all(root).expect("root should exist");
         fs::write(root.join("inbox"), "not a directory").expect("file should be written");
 
-        let report = run(&config(root)).expect("doctor should succeed");
+        let report = run(&config(root), false).expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
@@ -570,7 +647,7 @@ mod tests {
         )
         .expect("task should be written");
 
-        let report = run(&config(root)).expect("doctor should succeed");
+        let report = run(&config(root), false).expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
             diagnostic.severity == DiagnosticSeverity::Error
@@ -591,19 +668,22 @@ mod tests {
         )
         .expect("bad task should be written");
 
-        let report = run(&ResolvedConfig {
-            obsidian_vault_dir: None,
-            tasks_root: root.to_path_buf(),
-            state_dir: root.join(".tqs"),
-            daily_notes_dir: None,
-            queue_dirs: QueueDirs {
-                inbox: "shared".to_string(),
-                now: "shared".to_string(),
-                next: "next".to_string(),
-                later: "later".to_string(),
-                done: "done".to_string(),
+        let report = run(
+            &ResolvedConfig {
+                obsidian_vault_dir: None,
+                tasks_root: root.to_path_buf(),
+                state_dir: root.join(".tqs"),
+                daily_notes_dir: None,
+                queue_dirs: QueueDirs {
+                    inbox: "shared".to_string(),
+                    now: "shared".to_string(),
+                    next: "next".to_string(),
+                    later: "later".to_string(),
+                    done: "done".to_string(),
+                },
             },
-        })
+            false,
+        )
         .expect("doctor should succeed");
 
         assert!(report.diagnostics.iter().any(|diagnostic| {
@@ -614,6 +694,79 @@ mod tests {
         }));
         assert!(!report.diagnostics.iter().any(|diagnostic| {
             diagnostic.scope == "tasks" && diagnostic.message.contains("bad.md is malformed")
+        }));
+    }
+
+    #[test]
+    fn doctor_warns_about_orphaned_state_files() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let root = temp.path();
+        let state_dir = root.join(".tqs");
+        let id_gen_dir = state_dir.join("id-generator");
+        fs::create_dir_all(&id_gen_dir).expect("id-generator dir should exist");
+
+        let active_path = crate::storage::id_state::state_file_path(&state_dir, root);
+        fs::write(
+            &active_path,
+            "version = 1\nwidth = 3\nnext_value = \"0\"\nissued_count = \"0\"\n",
+        )
+        .expect("active state file should be written");
+        let orphan = id_gen_dir.join("deadbeef.toml");
+        fs::write(&orphan, "stale").expect("orphan should be written");
+
+        let report = run(&config(root), false).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Warning
+                && diagnostic.scope == "state"
+                && diagnostic.message.contains("orphaned state file")
+                && diagnostic.message.contains("deadbeef.toml")
+        }));
+    }
+
+    #[test]
+    fn doctor_fix_removes_orphaned_state_files() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let root = temp.path();
+        let state_dir = root.join(".tqs");
+        let id_gen_dir = state_dir.join("id-generator");
+        fs::create_dir_all(&id_gen_dir).expect("id-generator dir should exist");
+
+        let active_path = crate::storage::id_state::state_file_path(&state_dir, root);
+        fs::write(
+            &active_path,
+            "version = 1\nwidth = 3\nnext_value = \"0\"\nissued_count = \"0\"\n",
+        )
+        .expect("active state file should be written");
+        let orphan = id_gen_dir.join("deadbeef.toml");
+        fs::write(&orphan, "stale").expect("orphan should be written");
+
+        let report = run(&config(root), true).expect("doctor should succeed");
+
+        assert!(report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.severity == DiagnosticSeverity::Ok
+                && diagnostic.scope == "state"
+                && diagnostic.message.contains("removed orphaned state file")
+        }));
+        assert!(!orphan.exists());
+        assert!(active_path.exists());
+    }
+
+    #[test]
+    fn doctor_ignores_non_toml_files_in_state_dir() {
+        let temp = TempDir::new().expect("temp dir should exist");
+        let root = temp.path();
+        let state_dir = root.join(".tqs");
+        let id_gen_dir = state_dir.join("id-generator");
+        fs::create_dir_all(&id_gen_dir).expect("id-generator dir should exist");
+
+        fs::write(id_gen_dir.join("something.lock"), "lock").expect("lock should be written");
+        fs::write(id_gen_dir.join("something.tmp"), "tmp").expect("tmp should be written");
+
+        let report = run(&config(root), false).expect("doctor should succeed");
+
+        assert!(!report.diagnostics.iter().any(|diagnostic| {
+            diagnostic.scope == "state" && diagnostic.message.contains("orphaned")
         }));
     }
 }
