@@ -21,6 +21,7 @@ tqs triage
 tqs start <task>
 tqs move <task> <queue>
 tqs done <task>
+tqs delete <task>
 tqs edit <task>
 
 # Global storage override
@@ -266,6 +267,33 @@ Examples:
 ```bash
 tqs done 20260309-aws
 tqs done "billing alert"
+```
+
+### `delete`
+
+```bash
+tqs delete <task>
+tqs delete <task> --interactive
+```
+
+Permanently deletes a task file.
+
+Flags:
+
+- `--interactive` / `-i` prompts for confirmation before deleting
+
+Behavior:
+
+- resolves `<task>` using standard task resolution
+- removes the task Markdown file from disk
+- prints `Deleted task: <id>`
+
+Examples:
+
+```bash
+tqs delete 0f3
+tqs delete "billing alert"
+tqs delete 0f3 -i
 ```
 
 ### `edit`

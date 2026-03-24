@@ -6,6 +6,10 @@ The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y
 
 ## [Unreleased]
 
+### Added
+
+- `delete` command — permanently removes a task file. Supports `--interactive` (`-i`) flag to prompt for confirmation before deleting.
+
 ### Changed
 
 - Dashboard (`list` without a queue) now shows **now**, **next**, a separator, then **inbox** (previously: now, inbox, next).

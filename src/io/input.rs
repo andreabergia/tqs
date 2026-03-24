@@ -1,5 +1,5 @@
 use crate::app::app_error::AppError;
-use dialoguer::{Input, Select, theme::ColorfulTheme};
+use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 use std::io::Read;
 
 fn has_tty() -> bool {
@@ -76,6 +76,29 @@ pub fn prompt_multiline(prompt: &str) -> Result<Option<String>, AppError> {
     };
 
     Ok(description)
+}
+
+pub fn prompt_confirm(prompt: &str) -> Result<bool, AppError> {
+    if !has_tty() && !is_test_mode() {
+        return Err(AppError::NoTty);
+    }
+
+    if is_test_mode() {
+        eprintln!("{prompt}");
+        let mut line = String::new();
+        std::io::stdin()
+            .read_line(&mut line)
+            .map_err(AppError::Io)?;
+        let value = line.trim().to_ascii_lowercase();
+        Ok(value == "y" || value == "yes")
+    } else {
+        let theme = ColorfulTheme::default();
+        Confirm::with_theme(&theme)
+            .with_prompt(prompt)
+            .default(false)
+            .interact()
+            .map_err(AppError::from)
+    }
 }
 
 pub fn prompt_select(prompt: &str, items: &[String]) -> Result<Option<usize>, AppError> {

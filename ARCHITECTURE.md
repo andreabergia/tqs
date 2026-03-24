@@ -184,6 +184,7 @@ The shipped lean-core commands are:
 - `triage`
 - `start`
 - `move`
+- `delete`
 - `done`
 - `edit`
 - `show`

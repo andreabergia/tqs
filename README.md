@@ -16,6 +16,7 @@ tqs triage
 tqs start a7k
 tqs move a7k now
 tqs done a7k
+tqs delete a7k
 tqs edit a7k
 tqs show a7k
 tqs find billing

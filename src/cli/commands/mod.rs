@@ -1,5 +1,6 @@
 pub mod add;
 pub mod config;
+pub mod delete;
 pub mod doctor;
 pub mod done;
 pub mod edit;
@@ -15,6 +16,7 @@ pub mod triage;
 
 pub use add::Add;
 pub use config::Config;
+pub use delete::Delete;
 pub use doctor::Doctor;
 pub use done::Done;
 pub use edit::Edit;

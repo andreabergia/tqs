@@ -4,8 +4,8 @@ use crate::storage::config;
 
 use super::args::{Cli, Command};
 use super::commands::{
-    add, config as config_cmd, doctor, done, edit, find, helpers, inbox, list, move_cmd, now, show,
-    start, triage,
+    add, config as config_cmd, delete, doctor, done, edit, find, helpers, inbox, list, move_cmd,
+    now, show, start, triage,
 };
 
 pub fn handle(cli: Cli) -> Result<(), AppError> {
@@ -16,6 +16,7 @@ pub fn handle(cli: Cli) -> Result<(), AppError> {
         Some(Command::Inbox(command)) => inbox::handle_inbox(command, cli.root),
         Some(Command::Move(command)) => move_cmd::handle_move(command, cli.root),
         Some(Command::Start(command)) => start::handle_start(command, cli.root),
+        Some(Command::Delete(command)) => delete::handle_delete(command, cli.root),
         Some(Command::Done(command)) => done::handle_done(command, cli.root),
         Some(Command::Edit(command)) => edit::handle_edit(command, cli.root),
         Some(Command::Show(command)) => show::handle_show(command, cli.root),
