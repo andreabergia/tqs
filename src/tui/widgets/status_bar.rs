@@ -11,7 +11,7 @@ use crate::tui::app_state::{Mode, TuiApp};
 pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp) {
     let line = match &app.mode {
         Mode::Normal => normal_line(app),
-        Mode::AddForm => return, // add form has its own overlay
+        Mode::AddForm | Mode::Triage => return, // these modes have their own hints
         Mode::ConfirmDelete { task_id } => confirm_delete_line(task_id),
         Mode::MoveTarget => move_target_line(),
     };
@@ -50,6 +50,8 @@ fn normal_line(app: &TuiApp) -> Line<'static> {
         Span::raw(":del "),
         hint("e"),
         Span::raw(":edit "),
+        hint("t"),
+        Span::raw(":triage "),
         hint("r"),
         Span::raw(":refresh "),
         hint("q"),

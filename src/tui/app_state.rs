@@ -25,6 +25,56 @@ pub enum Mode {
     AddForm,
     ConfirmDelete { task_id: String },
     MoveTarget,
+    Triage,
+}
+
+#[derive(Debug, Default)]
+pub struct TriageSummary {
+    pub moved_now: u32,
+    pub moved_next: u32,
+    pub moved_later: u32,
+    pub moved_done: u32,
+    pub deleted: u32,
+    pub skipped: u32,
+}
+
+impl TriageSummary {
+    pub fn record_move(&mut self, queue: Queue) {
+        match queue {
+            Queue::Now => self.moved_now += 1,
+            Queue::Next => self.moved_next += 1,
+            Queue::Later => self.moved_later += 1,
+            Queue::Done => self.moved_done += 1,
+            Queue::Inbox => {}
+        }
+    }
+
+    pub fn format(&self) -> String {
+        let mut parts = Vec::new();
+        if self.moved_now > 0 {
+            parts.push(format!("{} to now", self.moved_now));
+        }
+        if self.moved_next > 0 {
+            parts.push(format!("{} to next", self.moved_next));
+        }
+        if self.moved_later > 0 {
+            parts.push(format!("{} to later", self.moved_later));
+        }
+        if self.moved_done > 0 {
+            parts.push(format!("{} done", self.moved_done));
+        }
+        if self.deleted > 0 {
+            parts.push(format!("{} deleted", self.deleted));
+        }
+        if self.skipped > 0 {
+            parts.push(format!("{} skipped", self.skipped));
+        }
+        if parts.is_empty() {
+            "No changes".to_string()
+        } else {
+            parts.join(", ")
+        }
+    }
 }
 
 pub struct TuiApp {
@@ -49,6 +99,11 @@ pub struct TuiApp {
     pub add_title: String,
     pub add_queue: Queue,
 
+    // Triage state
+    pub triage_task_ids: Vec<String>,
+    pub triage_index: usize,
+    pub triage_summary: TriageSummary,
+
     // Transient status message
     pub status_message: Option<(String, Instant)>,
 }
@@ -67,6 +122,9 @@ impl TuiApp {
             mode: Mode::Normal,
             add_title: String::new(),
             add_queue: Queue::Inbox,
+            triage_task_ids: Vec::new(),
+            triage_index: 0,
+            triage_summary: TriageSummary::default(),
             status_message: None,
         };
         app.select_first_task();
@@ -152,6 +210,37 @@ impl TuiApp {
         let prev = if current == 0 { count - 1 } else { current - 1 };
         self.task_list_state.select(Some(prev));
         self.detail_scroll = 0;
+    }
+
+    pub fn current_triage_task(&self) -> Option<&Task> {
+        let task_id = self.triage_task_ids.get(self.triage_index)?;
+        self.tasks.iter().find(|t| t.id == *task_id)
+    }
+
+    pub fn enter_triage(&mut self) {
+        let inbox_ids: Vec<String> = self
+            .tasks
+            .iter()
+            .filter(|t| t.queue == Queue::Inbox)
+            .map(|t| t.id.clone())
+            .collect();
+        if inbox_ids.is_empty() {
+            self.set_status("Inbox is empty — nothing to triage");
+            return;
+        }
+        self.triage_task_ids = inbox_ids;
+        self.triage_index = 0;
+        self.triage_summary = TriageSummary::default();
+        self.mode = Mode::Triage;
+    }
+
+    pub fn advance_triage_or_finish(&mut self) {
+        self.triage_index += 1;
+        if self.triage_index >= self.triage_task_ids.len() {
+            let summary = self.triage_summary.format();
+            self.mode = Mode::Normal;
+            self.set_status(format!("Triage: {summary}"));
+        }
     }
 
     pub fn set_status(&mut self, message: impl Into<String>) {

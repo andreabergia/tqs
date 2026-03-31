@@ -25,6 +25,7 @@ pub fn handle_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppErro
         Mode::AddForm => handle_add_form_key(app, key),
         Mode::ConfirmDelete { .. } => handle_confirm_delete_key(app, key),
         Mode::MoveTarget => handle_move_target_key(app, key),
+        Mode::Triage => handle_triage_key(app, key),
     }
 }
 
@@ -83,6 +84,9 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
             }
         }
 
+        // Triage
+        KeyCode::Char('t') => app.enter_triage(),
+
         // Add task
         KeyCode::Char('a') => {
             app.add_title.clear();
@@ -139,6 +143,25 @@ fn handle_confirm_delete_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffe
             app.mode = Mode::Normal;
             Ok(SideEffect::None)
         }
+    }
+}
+
+fn handle_triage_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
+    match key.code {
+        KeyCode::Char('n') => actions::triage_move(app, Queue::Now),
+        KeyCode::Char('x') => actions::triage_move(app, Queue::Next),
+        KeyCode::Char('l') => actions::triage_move(app, Queue::Later),
+        KeyCode::Char('d') => actions::triage_move(app, Queue::Done),
+        KeyCode::Char('D') => actions::triage_delete(app),
+        KeyCode::Char('s') => actions::triage_skip(app),
+        KeyCode::Char('e') => actions::triage_edit(app),
+        KeyCode::Char('q') | KeyCode::Esc => {
+            let summary = app.triage_summary.format();
+            app.mode = Mode::Normal;
+            app.set_status(format!("Triage: {summary}"));
+            Ok(SideEffect::None)
+        }
+        _ => Ok(SideEffect::None),
     }
 }
 

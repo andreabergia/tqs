@@ -58,6 +58,52 @@ pub fn confirm_delete(app: &mut TuiApp) -> Result<SideEffect, AppError> {
     Ok(SideEffect::None)
 }
 
+pub fn triage_move(app: &mut TuiApp, queue: Queue) -> Result<SideEffect, AppError> {
+    let Some(task) = app.current_triage_task() else {
+        return Ok(SideEffect::None);
+    };
+    let task_id = task.id.clone();
+
+    if queue == Queue::Done {
+        operations::mark_done(&app.repo, &app.config, &task_id)?;
+        app.triage_summary.record_move(Queue::Done);
+    } else {
+        app.repo.move_to_queue(&task_id, queue, Utc::now())?;
+        app.triage_summary.record_move(queue);
+    }
+
+    app.refresh()?;
+    app.advance_triage_or_finish();
+    Ok(SideEffect::None)
+}
+
+pub fn triage_delete(app: &mut TuiApp) -> Result<SideEffect, AppError> {
+    let Some(task) = app.current_triage_task() else {
+        return Ok(SideEffect::None);
+    };
+    let task_id = task.id.clone();
+    app.repo.delete(&task_id)?;
+    app.triage_summary.deleted += 1;
+    app.refresh()?;
+    app.advance_triage_or_finish();
+    Ok(SideEffect::None)
+}
+
+pub fn triage_skip(app: &mut TuiApp) -> Result<SideEffect, AppError> {
+    app.triage_summary.skipped += 1;
+    app.advance_triage_or_finish();
+    Ok(SideEffect::None)
+}
+
+pub fn triage_edit(app: &mut TuiApp) -> Result<SideEffect, AppError> {
+    let Some(task) = app.current_triage_task() else {
+        return Ok(SideEffect::None);
+    };
+    Ok(SideEffect::SuspendForEditor {
+        task_id: task.id.clone(),
+    })
+}
+
 pub fn submit_add_form(app: &mut TuiApp) -> Result<SideEffect, AppError> {
     let title = app.add_title.trim().to_string();
     if title.is_empty() {

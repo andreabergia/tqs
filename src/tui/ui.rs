@@ -17,6 +17,21 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     let main_area = outer[0];
     let status_area = outer[1];
 
+    if app.mode == Mode::Triage {
+        draw_triage(frame, main_area, app);
+    } else {
+        draw_normal(frame, main_area, app);
+    }
+
+    widgets::status_bar::render(frame, status_area, app);
+
+    // Overlay: add form
+    if app.mode == Mode::AddForm {
+        widgets::add_form::render(frame, &app.add_title, app.add_queue);
+    }
+}
+
+fn draw_normal(frame: &mut Frame, area: ratatui::layout::Rect, app: &mut TuiApp) {
     let panel_constraints = if app.detail_visible {
         vec![
             Constraint::Length(14),
@@ -30,7 +45,7 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     let panels = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(panel_constraints)
-        .split(main_area);
+        .split(area);
 
     let sidebar_area = panels[0];
     let task_list_area = panels[1];
@@ -52,11 +67,10 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
         let selected = app.selected_task().cloned();
         widgets::detail::render(frame, detail_area, selected.as_ref(), app.detail_scroll);
     }
+}
 
-    widgets::status_bar::render(frame, status_area, app);
-
-    // Overlay: add form
-    if app.mode == Mode::AddForm {
-        widgets::add_form::render(frame, &app.add_title, app.add_queue);
-    }
+fn draw_triage(frame: &mut Frame, area: ratatui::layout::Rect, app: &TuiApp) {
+    let progress = format!("{}/{}", app.triage_index + 1, app.triage_task_ids.len());
+    let task = app.current_triage_task();
+    widgets::triage::render(frame, area, task, &progress);
 }
