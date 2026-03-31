@@ -1,3 +1,4 @@
+mod actions;
 mod app_state;
 mod event;
 mod ui;
@@ -17,6 +18,7 @@ use crate::app::app_error::AppError;
 use crate::storage::config::ResolvedConfig;
 use crate::storage::repo::TaskRepo;
 
+use actions::SideEffect;
 use app_state::TuiApp;
 
 const POLL_TIMEOUT: Duration = Duration::from_millis(250);
@@ -52,12 +54,11 @@ fn run_loop(
             .draw(|frame| ui::draw(frame, app))
             .map_err(|e| AppError::message(format!("failed to draw: {e}")))?;
 
-        if app.should_quit {
-            return Ok(());
-        }
-
         if let Some(Event::Key(key)) = poll_event()? {
-            event::handle_key(app, key);
+            match event::handle_key(app, key)? {
+                SideEffect::None => {}
+                SideEffect::Quit => return Ok(()),
+            }
         }
     }
 }

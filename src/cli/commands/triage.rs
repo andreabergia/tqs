@@ -1,14 +1,15 @@
 use std::{fs, path::PathBuf, process::Command};
 
-use chrono::{Local, Utc};
+use chrono::Utc;
 use clap::Parser;
 use dialoguer::console::style;
 
 use crate::app::app_error::AppError;
+use crate::app::operations;
 use crate::cli::commands::helpers;
 use crate::domain::task::Queue;
 use crate::io::{input, output};
-use crate::storage::{config::ResolvedConfig, daily_notes, repo::TaskRepo};
+use crate::storage::{config::ResolvedConfig, repo::TaskRepo};
 
 #[derive(Debug, Parser)]
 #[command(about = "Triage inbox tasks interactively")]
@@ -177,17 +178,7 @@ fn triage_one_task(
 }
 
 fn mark_done(task_id: &str, repo: &TaskRepo, resolved: &ResolvedConfig) -> Result<(), AppError> {
-    let (mut task, path, _) = repo.move_to_queue(task_id, Queue::Done, Utc::now())?;
-
-    if let Some(daily_notes_dir) = &resolved.daily_notes_dir {
-        let note_date = Local::now().date_naive();
-        let note = daily_notes::append_completion(daily_notes_dir, &path, note_date, &task)?;
-        if task.daily_note.as_deref() != Some(note.note_name.as_str()) {
-            task.daily_note = Some(note.note_name);
-            repo.update(&task)?;
-        }
-    }
-
+    operations::mark_done(repo, resolved, task_id)?;
     Ok(())
 }
 

@@ -14,9 +14,19 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     let main_area = outer[0];
     let status_area = outer[1];
 
+    let panel_constraints = if app.detail_visible {
+        vec![
+            Constraint::Length(14),
+            Constraint::Min(20),
+            Constraint::Percentage(35),
+        ]
+    } else {
+        vec![Constraint::Length(14), Constraint::Min(20)]
+    };
+
     let panels = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(14), Constraint::Min(20)])
+        .constraints(panel_constraints)
         .split(main_area);
 
     let sidebar_area = panels[0];
@@ -25,11 +35,7 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     widgets::sidebar::render(frame, sidebar_area, app);
 
     let queue = app.active_queue();
-    let tasks: Vec<_> = app
-        .tasks
-        .iter()
-        .filter(|t| t.queue == queue)
-        .collect();
+    let tasks: Vec<_> = app.tasks.iter().filter(|t| t.queue == queue).collect();
     widgets::task_list::render(
         frame,
         task_list_area,
@@ -38,5 +44,11 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
         &mut app.task_list_state,
     );
 
-    widgets::status_bar::render(frame, status_area, app.mode);
+    if app.detail_visible && panels.len() > 2 {
+        let detail_area = panels[2];
+        let selected = app.selected_task().cloned();
+        widgets::detail::render(frame, detail_area, selected.as_ref(), app.detail_scroll);
+    }
+
+    widgets::status_bar::render(frame, status_area, app);
 }
