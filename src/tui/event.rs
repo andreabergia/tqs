@@ -137,6 +137,9 @@ fn handle_add_form_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, Ap
         KeyCode::Tab => {
             app.add_queue = add_form::cycle_queue(app.add_queue);
         }
+        KeyCode::BackTab => {
+            app.add_queue = add_form::cycle_queue_back(app.add_queue);
+        }
         KeyCode::Backspace => {
             app.add_title.pop();
         }

@@ -16,6 +16,11 @@ pub fn cycle_queue(current: Queue) -> Queue {
     ADD_QUEUES[(idx + 1) % ADD_QUEUES.len()]
 }
 
+pub fn cycle_queue_back(current: Queue) -> Queue {
+    let idx = ADD_QUEUES.iter().position(|q| *q == current).unwrap_or(0);
+    ADD_QUEUES[(idx + ADD_QUEUES.len() - 1) % ADD_QUEUES.len()]
+}
+
 pub fn render(frame: &mut Frame, title: &str, queue: Queue) {
     let area = centered_rect(50, 7, frame.area());
 
