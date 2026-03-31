@@ -1,8 +1,8 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
+    style::{Color, Style},
+    text::Line,
     widgets::{Block, Borders, Paragraph, Wrap},
 };
 
@@ -37,19 +37,11 @@ pub fn render(
         .title(title)
         .border_style(border_style);
 
-    let mut lines = vec![
-        Line::from(Span::styled(
-            &task.title,
-            Style::default()
-                .fg(Color::White)
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-    ];
-
-    for text_line in task.body.lines() {
-        lines.push(Line::from(text_line.to_string()));
-    }
+    let lines: Vec<Line> = task
+        .body
+        .lines()
+        .map(|l| Line::from(l.to_string()))
+        .collect();
 
     let paragraph = Paragraph::new(lines)
         .block(block)
