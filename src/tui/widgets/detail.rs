@@ -24,14 +24,14 @@ pub fn render(
     let Some(task) = task else {
         let block = Block::default()
             .borders(Borders::ALL)
-            .title(" Detail ")
+            .title(" Task detail ")
             .border_style(border_style);
         let empty = Paragraph::new("No task selected").block(block);
         frame.render_widget(empty, area);
         return;
     };
 
-    let title = format!(" {} [{}] ", task.id, task.queue);
+    let title = format!(" Task detail: {} ", task.title);
     let block = Block::default()
         .borders(Borders::ALL)
         .title(title)

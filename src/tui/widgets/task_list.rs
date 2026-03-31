@@ -16,7 +16,7 @@ pub fn render(
     state: &mut ListState,
     focused: bool,
 ) {
-    let title = format!(" {} ({}) ", queue, tasks.len());
+    let title = format!(" Tasks in queue {} ({}) ", queue, tasks.len());
 
     let items: Vec<ListItem> = tasks
         .iter()
