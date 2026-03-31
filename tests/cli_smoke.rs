@@ -61,7 +61,7 @@ fn bare_command_shows_dashboard_when_tasks_exist() {
 }
 
 #[test]
-fn bare_command_shows_getting_started_when_no_tasks() {
+fn bare_command_shows_dashboard_when_no_tasks() {
     let temp = TempDir::new().expect("temp dir should exist");
 
     tqs_cmd()
@@ -69,7 +69,7 @@ fn bare_command_shows_getting_started_when_no_tasks() {
         .arg(temp.path())
         .assert()
         .success()
-        .stdout(contains("Welcome to tqs!").and(contains("To get started:")));
+        .stdout(contains("now").and(contains("(0)")));
 }
 
 #[test]
