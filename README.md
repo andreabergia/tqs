@@ -1,30 +1,12 @@
 # TQS - Terminal Task Queue
 
-TQS is a Rust CLI for managing queue-based tasks stored as Markdown files with YAML frontmatter.
+A terminal-native task manager. Tasks are Markdown files organized in queues. Run `tqs` to get a full-screen dashboard, or use CLI commands for scripting and automation.
 
-## Quick Reference
+<!-- TODO: add a screenshot of the dashboard here -->
 
-```bash
-tqs add "Reply to AWS billing alert"
-tqs add "Plan rollout" --queue now
-tqs list
-tqs now
-tqs inbox
-tqs config
-tqs doctor
-tqs triage
-tqs start a7k
-tqs move a7k now
-tqs done a7k
-tqs delete a7k
-tqs edit a7k
-tqs show a7k
-tqs find billing
-```
+## The Dashboard
 
-## Interactive Dashboard
-
-Running `tqs` with no arguments on a TTY launches a full-screen interactive dashboard:
+Just run `tqs`. You get a three-panel view: queues on the left, tasks in the middle, detail on the right.
 
 ```text
 ┌ Queues ──┬ Tasks in queue now (2) ──┬ Task detail: Ship v2 ──┐
@@ -37,206 +19,101 @@ Running `tqs` with no arguments on a TTY launches a full-screen interactive dash
  [Normal] h/l:panel j/k:nav Tab:queue a:add d:done s:start q:quit
 ```
 
-Use `h/l` or arrow keys to move focus between panels, `j/k` to navigate within the focused panel. Task actions are available from any panel. Use `--no-tui` for the plain text dashboard.
+Navigate with `h/l` between panels, `j/k` within them. Everything else is a single keypress away:
 
-See [USAGE.md](USAGE.md) for the full keybinding reference.
+| Key | Action |
+|-----|--------|
+| `a` | Add a task |
+| `e` | Edit in your `$EDITOR` |
+| `d` | Mark done |
+| `s` | Start (move to now) |
+| `m` | Move to another queue |
+| `x` | Delete |
+| `/` | Search across all queues |
+| `t` | Triage inbox |
+| `q` | Quit |
 
-## Queue Model
+Use `tqs --no-tui` if you want the old plain-text output.
 
-Tasks live in one of five built-in queues:
+## Install
 
-- `inbox`
-- `now`
-- `next`
-- `later`
-- `done`
-
-`tqs list` prints a compact dashboard with queue counts plus the `now` and `inbox` sections. `tqs list <queue>` prints just that queue. `tqs now` and `tqs inbox` are direct shortcuts for the two most common queue views.
-
-## Installation
-
-Homebrew (macOS/Linux):
+Homebrew:
 
 ```bash
 brew tap andreabergia/homebrew-tap
 brew install tqs
 ```
 
-Build from source:
+From source:
 
 ```bash
-cargo build --release
+cargo install --path .
 ```
 
-The binary will be at `target/release/tqs`.
+## Setup
 
-## Quick Start
-
-```bash
-# Capture a task in inbox
-tqs add "Write v2 release notes"
-
-# Review the default dashboard
-tqs list
-tqs now
-tqs inbox
-
-# Triage inbox tasks interactively
-tqs triage
-
-# Focus a task
-tqs move 0f3 now
-
-# Inspect or edit the full Markdown file
-tqs show 0f3
-tqs edit 0f3
-
-# Complete the task
-tqs done 0f3
-
-# Search across all queues
-tqs find latency
-
-# Inspect effective configuration
-tqs config
-
-# Run storage and editor diagnostics
-tqs doctor
-```
-
-New tasks created by `tqs add` start with a default body containing just the title as a heading.
-
-Task arguments are resolved in this order:
-
-1. exact id
-2. unique id prefix
-3. unique title substring
-4. interactive picker if a TTY is available
-
-## Storage and Configuration
-
-TQS stores tasks as Markdown files under:
-
-```text
-<tasks_root>/<queue>/<id>.md
-```
-
-The logical queue names are always `inbox`, `now`, `next`, `later`, and `done`. The directory names under `tasks_root` can be overridden in config, so a task may be stored at `<tasks_root>/<configured-queue-dir>/<id>.md`.
-
-`tasks_root` is resolved in this order:
-
-1. `--root <path>`
-2. `TQS_ROOT`
-3. config file at `$XDG_CONFIG_HOME/tqs/config.toml` or `~/.config/tqs/config.toml`
-
-Minimal config example:
+Create `~/.config/tqs/config.toml`:
 
 ```toml
 tasks_root = "/path/to/tasks"
-daily_notes_dir = "/path/to/daily-notes"
-
-[queues]
-inbox = "inbox"
-now = "focus"
-next = "next"
-later = "later"
-done = "archive"
 ```
 
-Obsidian convenience config:
+Or, if you use Obsidian:
 
 ```toml
 obsidian_vault_dir = "/path/to/My Vault"
 ```
 
-When `obsidian_vault_dir` is set, TQS derives:
+That's it. Run `tqs config` to verify, `tqs doctor` to check for problems.
 
-- `tasks_root = <vault>/Tasks`
-- `daily_notes_dir = <vault>/Daily Notes`
+## How It Works
 
-TQS also stores allocator metadata in a hidden `.tqs/` directory:
+Tasks live in five queues: **inbox**, **now**, **next**, **later**, **done**. Each task is a Markdown file with YAML frontmatter, stored under `<tasks_root>/<queue>/<id>.md`.
 
-- `<vault>/.tqs/` when `obsidian_vault_dir` is configured
-- `<tasks_root>/.tqs/` otherwise
+The typical workflow:
 
-Auto-generated IDs are bare lowercase Crockford-style codes. TQS starts with 3-character IDs such as `0f3` and grows to 4, 5, and more characters only as earlier widths are exhausted.
-
-`obsidian_vault_dir` is a shortcut for the generic filesystem model. It cannot be combined with `tasks_root`, `daily_notes_dir`, or queue directory overrides.
-
-If the config file uses relative paths, they are resolved relative to the config file directory. Queue directory overrides must be a single path segment.
-
-Task frontmatter uses the current v2 schema:
-
-```yaml
----
-id: 20260309-103412-reply-aws-billing
-title: Reply to AWS billing alert
-queue: inbox
-created_at: 2026-03-09T10:34:12Z
-updated_at: 2026-03-09T10:34:12Z
-completed_at:
-daily_note:
----
+```bash
+tqs add "Reply to billing alert"    # lands in inbox
+tqs                                  # open dashboard, triage, move tasks around
+tqs done 0f3                         # mark it done
 ```
 
-## Daily Notes
+You can also do everything from the CLI:
 
-If `daily_notes_dir` is configured, `tqs done` appends a completion entry to today’s Markdown daily note and records the note name in `daily_note`. Re-running `tqs done` for an already completed task is idempotent.
-
-## Obsidian
-
-TQS is filesystem-first: it works with plain Markdown task files in any directory layout that matches the configured paths. Obsidian is supported as a friendly workflow, not a separate storage mode.
-
-Recommended vault layout:
-
-```text
-<vault>/
-  Tasks/
-    inbox/
-    now/
-    next/
-    later/
-    done/
-  Daily Notes/
-    YYYY-MM-DD.md
+```bash
+tqs add "Plan rollout" --queue now
+tqs start 0f3
+tqs move a7k later
+tqs find billing
+tqs triage
 ```
 
-Using `obsidian_vault_dir` configures exactly this layout. Daily-note completion entries are written as wiki-links to the completed task file, for example `- [x] [[Tasks/done/task-1|Ship v2]]`. For other supported layouts, the link target is derived from the configured task and daily-note directories.
+Tasks are resolved by exact ID, unique ID prefix, or unique title substring. If ambiguous and you're on a TTY, you get an interactive picker.
+
+## Optional Features
+
+**Daily notes** -- if you set `daily_notes_dir`, completing a task appends a wiki-link entry to today's daily note.
+
+**Obsidian integration** -- `obsidian_vault_dir` is a shortcut that sets `tasks_root` to `<vault>/Tasks` and `daily_notes_dir` to `<vault>/Daily Notes`.
+
+**Custom queue directories** -- rename the on-disk folders without changing the queue names:
+
+```toml
+[queues]
+now = "focus"
+done = "archive"
+```
 
 ## Learn More
 
-- [USAGE.md](USAGE.md) - Current CLI reference
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Current code structure and data flow
+- [USAGE.md](USAGE.md) -- full CLI and dashboard reference
+- [ARCHITECTURE.md](ARCHITECTURE.md) -- code structure and data flow
+- [CHANGELOG.md](CHANGELOG.md) -- release history
 
-## Maintainer Release Process
-
-Releases are built and published by GitHub Actions from version tags.
-
-### One-time setup
-
-Install the maintainer tools:
-
-```bash
-cargo install cargo-dist cargo-release
-```
-
-### Preflight checks
-
-Run the standard checks locally before cutting a release:
-
-```bash
-cargo fmt --check
-cargo clippy -- -D warnings
-cargo test
-dist plan
-```
-
-### Cut a release
-
-Update `CHANGELOG.md` (`Unreleased` section), then run:
+## Releasing
 
 ```bash
 scripts/release.sh patch --execute
 ```
 
-Use `minor`, `major`, or an exact version instead of `patch` as needed.
+See [USAGE.md](USAGE.md) for preflight checks and detailed process.
