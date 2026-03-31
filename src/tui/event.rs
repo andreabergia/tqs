@@ -22,6 +22,7 @@ pub fn poll_event(timeout: Duration) -> std::io::Result<Option<Event>> {
 pub fn handle_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
     match &app.mode {
         Mode::Normal => handle_normal_key(app, key),
+        Mode::AddForm => handle_add_form_key(app, key),
         Mode::ConfirmDelete { .. } => handle_confirm_delete_key(app, key),
         Mode::MoveTarget => handle_move_target_key(app, key),
     }
@@ -82,6 +83,12 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
             }
         }
 
+        // Add task
+        KeyCode::Char('a') => {
+            app.add_title.clear();
+            app.mode = Mode::AddForm;
+        }
+
         // Edit in $EDITOR
         KeyCode::Char('e') => {
             if let Some(task) = app.selected_task() {
@@ -97,6 +104,29 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
             app.set_status("Refreshed");
         }
 
+        _ => {}
+    }
+    Ok(SideEffect::None)
+}
+
+fn handle_add_form_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
+    use super::widgets::add_form;
+
+    match key.code {
+        KeyCode::Enter => return actions::submit_add_form(app),
+        KeyCode::Esc => {
+            app.mode = Mode::Normal;
+            app.add_title.clear();
+        }
+        KeyCode::Tab => {
+            app.add_queue = add_form::cycle_queue(app.add_queue);
+        }
+        KeyCode::Backspace => {
+            app.add_title.pop();
+        }
+        KeyCode::Char(c) => {
+            app.add_title.push(c);
+        }
         _ => {}
     }
     Ok(SideEffect::None)

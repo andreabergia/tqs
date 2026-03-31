@@ -2,7 +2,8 @@ use chrono::Utc;
 
 use crate::app::app_error::AppError;
 use crate::app::operations;
-use crate::domain::task::Queue;
+use crate::domain::task::{Queue, Task};
+use crate::storage::id_state::SharedIdAllocator;
 
 use super::app_state::{Mode, TuiApp};
 
@@ -54,5 +55,26 @@ pub fn confirm_delete(app: &mut TuiApp) -> Result<SideEffect, AppError> {
     app.mode = Mode::Normal;
     app.refresh()?;
     app.set_status(format!("Deleted: {task_id}"));
+    Ok(SideEffect::None)
+}
+
+pub fn submit_add_form(app: &mut TuiApp) -> Result<SideEffect, AppError> {
+    let title = app.add_title.trim().to_string();
+    if title.is_empty() {
+        app.mode = Mode::Normal;
+        return Ok(SideEffect::None);
+    }
+
+    let allocator = SharedIdAllocator::new(&app.config);
+    let id = allocator.generate(&app.repo)?;
+    let mut task = Task::new(id, &title, Utc::now());
+    task.queue = app.add_queue;
+    app.repo.create(&task)?;
+
+    app.mode = Mode::Normal;
+    app.add_title.clear();
+    app.add_queue = Queue::Inbox;
+    app.refresh()?;
+    app.set_status(format!("Added: {title}"));
     Ok(SideEffect::None)
 }

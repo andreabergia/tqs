@@ -1,3 +1,4 @@
+pub mod add_form;
 pub mod detail;
 pub mod sidebar;
 pub mod status_bar;

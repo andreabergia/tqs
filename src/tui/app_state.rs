@@ -22,6 +22,7 @@ const STATUS_MESSAGE_TTL_SECS: u64 = 3;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mode {
     Normal,
+    AddForm,
     ConfirmDelete { task_id: String },
     MoveTarget,
 }
@@ -44,6 +45,10 @@ pub struct TuiApp {
     // Mode
     pub mode: Mode,
 
+    // Add form state
+    pub add_title: String,
+    pub add_queue: Queue,
+
     // Transient status message
     pub status_message: Option<(String, Instant)>,
 }
@@ -60,6 +65,8 @@ impl TuiApp {
             detail_visible: false,
             detail_scroll: 0,
             mode: Mode::Normal,
+            add_title: String::new(),
+            add_queue: Queue::Inbox,
             status_message: None,
         };
         app.select_first_task();

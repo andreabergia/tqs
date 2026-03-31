@@ -3,7 +3,10 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
 };
 
-use super::{app_state::TuiApp, widgets};
+use super::{
+    app_state::{Mode, TuiApp},
+    widgets,
+};
 
 pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     let outer = Layout::default()
@@ -51,4 +54,9 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     }
 
     widgets::status_bar::render(frame, status_area, app);
+
+    // Overlay: add form
+    if app.mode == Mode::AddForm {
+        widgets::add_form::render(frame, &app.add_title, app.add_queue);
+    }
 }
