@@ -22,6 +22,25 @@ tqs show a7k
 tqs find billing
 ```
 
+## Interactive Dashboard
+
+Running `tqs` with no arguments on a TTY launches a full-screen interactive dashboard:
+
+```text
+┌ Queues ──┬ Tasks in queue now (2) ──┬ Task detail: Ship v2 ──┐
+│ > now  2 │ > 0f3  Ship v2           │ # Ship v2              │
+│   next 1 │   a7k  Plan release      │                        │
+│   later 3│                          │ Body text goes here    │
+│   inbox 5│                          │                        │
+│   done 12│                          │                        │
+└──────────┴──────────────────────────┴────────────────────────┘
+ [Normal] h/l:panel j/k:nav Tab:queue a:add d:done s:start q:quit
+```
+
+Use `h/l` or arrow keys to move focus between panels, `j/k` to navigate within the focused panel. Task actions are available from any panel. Use `--no-tui` for the plain text dashboard.
+
+See [USAGE.md](USAGE.md) for the full keybinding reference.
+
 ## Queue Model
 
 Tasks live in one of five built-in queues:

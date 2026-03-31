@@ -30,6 +30,43 @@ tqs config
 tqs doctor
 ```
 
+## Interactive Dashboard
+
+Running `tqs` with no arguments on a TTY launches a full-screen interactive TUI. Use `--no-tui` to get the plain text dashboard instead.
+
+### Layout
+
+The dashboard has three panels: a queue sidebar, a task list, and a task detail pane. The focused panel is highlighted with a cyan border.
+
+### Navigation
+
+| Key | Action |
+|-----|--------|
+| `h` / `l` / Left / Right | Move focus between panels |
+| `j` / `k` / Up / Down | Navigate within focused panel (queues, tasks, or scroll detail) |
+| `Tab` / `Shift-Tab` | Cycle to next / previous queue (from any panel) |
+| `1`–`5` | Jump directly to a queue (from any panel) |
+
+### Task Actions
+
+| Key | Action |
+|-----|--------|
+| `a` | Add a task (inline form: type title, Tab/Shift-Tab to pick queue, Enter to create) |
+| `e` | Edit selected task in `$EDITOR` (suspends and restores the TUI) |
+| `d` | Mark selected task as done |
+| `s` | Start selected task (move to now) |
+| `m` | Move selected task (then press `i`/`n`/`x`/`l` for inbox/now/next/later) |
+| `x` | Delete selected task (press `y` to confirm) |
+| `r` | Refresh task data from disk |
+
+### Modes
+
+| Key | Action |
+|-----|--------|
+| `/` | Enter search mode — type to filter tasks across all queues, Enter to jump to result |
+| `t` | Enter triage mode — cycle through inbox tasks with action prompts (`n`/`x`/`l`/`d`/`D`/`s`/`e`/`q`) |
+| `q` / `Esc` | Quit dashboard (or exit current mode) |
+
 ## Global Options
 
 ### `--root <path>`

@@ -9,6 +9,7 @@ TQS is a Rust CLI for queue-based task management using Markdown files on disk. 
 - domain types and search/filter logic
 - filesystem-backed storage and config loading
 - terminal I/O for prompts, pickers, and formatted output
+- full-screen TUI dashboard (ratatui + crossterm)
 
 ## Module Layout
 
@@ -23,7 +24,8 @@ src/
 │   └── commands/        # command implementations
 ├── app/
 │   ├── service.rs       # top-level app runner and exit handling
-│   └── app_error.rs     # error model and exit codes
+│   ├── app_error.rs     # error model and exit codes
+│   └── operations.rs    # shared task operations (mark_done) used by CLI and TUI
 ├── domain/
 │   ├── task.rs          # Queue enum and Task model
 │   ├── id.rs            # id generation and validation
@@ -36,6 +38,19 @@ src/
 │   ├── daily_notes.rs   # optional completion logging
 │   ├── editor.rs        # editor resolution from VISUAL/EDITOR/vi
 │   └── doctor.rs        # diagnostic checks for config and storage
+├── tui/
+│   ├── mod.rs           # terminal setup/teardown, main event loop, editor suspension
+│   ├── app_state.rs     # TuiApp state, FocusedPanel, Mode, TriageSummary
+│   ├── event.rs         # crossterm event polling, key→action dispatch per mode
+│   ├── actions.rs       # task mutation actions (done, move, delete, add, triage)
+│   ├── ui.rs            # top-level layout assembly for normal, triage, search views
+│   └── widgets/
+│       ├── sidebar.rs   # queue list with counts and focus highlight
+│       ├── task_list.rs # task list for selected queue with selection
+│       ├── detail.rs    # task body detail pane (scrollable)
+│       ├── status_bar.rs# mode indicator and context-sensitive keybinding hints
+│       ├── add_form.rs  # centered overlay for inline task creation
+│       └── triage.rs    # triage mode: single task view with action prompts
 └── io/
     ├── input.rs         # interactive text prompts
     ├── output.rs        # CLI output formatting
@@ -170,6 +185,36 @@ daily_note:
 ```
 
 The Markdown body follows the closing `---`. `storage/format.rs` is responsible for parsing, rendering, and validating this schema.
+
+## TUI Dashboard
+
+When `tqs` is invoked with no arguments on a TTY, `handlers.rs` launches the full-screen TUI instead of printing the text dashboard. The `--no-tui` flag or piped output falls back to the text dashboard.
+
+### Architecture
+
+The TUI is a separate frontend in `src/tui/` that reuses the same domain and storage layers as the CLI commands. It does not duplicate business logic.
+
+```text
+Event Loop (mod.rs)
+    ↓
+Key Mapping (event.rs) → dispatches based on Mode + FocusedPanel
+    ↓
+Actions (actions.rs) → calls TaskRepo, operations::mark_done, SharedIdAllocator
+    ↓
+State Update (app_state.rs) → TuiApp holds repo, config, task cache, selections
+    ↓
+Rendering (ui.rs + widgets/) → ratatui draws to the alternate screen
+```
+
+`TuiApp` owns a `TaskRepo` and `ResolvedConfig`. All mutations go through the repo, then `refresh()` reloads from disk. The action/update pattern returns `SideEffect` values (None, Quit, SuspendForEditor) that the main loop handles.
+
+### Modes
+
+The TUI operates in one of several modes: `Normal`, `AddForm`, `Search`, `Triage`, `MoveTarget`, and `ConfirmDelete`. Each mode has its own key mapping in `event.rs`. The `FocusedPanel` enum (`Sidebar`, `TaskList`, `Detail`) determines how `j/k` and arrow keys behave within `Normal` mode.
+
+### Editor Suspension
+
+When the user presses `e`, the TUI disables raw mode, leaves the alternate screen, spawns the editor as a blocking child process, then restores the TUI and refreshes task data.
 
 ## CLI Behavior
 

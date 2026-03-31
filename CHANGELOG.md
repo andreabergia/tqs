@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y.Z`).
 
+## [Unreleased]
+
+### Added
+
+- **Interactive TUI dashboard** — running `tqs` with no arguments on a TTY now launches a full-screen terminal UI powered by ratatui + crossterm.
+  - Three-panel layout: sidebar (queues + counts), task list, and task detail pane.
+  - Focus-based panel navigation: `h/l` or arrow keys move focus between panels; `j/k` navigates queues, tasks, or scrolls detail depending on the focused panel.
+  - `Tab` and `1-5` cycle or jump to queues from any panel.
+  - Inline task creation with `a` (title + queue selector via Tab/Shift-Tab).
+  - Edit tasks in `$EDITOR` with `e` (suspends and restores the TUI).
+  - Task actions: `d` done, `s` start, `m` move (then pick queue), `x` delete (with confirmation), `r` refresh.
+  - Dedicated triage mode with `t` — cycles through inbox tasks one at a time with action prompts and shows a summary on completion.
+  - Search mode with `/` — filters tasks across all queues in real-time.
+- `--no-tui` flag to disable the interactive dashboard and show the plain text output instead.
+
+### Changed
+
+- Extracted shared `mark_done` logic into `app::operations` (used by CLI `done`, CLI `triage`, and TUI).
+
 ## [0.2.3] - 2026-03-31
 
 ### Added
