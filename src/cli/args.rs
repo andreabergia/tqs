@@ -43,6 +43,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub root: Option<PathBuf>,
 
+    /// Disable the interactive TUI dashboard (show plain text instead)
+    #[arg(long)]
+    pub no_tui: bool,
+
     #[command(subcommand)]
     pub command: Option<Command>,
 }

@@ -24,11 +24,11 @@ pub fn handle(cli: Cli) -> Result<(), AppError> {
         Some(Command::Triage(command)) => triage::handle_triage(command, cli.root),
         Some(Command::Config(command)) => config_cmd::handle_config(command, cli.root),
         Some(Command::Doctor(command)) => doctor::handle_doctor(command, cli.root),
-        None => handle_default(cli.root),
+        None => handle_default(cli.root, cli.no_tui),
     }
 }
 
-fn handle_default(root: Option<std::path::PathBuf>) -> Result<(), AppError> {
+fn handle_default(root: Option<std::path::PathBuf>, no_tui: bool) -> Result<(), AppError> {
     let resolved = match config::resolve(root) {
         Ok(resolved) => resolved,
         Err(_) => {
@@ -44,6 +44,12 @@ fn handle_default(root: Option<std::path::PathBuf>) -> Result<(), AppError> {
     if tasks.is_empty() {
         let inspection = config::inspect(None)?;
         output::print_getting_started(inspection.config_path.as_deref());
+        return Ok(());
+    }
+
+    let use_tui = !no_tui && std::io::IsTerminal::is_terminal(&std::io::stdout());
+    if use_tui {
+        crate::tui::run(resolved, repo)?;
     } else {
         output::print_dashboard(&tasks);
     }
@@ -63,6 +69,7 @@ mod tests {
         let _env = LockedEnv::new(&["XDG_CONFIG_HOME", "TQS_ROOT"]);
         handle(Cli {
             root: None,
+            no_tui: true,
             command: None,
         })
         .expect("bare invocation should succeed with getting-started guide");
@@ -76,6 +83,7 @@ mod tests {
 
         handle(Cli {
             root: None,
+            no_tui: true,
             command: None,
         })
         .expect("bare invocation with empty repo should succeed");
