@@ -44,7 +44,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp, focused: bool) {
     };
 
     let block = Block::default()
-        .borders(Borders::RIGHT)
+        .borders(Borders::ALL)
         .title(" Queues ")
         .border_style(border_style);
     let list = List::new(items).block(block);

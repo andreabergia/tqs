@@ -36,7 +36,7 @@ pub fn render(
     };
 
     let block = Block::default()
-        .borders(Borders::RIGHT)
+        .borders(Borders::ALL)
         .title(title)
         .border_style(border_style);
 

@@ -23,7 +23,7 @@ pub fn render(
 
     let Some(task) = task else {
         let block = Block::default()
-            .borders(Borders::NONE)
+            .borders(Borders::ALL)
             .title(" Detail ")
             .border_style(border_style);
         let empty = Paragraph::new("No task selected").block(block);
@@ -33,7 +33,7 @@ pub fn render(
 
     let title = format!(" {} [{}] ", task.id, task.queue);
     let block = Block::default()
-        .borders(Borders::NONE)
+        .borders(Borders::ALL)
         .title(title)
         .border_style(border_style);
 
