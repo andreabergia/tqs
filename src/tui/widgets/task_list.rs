@@ -8,7 +8,14 @@ use ratatui::{
 
 use crate::domain::task::{Queue, Task};
 
-pub fn render(frame: &mut Frame, area: Rect, queue: Queue, tasks: &[&Task], state: &mut ListState) {
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    queue: Queue,
+    tasks: &[&Task],
+    state: &mut ListState,
+    focused: bool,
+) {
     let title = format!(" {} ({}) ", queue, tasks.len());
 
     let items: Vec<ListItem> = tasks
@@ -22,7 +29,16 @@ pub fn render(frame: &mut Frame, area: Rect, queue: Queue, tasks: &[&Task], stat
         })
         .collect();
 
-    let block = Block::default().borders(Borders::NONE).title(title);
+    let border_style = if focused {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let block = Block::default()
+        .borders(Borders::RIGHT)
+        .title(title)
+        .border_style(border_style);
 
     let highlight_style = Style::default()
         .add_modifier(Modifier::BOLD)

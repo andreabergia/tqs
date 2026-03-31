@@ -19,6 +19,31 @@ const SIDEBAR_QUEUES: [Queue; 5] = [
 /// How long status messages stay visible.
 const STATUS_MESSAGE_TTL_SECS: u64 = 3;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FocusedPanel {
+    Sidebar,
+    TaskList,
+    Detail,
+}
+
+impl FocusedPanel {
+    pub fn left(self) -> Self {
+        match self {
+            Self::Detail => Self::TaskList,
+            Self::TaskList => Self::Sidebar,
+            Self::Sidebar => Self::Sidebar,
+        }
+    }
+
+    pub fn right(self) -> Self {
+        match self {
+            Self::Sidebar => Self::TaskList,
+            Self::TaskList => Self::Detail,
+            Self::Detail => Self::Detail,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mode {
     Normal,
@@ -89,8 +114,8 @@ pub struct TuiApp {
     pub active_queue_index: usize,
     pub task_list_state: ListState,
 
-    // Detail pane
-    pub detail_visible: bool,
+    // Panel focus
+    pub focused_panel: FocusedPanel,
     pub detail_scroll: u16,
 
     // Mode
@@ -123,7 +148,7 @@ impl TuiApp {
             tasks,
             active_queue_index: 0,
             task_list_state: ListState::default(),
-            detail_visible: false,
+            focused_panel: FocusedPanel::TaskList,
             detail_scroll: 0,
             mode: Mode::Normal,
             add_title: String::new(),

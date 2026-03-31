@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use super::{
-    app_state::{Mode, TuiApp},
+    app_state::{FocusedPanel, Mode, TuiApp},
     widgets,
 };
 
@@ -35,25 +35,22 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
 }
 
 fn draw_normal(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
-    let panel_constraints = if app.detail_visible {
-        vec![
+    let panels = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
             Constraint::Length(14),
             Constraint::Min(20),
             Constraint::Percentage(35),
-        ]
-    } else {
-        vec![Constraint::Length(14), Constraint::Min(20)]
-    };
-
-    let panels = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(panel_constraints)
+        ])
         .split(area);
 
     let sidebar_area = panels[0];
     let task_list_area = panels[1];
+    let detail_area = panels[2];
 
-    widgets::sidebar::render(frame, sidebar_area, app);
+    let focused = app.focused_panel;
+
+    widgets::sidebar::render(frame, sidebar_area, app, focused == FocusedPanel::Sidebar);
 
     let queue = app.active_queue();
     let tasks: Vec<_> = app.tasks.iter().filter(|t| t.queue == queue).collect();
@@ -63,13 +60,17 @@ fn draw_normal(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
         queue,
         &tasks,
         &mut app.task_list_state,
+        focused == FocusedPanel::TaskList,
     );
 
-    if app.detail_visible && panels.len() > 2 {
-        let detail_area = panels[2];
-        let selected = app.selected_task().cloned();
-        widgets::detail::render(frame, detail_area, selected.as_ref(), app.detail_scroll);
-    }
+    let selected = app.selected_task().cloned();
+    widgets::detail::render(
+        frame,
+        detail_area,
+        selected.as_ref(),
+        app.detail_scroll,
+        focused == FocusedPanel::Detail,
+    );
 }
 
 fn draw_triage(frame: &mut Frame, area: Rect, app: &TuiApp) {

@@ -6,7 +6,7 @@ use crate::app::app_error::AppError;
 use crate::domain::task::Queue;
 
 use super::actions::{self, SideEffect};
-use super::app_state::{Mode, TuiApp};
+use super::app_state::{FocusedPanel, Mode, TuiApp};
 
 /// Poll for a crossterm event, returning None on timeout.
 pub fn poll_event(timeout: Duration) -> std::io::Result<Option<Event>> {
@@ -37,36 +37,38 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
             return Ok(SideEffect::Quit);
         }
 
-        // Task navigation
-        KeyCode::Char('j') | KeyCode::Down => app.select_next_task(),
-        KeyCode::Char('k') | KeyCode::Up => app.select_prev_task(),
+        // Panel focus navigation
+        KeyCode::Char('h') | KeyCode::Left => {
+            app.focused_panel = app.focused_panel.left();
+        }
+        KeyCode::Char('l') | KeyCode::Right => {
+            app.focused_panel = app.focused_panel.right();
+        }
 
-        // Queue navigation
-        KeyCode::Tab | KeyCode::Char('l') | KeyCode::Right => app.next_queue(),
-        KeyCode::BackTab | KeyCode::Char('h') | KeyCode::Left => app.prev_queue(),
+        // Vertical navigation — depends on focused panel
+        KeyCode::Char('j') | KeyCode::Down => match app.focused_panel {
+            FocusedPanel::Sidebar => app.next_queue(),
+            FocusedPanel::TaskList => app.select_next_task(),
+            FocusedPanel::Detail => {
+                app.detail_scroll = app.detail_scroll.saturating_add(1);
+            }
+        },
+        KeyCode::Char('k') | KeyCode::Up => match app.focused_panel {
+            FocusedPanel::Sidebar => app.prev_queue(),
+            FocusedPanel::TaskList => app.select_prev_task(),
+            FocusedPanel::Detail => {
+                app.detail_scroll = app.detail_scroll.saturating_sub(1);
+            }
+        },
 
-        // Direct queue jump (1-5)
+        // Tab cycles queues regardless of panel focus
+        KeyCode::Tab => app.next_queue(),
+        KeyCode::BackTab => app.prev_queue(),
+
+        // Direct queue jump (1-5) regardless of panel focus
         KeyCode::Char(c @ '1'..='5') => {
             let index = (c as usize) - ('1' as usize);
             app.select_queue(index);
-        }
-
-        // Toggle detail pane
-        KeyCode::Char('p') | KeyCode::Enter => {
-            app.detail_visible = !app.detail_visible;
-            app.detail_scroll = 0;
-        }
-
-        // Detail pane scrolling (Shift+J/K)
-        KeyCode::Char('J') => {
-            if app.detail_visible {
-                app.detail_scroll = app.detail_scroll.saturating_add(1);
-            }
-        }
-        KeyCode::Char('K') => {
-            if app.detail_visible {
-                app.detail_scroll = app.detail_scroll.saturating_sub(1);
-            }
         }
 
         // Task actions

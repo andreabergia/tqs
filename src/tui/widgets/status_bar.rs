@@ -32,12 +32,12 @@ fn normal_line(app: &TuiApp) -> Line<'static> {
     let mut spans = vec![
         mode_badge("Normal"),
         Span::raw(" "),
+        hint("h/l"),
+        Span::raw(":panel "),
         hint("j/k"),
         Span::raw(":nav "),
         hint("Tab"),
         Span::raw(":queue "),
-        hint("p"),
-        Span::raw(":detail "),
         hint("a"),
         Span::raw(":add "),
         hint("d"),
@@ -54,8 +54,6 @@ fn normal_line(app: &TuiApp) -> Line<'static> {
         Span::raw(":search "),
         hint("t"),
         Span::raw(":triage "),
-        hint("r"),
-        Span::raw(":refresh "),
         hint("q"),
         Span::raw(":quit"),
     ];

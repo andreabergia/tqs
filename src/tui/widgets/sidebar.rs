@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::tui::app_state::TuiApp;
 
-pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp) {
+pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp, focused: bool) {
     let items: Vec<ListItem> = app
         .sidebar_queues()
         .iter()
@@ -37,7 +37,16 @@ pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp) {
         })
         .collect();
 
-    let block = Block::default().borders(Borders::RIGHT).title(" Queues ");
+    let border_style = if focused {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let block = Block::default()
+        .borders(Borders::RIGHT)
+        .title(" Queues ")
+        .border_style(border_style);
     let list = List::new(items).block(block);
     frame.render_widget(list, area);
 }
