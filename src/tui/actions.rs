@@ -9,6 +9,7 @@ use super::app_state::{Mode, TuiApp};
 pub enum SideEffect {
     None,
     Quit,
+    SuspendForEditor { task_id: String },
 }
 
 pub fn mark_done(app: &mut TuiApp) -> Result<SideEffect, AppError> {

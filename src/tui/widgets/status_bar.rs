@@ -45,6 +45,8 @@ fn normal_line(app: &TuiApp) -> Line<'static> {
         Span::raw(":move "),
         hint("x"),
         Span::raw(":del "),
+        hint("e"),
+        Span::raw(":edit "),
         hint("r"),
         Span::raw(":refresh "),
         hint("q"),

@@ -82,6 +82,15 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
             }
         }
 
+        // Edit in $EDITOR
+        KeyCode::Char('e') => {
+            if let Some(task) = app.selected_task() {
+                return Ok(SideEffect::SuspendForEditor {
+                    task_id: task.id.clone(),
+                });
+            }
+        }
+
         // Refresh
         KeyCode::Char('r') => {
             app.refresh()?;
