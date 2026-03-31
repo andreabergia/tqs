@@ -25,6 +25,7 @@ pub fn handle_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppErro
         Mode::AddForm => handle_add_form_key(app, key),
         Mode::ConfirmDelete { .. } => handle_confirm_delete_key(app, key),
         Mode::MoveTarget => handle_move_target_key(app, key),
+        Mode::Search => handle_search_key(app, key),
         Mode::Triage => handle_triage_key(app, key),
     }
 }
@@ -82,6 +83,15 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
                     task_id: task.id.clone(),
                 };
             }
+        }
+
+        // Search
+        KeyCode::Char('/') => {
+            app.search_query.clear();
+            app.search_results.clear();
+            app.search_list_state.select(None);
+            app.mode = Mode::Search;
+            app.update_search_results();
         }
 
         // Triage
@@ -144,6 +154,43 @@ fn handle_confirm_delete_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffe
             Ok(SideEffect::None)
         }
     }
+}
+
+fn handle_search_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
+    match key.code {
+        KeyCode::Esc => {
+            app.mode = Mode::Normal;
+        }
+        KeyCode::Enter => {
+            app.select_search_result();
+        }
+        KeyCode::Down | KeyCode::Tab => {
+            let count = app.search_results.len();
+            if count > 0 {
+                let current = app.search_list_state.selected().unwrap_or(0);
+                let next = if current + 1 >= count { 0 } else { current + 1 };
+                app.search_list_state.select(Some(next));
+            }
+        }
+        KeyCode::Up | KeyCode::BackTab => {
+            let count = app.search_results.len();
+            if count > 0 {
+                let current = app.search_list_state.selected().unwrap_or(0);
+                let prev = if current == 0 { count - 1 } else { current - 1 };
+                app.search_list_state.select(Some(prev));
+            }
+        }
+        KeyCode::Backspace => {
+            app.search_query.pop();
+            app.update_search_results();
+        }
+        KeyCode::Char(c) => {
+            app.search_query.push(c);
+            app.update_search_results();
+        }
+        _ => {}
+    }
+    Ok(SideEffect::None)
 }
 
 fn handle_triage_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {

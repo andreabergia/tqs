@@ -25,6 +25,7 @@ pub enum Mode {
     AddForm,
     ConfirmDelete { task_id: String },
     MoveTarget,
+    Search,
     Triage,
 }
 
@@ -99,6 +100,11 @@ pub struct TuiApp {
     pub add_title: String,
     pub add_queue: Queue,
 
+    // Search state
+    pub search_query: String,
+    pub search_results: Vec<(String, Queue)>, // (task_id, queue) pairs
+    pub search_list_state: ListState,
+
     // Triage state
     pub triage_task_ids: Vec<String>,
     pub triage_index: usize,
@@ -122,6 +128,9 @@ impl TuiApp {
             mode: Mode::Normal,
             add_title: String::new(),
             add_queue: Queue::Inbox,
+            search_query: String::new(),
+            search_results: Vec::new(),
+            search_list_state: ListState::default(),
             triage_task_ids: Vec::new(),
             triage_index: 0,
             triage_summary: TriageSummary::default(),
@@ -210,6 +219,43 @@ impl TuiApp {
         let prev = if current == 0 { count - 1 } else { current - 1 };
         self.task_list_state.select(Some(prev));
         self.detail_scroll = 0;
+    }
+
+    pub fn update_search_results(&mut self) {
+        use crate::domain::filter::matches_query;
+        self.search_results = self
+            .tasks
+            .iter()
+            .filter(|t| matches_query(t, &self.search_query))
+            .map(|t| (t.id.clone(), t.queue))
+            .collect();
+        if self.search_results.is_empty() {
+            self.search_list_state.select(None);
+        } else {
+            self.search_list_state.select(Some(0));
+        }
+    }
+
+    pub fn select_search_result(&mut self) {
+        let Some(idx) = self.search_list_state.selected() else {
+            return;
+        };
+        let Some((task_id, queue)) = self.search_results.get(idx).cloned() else {
+            return;
+        };
+        // Jump to the queue and select the task
+        if let Some(qi) = self.sidebar_queues().iter().position(|q| *q == queue) {
+            self.active_queue_index = qi;
+            let task_index = self
+                .tasks
+                .iter()
+                .filter(|t| t.queue == queue)
+                .position(|t| t.id == task_id)
+                .unwrap_or(0);
+            self.task_list_state.select(Some(task_index));
+            self.detail_scroll = 0;
+        }
+        self.mode = Mode::Normal;
     }
 
     pub fn current_triage_task(&self) -> Option<&Task> {

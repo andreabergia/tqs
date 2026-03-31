@@ -1,6 +1,9 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
 use super::{
@@ -17,10 +20,10 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     let main_area = outer[0];
     let status_area = outer[1];
 
-    if app.mode == Mode::Triage {
-        draw_triage(frame, main_area, app);
-    } else {
-        draw_normal(frame, main_area, app);
+    match &app.mode {
+        Mode::Triage => draw_triage(frame, main_area, app),
+        Mode::Search => draw_search(frame, main_area, app),
+        _ => draw_normal(frame, main_area, app),
     }
 
     widgets::status_bar::render(frame, status_area, app);
@@ -31,7 +34,7 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     }
 }
 
-fn draw_normal(frame: &mut Frame, area: ratatui::layout::Rect, app: &mut TuiApp) {
+fn draw_normal(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
     let panel_constraints = if app.detail_visible {
         vec![
             Constraint::Length(14),
@@ -69,8 +72,58 @@ fn draw_normal(frame: &mut Frame, area: ratatui::layout::Rect, app: &mut TuiApp)
     }
 }
 
-fn draw_triage(frame: &mut Frame, area: ratatui::layout::Rect, app: &TuiApp) {
+fn draw_triage(frame: &mut Frame, area: Rect, app: &TuiApp) {
     let progress = format!("{}/{}", app.triage_index + 1, app.triage_task_ids.len());
     let task = app.current_triage_task();
     widgets::triage::render(frame, area, task, &progress);
+}
+
+fn draw_search(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(1)])
+        .split(area);
+
+    // Search input
+    let input = Paragraph::new(Line::from(vec![
+        Span::styled("/ ", Style::default().fg(Color::Yellow)),
+        Span::styled(
+            format!("{}\u{2588}", app.search_query),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+    ]))
+    .block(
+        Block::default()
+            .borders(Borders::BOTTOM)
+            .title(format!(" Search ({} results) ", app.search_results.len())),
+    );
+    frame.render_widget(input, rows[0]);
+
+    // Results list
+    let items: Vec<ListItem> = app
+        .search_results
+        .iter()
+        .filter_map(|(task_id, queue)| {
+            let task = app.tasks.iter().find(|t| t.id == *task_id)?;
+            let line = Line::from(vec![
+                Span::styled(
+                    format!("[{:<5}] ", queue),
+                    Style::default().fg(Color::Magenta),
+                ),
+                Span::styled(format!("{:<8}", task.id), Style::default().fg(Color::Cyan)),
+                Span::raw(&task.title),
+            ]);
+            Some(ListItem::new(line))
+        })
+        .collect();
+
+    let highlight_style = Style::default()
+        .add_modifier(Modifier::BOLD)
+        .bg(Color::DarkGray);
+
+    let list = List::new(items)
+        .highlight_style(highlight_style)
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(list, rows[1], &mut app.search_list_state);
 }
