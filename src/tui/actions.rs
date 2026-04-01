@@ -48,13 +48,26 @@ pub fn move_to_queue(app: &mut TuiApp, queue: Queue) -> Result<SideEffect, AppEr
 }
 
 pub fn confirm_delete(app: &mut TuiApp) -> Result<SideEffect, AppError> {
-    let Mode::ConfirmDelete { task_id } = app.mode.clone() else {
-        return Ok(SideEffect::None);
+    let (task_id, from_triage) = match app.mode.clone() {
+        Mode::ConfirmDelete {
+            task_id,
+            from_triage,
+        } => (task_id, from_triage),
+        _ => return Ok(SideEffect::None),
     };
-    app.repo.delete(&task_id)?;
-    app.mode = Mode::Normal;
-    app.refresh()?;
-    app.set_status(format!("Deleted: {task_id}"));
+
+    if from_triage {
+        app.repo.delete(&task_id)?;
+        app.triage_summary.deleted += 1;
+        app.refresh()?;
+        app.mode = Mode::Triage;
+        app.advance_triage_or_finish();
+    } else {
+        app.repo.delete(&task_id)?;
+        app.mode = Mode::Normal;
+        app.refresh()?;
+        app.set_status(format!("Deleted: {task_id}"));
+    }
     Ok(SideEffect::None)
 }
 
@@ -72,18 +85,6 @@ pub fn triage_move(app: &mut TuiApp, queue: Queue) -> Result<SideEffect, AppErro
         app.triage_summary.record_move(queue);
     }
 
-    app.refresh()?;
-    app.advance_triage_or_finish();
-    Ok(SideEffect::None)
-}
-
-pub fn triage_delete(app: &mut TuiApp) -> Result<SideEffect, AppError> {
-    let Some(task) = app.current_triage_task() else {
-        return Ok(SideEffect::None);
-    };
-    let task_id = task.id.clone();
-    app.repo.delete(&task_id)?;
-    app.triage_summary.deleted += 1;
     app.refresh()?;
     app.advance_triage_or_finish();
     Ok(SideEffect::None)

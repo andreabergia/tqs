@@ -15,7 +15,7 @@ The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y
   - Inline task creation with `a` (title + queue selector via Tab/Shift-Tab).
   - Edit tasks in `$EDITOR` with `e` (suspends and restores the TUI).
   - Task actions: `d` done, `s` start, `m` move (then pick queue), `x` delete (with confirmation), `r` refresh.
-  - Dedicated triage mode with `t` — cycles through inbox tasks one at a time with action prompts and shows a summary on completion.
+  - Dedicated triage mode with `t` — cycles through inbox tasks one at a time using the same keybindings as normal mode (plus `Space` to skip). Shows a summary on completion.
   - Search mode with `/` — filters tasks across all queues in real-time.
   - Sidebar groups queues into sections (active / triage / archive) with visual separators.
   - "All" virtual view shows every task across all queues.

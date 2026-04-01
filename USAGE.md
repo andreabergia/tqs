@@ -71,7 +71,7 @@ The "all" view shows every task across all queues, with a `[queue]` tag on each 
 | Key | Action |
 |-----|--------|
 | `/` | Enter search mode — type to filter tasks across all queues, Enter to jump to result |
-| `t` | Enter triage mode — cycle through inbox tasks with action prompts (`n`/`x`/`l`/`d`/`D`/`s`/`e`/`q`) |
+| `t` | Enter triage mode — cycle through inbox tasks (same keys as normal mode, plus `Space` to skip) |
 | `q` / `Esc` | Quit dashboard (or exit current mode) |
 
 ## Global Options

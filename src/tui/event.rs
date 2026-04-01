@@ -24,7 +24,7 @@ pub fn handle_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppErro
         Mode::Normal => handle_normal_key(app, key),
         Mode::AddForm => handle_add_form_key(app, key),
         Mode::ConfirmDelete { .. } => handle_confirm_delete_key(app, key),
-        Mode::MoveTarget => handle_move_target_key(app, key),
+        Mode::MoveTarget { .. } => handle_move_target_key(app, key),
         Mode::Search => handle_search_key(app, key),
         Mode::Triage => handle_triage_key(app, key),
     }
@@ -76,13 +76,14 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
         KeyCode::Char('s') => return actions::start_task(app),
         KeyCode::Char('m') => {
             if app.selected_task().is_some() {
-                app.mode = Mode::MoveTarget;
+                app.mode = Mode::MoveTarget { from_triage: false };
             }
         }
         KeyCode::Char('x') => {
             if let Some(task) = app.selected_task() {
                 app.mode = Mode::ConfirmDelete {
                     task_id: task.id.clone(),
+                    from_triage: false,
                 };
             }
         }
@@ -155,7 +156,19 @@ fn handle_confirm_delete_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffe
     match key.code {
         KeyCode::Char('y') | KeyCode::Enter => actions::confirm_delete(app),
         _ => {
-            app.mode = Mode::Normal;
+            // Return to the mode we came from
+            let from_triage = matches!(
+                app.mode,
+                Mode::ConfirmDelete {
+                    from_triage: true,
+                    ..
+                }
+            );
+            app.mode = if from_triage {
+                Mode::Triage
+            } else {
+                Mode::Normal
+            };
             Ok(SideEffect::None)
         }
     }
@@ -200,13 +213,28 @@ fn handle_search_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
 
 fn handle_triage_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
     match key.code {
-        KeyCode::Char('n') => actions::triage_move(app, Queue::Now),
-        KeyCode::Char('x') => actions::triage_move(app, Queue::Next),
-        KeyCode::Char('l') => actions::triage_move(app, Queue::Later),
+        // Same keys as normal mode
         KeyCode::Char('d') => actions::triage_move(app, Queue::Done),
-        KeyCode::Char('D') => actions::triage_delete(app),
-        KeyCode::Char('s') => actions::triage_skip(app),
+        KeyCode::Char('s') => actions::triage_move(app, Queue::Now),
+        KeyCode::Char('m') => {
+            if app.current_triage_task().is_some() {
+                app.mode = Mode::MoveTarget { from_triage: true };
+            }
+            Ok(SideEffect::None)
+        }
+        KeyCode::Char('x') => {
+            if let Some(task) = app.current_triage_task() {
+                app.mode = Mode::ConfirmDelete {
+                    task_id: task.id.clone(),
+                    from_triage: true,
+                };
+            }
+            Ok(SideEffect::None)
+        }
         KeyCode::Char('e') => actions::triage_edit(app),
+
+        // Triage-specific
+        KeyCode::Char(' ') => actions::triage_skip(app),
         KeyCode::Char('q') | KeyCode::Esc => {
             let summary = app.triage_summary.format();
             app.mode = Mode::Normal;
@@ -218,16 +246,34 @@ fn handle_triage_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
 }
 
 fn handle_move_target_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
+    let from_triage = matches!(app.mode, Mode::MoveTarget { from_triage: true });
+
     let result = match key.code {
-        KeyCode::Char('i') | KeyCode::Char('1') => actions::move_to_queue(app, Queue::Inbox),
-        KeyCode::Char('n') | KeyCode::Char('2') => actions::move_to_queue(app, Queue::Now),
-        KeyCode::Char('x') | KeyCode::Char('3') => actions::move_to_queue(app, Queue::Next),
-        KeyCode::Char('l') | KeyCode::Char('4') => actions::move_to_queue(app, Queue::Later),
+        KeyCode::Char('i') | KeyCode::Char('1') => do_move(app, Queue::Inbox, from_triage),
+        KeyCode::Char('n') | KeyCode::Char('2') => do_move(app, Queue::Now, from_triage),
+        KeyCode::Char('x') | KeyCode::Char('3') => do_move(app, Queue::Next, from_triage),
+        KeyCode::Char('l') | KeyCode::Char('4') => do_move(app, Queue::Later, from_triage),
         _ => {
-            app.mode = Mode::Normal;
+            app.mode = if from_triage {
+                Mode::Triage
+            } else {
+                Mode::Normal
+            };
             return Ok(SideEffect::None);
         }
     };
-    app.mode = Mode::Normal;
+    app.mode = if from_triage {
+        Mode::Triage
+    } else {
+        Mode::Normal
+    };
     result
+}
+
+fn do_move(app: &mut TuiApp, queue: Queue, from_triage: bool) -> Result<SideEffect, AppError> {
+    if from_triage {
+        actions::triage_move(app, queue)
+    } else {
+        actions::move_to_queue(app, queue)
+    }
 }

@@ -12,8 +12,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp) {
     let line = match &app.mode {
         Mode::Normal => normal_line(app),
         Mode::AddForm | Mode::Triage | Mode::Search => return, // these modes have their own hints
-        Mode::ConfirmDelete { task_id } => confirm_delete_line(task_id),
-        Mode::MoveTarget => move_target_line(),
+        Mode::ConfirmDelete { task_id, .. } => confirm_delete_line(task_id),
+        Mode::MoveTarget { .. } => move_target_line(),
     };
 
     let bar = Paragraph::new(line);

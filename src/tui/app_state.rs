@@ -76,8 +76,8 @@ impl FocusedPanel {
 pub enum Mode {
     Normal,
     AddForm,
-    ConfirmDelete { task_id: String },
-    MoveTarget,
+    ConfirmDelete { task_id: String, from_triage: bool },
+    MoveTarget { from_triage: bool },
     Search,
     Triage,
 }

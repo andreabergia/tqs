@@ -48,21 +48,19 @@ pub fn render(frame: &mut Frame, area: Rect, task: Option<&Task>, progress: &str
     let body = Paragraph::new(body_lines).wrap(Wrap { trim: false });
     frame.render_widget(body, rows[1]);
 
-    // Action hints
+    // Action hints — same keys as normal mode, plus Space to skip
     let hints = Line::from(vec![
-        Span::styled("n", Style::default().fg(Color::Yellow)),
-        Span::raw(":now "),
-        Span::styled("x", Style::default().fg(Color::Yellow)),
-        Span::raw(":next "),
-        Span::styled("l", Style::default().fg(Color::Yellow)),
-        Span::raw(":later "),
         Span::styled("d", Style::default().fg(Color::Yellow)),
         Span::raw(":done "),
-        Span::styled("D", Style::default().fg(Color::Yellow)),
-        Span::raw(":delete "),
+        Span::styled("s", Style::default().fg(Color::Yellow)),
+        Span::raw(":start "),
+        Span::styled("m", Style::default().fg(Color::Yellow)),
+        Span::raw(":move "),
+        Span::styled("x", Style::default().fg(Color::Yellow)),
+        Span::raw(":del "),
         Span::styled("e", Style::default().fg(Color::Yellow)),
         Span::raw(":edit "),
-        Span::styled("s", Style::default().fg(Color::Yellow)),
+        Span::styled("Space", Style::default().fg(Color::Yellow)),
         Span::raw(":skip "),
         Span::styled("q", Style::default().fg(Color::Yellow)),
         Span::raw(":quit"),
