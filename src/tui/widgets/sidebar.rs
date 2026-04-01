@@ -10,6 +10,7 @@ use super::panel_border_style;
 use crate::tui::app_state::{SidebarEntry, TuiApp};
 
 pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp, focused: bool) {
+    let counts = app.queue_counts();
     let items: Vec<ListItem> = app
         .sidebar_entries()
         .iter()
@@ -20,14 +21,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp, focused: bool) {
                 Style::default().fg(Color::DarkGray),
             ))),
             SidebarEntry::Queue(queue) => {
-                let count = app.queue_count(*queue);
                 let is_active = i == app.active_sidebar_index;
-                queue_item(&queue.to_string(), count, is_active)
+                queue_item(&queue.to_string(), counts.get(*queue), is_active)
             }
             SidebarEntry::All => {
-                let count = app.total_count();
                 let is_active = i == app.active_sidebar_index;
-                queue_item("all", count, is_active)
+                queue_item("all", counts.total, is_active)
             }
         })
         .collect();

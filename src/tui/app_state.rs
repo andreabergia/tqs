@@ -44,6 +44,24 @@ impl fmt::Display for QueueFilter {
     }
 }
 
+pub struct QueueCounts {
+    counts: [usize; 5],
+    pub total: usize,
+}
+
+impl QueueCounts {
+    pub fn get(&self, queue: Queue) -> usize {
+        let idx = match queue {
+            Queue::Inbox => 0,
+            Queue::Now => 1,
+            Queue::Next => 2,
+            Queue::Later => 3,
+            Queue::Done => 4,
+        };
+        self.counts[idx]
+    }
+}
+
 /// How long status messages stay visible.
 const STATUS_MESSAGE_TTL_SECS: u64 = 3;
 
@@ -175,12 +193,22 @@ impl TuiApp {
         }
     }
 
-    pub fn queue_count(&self, queue: Queue) -> usize {
-        self.tasks.iter().filter(|t| t.queue == queue).count()
-    }
-
-    pub fn total_count(&self) -> usize {
-        self.tasks.len()
+    pub fn queue_counts(&self) -> QueueCounts {
+        let mut counts = [0usize; 5];
+        for task in &self.tasks {
+            let idx = match task.queue {
+                Queue::Inbox => 0,
+                Queue::Now => 1,
+                Queue::Next => 2,
+                Queue::Later => 3,
+                Queue::Done => 4,
+            };
+            counts[idx] += 1;
+        }
+        QueueCounts {
+            counts,
+            total: self.tasks.len(),
+        }
     }
 
     pub fn current_queue_tasks(&self) -> Vec<&Task> {
