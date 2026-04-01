@@ -45,7 +45,12 @@ fn handle_default(root: Option<std::path::PathBuf>, no_tui: bool) -> Result<(), 
         crate::tui::run(resolved, repo)?;
     } else {
         let tasks = repo.list()?;
-        output::print_dashboard(&tasks);
+        if tasks.is_empty() {
+            let inspection = config::inspect(None)?;
+            output::print_getting_started(inspection.config_path.as_deref());
+        } else {
+            output::print_dashboard(&tasks);
+        }
     }
 
     Ok(())
@@ -70,7 +75,7 @@ mod tests {
     }
 
     #[test]
-    fn handle_shows_dashboard_when_no_command_and_no_tasks() {
+    fn handle_shows_getting_started_when_no_command_and_no_tasks() {
         let mut env = LockedEnv::new(&["XDG_CONFIG_HOME", "TQS_ROOT"]);
         let temp = TempDir::new().expect("temp dir should exist");
         env.set("TQS_ROOT", temp.path().as_os_str());
