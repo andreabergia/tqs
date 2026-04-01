@@ -22,65 +22,12 @@ enum TriageOutcome {
     Quit,
 }
 
-struct TriageSummary {
-    moved_now: u32,
-    moved_next: u32,
-    moved_later: u32,
-    moved_done: u32,
-    deleted: u32,
-    skipped: u32,
-}
-
-impl TriageSummary {
-    fn new() -> Self {
-        Self {
-            moved_now: 0,
-            moved_next: 0,
-            moved_later: 0,
-            moved_done: 0,
-            deleted: 0,
-            skipped: 0,
-        }
-    }
-
-    fn record(&mut self, outcome: &TriageOutcome) {
-        match outcome {
-            TriageOutcome::Moved(Queue::Now) => self.moved_now += 1,
-            TriageOutcome::Moved(Queue::Next) => self.moved_next += 1,
-            TriageOutcome::Moved(Queue::Later) => self.moved_later += 1,
-            TriageOutcome::Moved(Queue::Done) => self.moved_done += 1,
-            TriageOutcome::Moved(_) => {}
-            TriageOutcome::Deleted => self.deleted += 1,
-            TriageOutcome::Skipped => self.skipped += 1,
-            TriageOutcome::Quit => {}
-        }
-    }
-
-    fn print(&self) {
-        let mut parts = Vec::new();
-        if self.moved_now > 0 {
-            parts.push(format!("{} to now", self.moved_now));
-        }
-        if self.moved_next > 0 {
-            parts.push(format!("{} to next", self.moved_next));
-        }
-        if self.moved_later > 0 {
-            parts.push(format!("{} to later", self.moved_later));
-        }
-        if self.moved_done > 0 {
-            parts.push(format!("{} done", self.moved_done));
-        }
-        if self.deleted > 0 {
-            parts.push(format!("{} deleted", self.deleted));
-        }
-        if self.skipped > 0 {
-            parts.push(format!("{} skipped", self.skipped));
-        }
-        if parts.is_empty() {
-            return;
-        }
-        println!();
-        output::print_info(&parts.join(", "));
+fn record_outcome(summary: &mut operations::TriageSummary, outcome: &TriageOutcome) {
+    match outcome {
+        TriageOutcome::Moved(queue) => summary.record_move(*queue),
+        TriageOutcome::Deleted => summary.deleted += 1,
+        TriageOutcome::Skipped => summary.skipped += 1,
+        TriageOutcome::Quit => {}
     }
 }
 
@@ -105,18 +52,21 @@ pub fn handle_triage(_: Triage, root: Option<PathBuf>) -> Result<(), AppError> {
     );
     println!();
 
-    let mut summary = TriageSummary::new();
+    let mut summary = operations::TriageSummary::default();
     let task_ids: Vec<String> = inbox_tasks.iter().map(|t| t.id.clone()).collect();
     for task_id in &task_ids {
         let outcome = triage_one_task(task_id, &repo, &resolved)?;
         let quit = matches!(outcome, TriageOutcome::Quit);
-        summary.record(&outcome);
+        record_outcome(&mut summary, &outcome);
         if quit {
             break;
         }
     }
 
-    summary.print();
+    if !summary.is_empty() {
+        println!();
+        output::print_info(&summary.to_string());
+    }
     Ok(())
 }
 

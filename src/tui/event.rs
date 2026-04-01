@@ -236,7 +236,7 @@ fn handle_triage_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
         // Triage-specific
         KeyCode::Char(' ') => actions::triage_skip(app),
         KeyCode::Char('q') | KeyCode::Esc => {
-            let summary = app.triage_summary.format();
+            let summary = app.triage_summary.to_string();
             app.mode = Mode::Normal;
             app.set_status(format!("Triage: {summary}"));
             Ok(SideEffect::None)

@@ -82,54 +82,7 @@ pub enum Mode {
     Triage,
 }
 
-#[derive(Debug, Default)]
-pub struct TriageSummary {
-    pub moved_now: u32,
-    pub moved_next: u32,
-    pub moved_later: u32,
-    pub moved_done: u32,
-    pub deleted: u32,
-    pub skipped: u32,
-}
-
-impl TriageSummary {
-    pub fn record_move(&mut self, queue: Queue) {
-        match queue {
-            Queue::Now => self.moved_now += 1,
-            Queue::Next => self.moved_next += 1,
-            Queue::Later => self.moved_later += 1,
-            Queue::Done => self.moved_done += 1,
-            Queue::Inbox => {}
-        }
-    }
-
-    pub fn format(&self) -> String {
-        let mut parts = Vec::new();
-        if self.moved_now > 0 {
-            parts.push(format!("{} to now", self.moved_now));
-        }
-        if self.moved_next > 0 {
-            parts.push(format!("{} to next", self.moved_next));
-        }
-        if self.moved_later > 0 {
-            parts.push(format!("{} to later", self.moved_later));
-        }
-        if self.moved_done > 0 {
-            parts.push(format!("{} done", self.moved_done));
-        }
-        if self.deleted > 0 {
-            parts.push(format!("{} deleted", self.deleted));
-        }
-        if self.skipped > 0 {
-            parts.push(format!("{} skipped", self.skipped));
-        }
-        if parts.is_empty() {
-            "No changes".to_string()
-        } else {
-            parts.join(", ")
-        }
-    }
-}
+pub use crate::app::operations::TriageSummary;
 
 pub struct TuiApp {
     pub config: ResolvedConfig,
@@ -355,7 +308,7 @@ impl TuiApp {
     pub fn advance_triage_or_finish(&mut self) {
         self.triage_index += 1;
         if self.triage_index >= self.triage_task_ids.len() {
-            let summary = self.triage_summary.format();
+            let summary = self.triage_summary.to_string();
             self.mode = Mode::Normal;
             self.set_status(format!("Triage: {summary}"));
         }
