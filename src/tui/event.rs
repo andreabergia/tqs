@@ -275,3 +275,224 @@ fn do_move(app: &mut TuiApp, queue: Queue, from_triage: bool) -> Result<SideEffe
         actions::move_to_queue(app, queue)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::task::Task;
+    use crate::storage::config::{QueueDirs, ResolvedConfig};
+    use crate::storage::repo::TaskRepo;
+    use chrono::Utc;
+    use tempfile::TempDir;
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    fn test_app(temp: &TempDir) -> TuiApp {
+        let root = temp.path().to_path_buf();
+        let config = ResolvedConfig {
+            obsidian_vault_dir: None,
+            tasks_root: root.clone(),
+            state_dir: root.join(".tqs"),
+            daily_notes_dir: None,
+            queue_dirs: QueueDirs::default(),
+        };
+        let repo = TaskRepo::new(root, QueueDirs::default());
+        TuiApp::new(config, repo).unwrap()
+    }
+
+    fn test_app_with_task(temp: &TempDir) -> TuiApp {
+        let root = temp.path().to_path_buf();
+        let config = ResolvedConfig {
+            obsidian_vault_dir: None,
+            tasks_root: root.clone(),
+            state_dir: root.join(".tqs"),
+            daily_notes_dir: None,
+            queue_dirs: QueueDirs::default(),
+        };
+        let repo = TaskRepo::new(root, QueueDirs::default());
+        let mut task = Task::new("abc".to_string(), "Test task", Utc::now());
+        task.queue = Queue::Now;
+        repo.create(&task).unwrap();
+        TuiApp::new(config, repo).unwrap()
+    }
+
+    #[test]
+    fn q_quits() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        let result = handle_key(&mut app, key(KeyCode::Char('q'))).unwrap();
+        assert!(matches!(result, SideEffect::Quit));
+    }
+
+    #[test]
+    fn esc_quits() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        let result = handle_key(&mut app, key(KeyCode::Esc)).unwrap();
+        assert!(matches!(result, SideEffect::Quit));
+    }
+
+    #[test]
+    fn h_l_navigate_panels() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        app.focused_panel = FocusedPanel::TaskList;
+
+        handle_key(&mut app, key(KeyCode::Char('h'))).unwrap();
+        assert_eq!(app.focused_panel, FocusedPanel::Sidebar);
+
+        handle_key(&mut app, key(KeyCode::Char('l'))).unwrap();
+        assert_eq!(app.focused_panel, FocusedPanel::TaskList);
+
+        handle_key(&mut app, key(KeyCode::Char('l'))).unwrap();
+        assert_eq!(app.focused_panel, FocusedPanel::Detail);
+
+        // Should not go past rightmost panel
+        handle_key(&mut app, key(KeyCode::Char('l'))).unwrap();
+        assert_eq!(app.focused_panel, FocusedPanel::Detail);
+    }
+
+    #[test]
+    fn a_enters_add_form() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        handle_key(&mut app, key(KeyCode::Char('a'))).unwrap();
+        assert_eq!(app.mode, Mode::AddForm);
+    }
+
+    #[test]
+    fn add_form_esc_cancels() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        app.mode = Mode::AddForm;
+        app.add_title = "partial".to_string();
+
+        handle_key(&mut app, key(KeyCode::Esc)).unwrap();
+        assert_eq!(app.mode, Mode::Normal);
+        assert!(app.add_title.is_empty());
+    }
+
+    #[test]
+    fn add_form_typing_appends_chars() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        app.mode = Mode::AddForm;
+
+        handle_key(&mut app, key(KeyCode::Char('H'))).unwrap();
+        handle_key(&mut app, key(KeyCode::Char('i'))).unwrap();
+        assert_eq!(app.add_title, "Hi");
+
+        handle_key(&mut app, key(KeyCode::Backspace)).unwrap();
+        assert_eq!(app.add_title, "H");
+    }
+
+    #[test]
+    fn slash_enters_search() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        handle_key(&mut app, key(KeyCode::Char('/'))).unwrap();
+        assert_eq!(app.mode, Mode::Search);
+    }
+
+    #[test]
+    fn search_esc_returns_to_normal() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        app.mode = Mode::Search;
+        handle_key(&mut app, key(KeyCode::Esc)).unwrap();
+        assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn search_typing_updates_query() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app_with_task(&temp);
+        app.mode = Mode::Search;
+
+        handle_key(&mut app, key(KeyCode::Char('T'))).unwrap();
+        assert_eq!(app.search_query, "T");
+        assert!(!app.search_results.is_empty());
+    }
+
+    #[test]
+    fn e_suspends_for_editor_when_task_selected() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app_with_task(&temp);
+        // Task list should have a task selected by default
+        let result = handle_key(&mut app, key(KeyCode::Char('e'))).unwrap();
+        assert!(matches!(result, SideEffect::SuspendForEditor { .. }));
+    }
+
+    #[test]
+    fn x_enters_confirm_delete() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app_with_task(&temp);
+        handle_key(&mut app, key(KeyCode::Char('x'))).unwrap();
+        assert!(matches!(app.mode, Mode::ConfirmDelete { .. }));
+    }
+
+    #[test]
+    fn confirm_delete_cancel_returns_to_normal() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app_with_task(&temp);
+        app.mode = Mode::ConfirmDelete {
+            task_id: "abc".to_string(),
+            from_triage: false,
+        };
+
+        handle_key(&mut app, key(KeyCode::Char('n'))).unwrap();
+        assert_eq!(app.mode, Mode::Normal);
+    }
+
+    #[test]
+    fn m_enters_move_target() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app_with_task(&temp);
+        handle_key(&mut app, key(KeyCode::Char('m'))).unwrap();
+        assert!(matches!(app.mode, Mode::MoveTarget { .. }));
+    }
+
+    #[test]
+    fn move_target_n_moves_to_now() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app_with_task(&temp);
+        app.mode = Mode::MoveTarget { from_triage: false };
+
+        handle_key(&mut app, key(KeyCode::Char('n'))).unwrap();
+        assert_eq!(app.mode, Mode::Normal);
+
+        // Task should have moved to now queue
+        let tasks: Vec<_> = app.tasks.iter().filter(|t| t.queue == Queue::Now).collect();
+        assert_eq!(tasks.len(), 1);
+    }
+
+    #[test]
+    fn j_scrolls_detail_when_detail_focused() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        app.focused_panel = FocusedPanel::Detail;
+        app.detail_scroll = 0;
+
+        handle_key(&mut app, key(KeyCode::Char('j'))).unwrap();
+        assert_eq!(app.detail_scroll, 1);
+
+        handle_key(&mut app, key(KeyCode::Char('k'))).unwrap();
+        assert_eq!(app.detail_scroll, 0);
+
+        // Should not underflow
+        handle_key(&mut app, key(KeyCode::Char('k'))).unwrap();
+        assert_eq!(app.detail_scroll, 0);
+    }
+
+    #[test]
+    fn tab_cycles_queues() {
+        let temp = TempDir::new().unwrap();
+        let mut app = test_app(&temp);
+        let initial = app.active_sidebar_index;
+
+        handle_key(&mut app, key(KeyCode::Tab)).unwrap();
+        assert_ne!(app.active_sidebar_index, initial);
+    }
+}
