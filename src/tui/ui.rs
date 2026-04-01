@@ -55,26 +55,21 @@ fn draw_normal(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
     widgets::sidebar::render(frame, sidebar_area, app, focused == FocusedPanel::Sidebar);
 
     let filter = app.active_filter();
-    let tasks: Vec<_> = match filter {
-        super::app_state::QueueFilter::Single(queue) => {
-            app.tasks.iter().filter(|t| t.queue == queue).collect()
-        }
-        super::app_state::QueueFilter::All => app.tasks.iter().collect(),
-    };
+    let tasks = app.current_queue_tasks();
+    let selected_index = app.task_list_state.selected();
+    let selected_task = selected_index.and_then(|i| tasks.get(i).copied()).cloned();
     widgets::task_list::render(
         frame,
         task_list_area,
         filter,
         &tasks,
-        &mut app.task_list_state,
+        selected_index,
         focused == FocusedPanel::TaskList,
     );
-
-    let selected = app.selected_task().cloned();
     widgets::detail::render(
         frame,
         detail_area,
-        selected.as_ref(),
+        selected_task.as_ref(),
         app.detail_scroll,
         focused == FocusedPanel::Detail,
     );

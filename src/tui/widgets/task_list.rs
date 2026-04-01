@@ -15,7 +15,7 @@ pub fn render(
     area: Rect,
     filter: QueueFilter,
     tasks: &[&Task],
-    state: &mut ListState,
+    selected: Option<usize>,
     focused: bool,
 ) {
     let title = match filter {
@@ -58,5 +58,6 @@ pub fn render(
         .highlight_style(highlight_style)
         .highlight_symbol("> ");
 
-    frame.render_stateful_widget(list, area, state);
+    let mut state = ListState::default().with_selected(selected);
+    frame.render_stateful_widget(list, area, &mut state);
 }
