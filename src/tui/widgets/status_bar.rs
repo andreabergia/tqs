@@ -11,7 +11,7 @@ use crate::tui::app_state::{Mode, TuiApp};
 pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp) {
     let line = match &app.mode {
         Mode::Normal => normal_line(app, area.width),
-        Mode::AddForm | Mode::Triage | Mode::Search => return, // these modes have their own hints
+        Mode::AddForm { .. } | Mode::Triage | Mode::Search { .. } => return,
         Mode::ConfirmDelete { task_id, .. } => confirm_delete_line(task_id),
         Mode::MoveTarget { .. } => move_target_line(),
     };

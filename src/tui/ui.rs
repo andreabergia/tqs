@@ -22,7 +22,7 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
 
     if is_triage_context(&app.mode) {
         draw_triage(frame, main_area, app);
-    } else if app.mode == Mode::Search {
+    } else if matches!(app.mode, Mode::Search { .. }) {
         draw_search(frame, main_area, app);
     } else {
         draw_normal(frame, main_area, app);
@@ -31,8 +31,8 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     widgets::status_bar::render(frame, status_area, app);
 
     // Overlay: add form
-    if app.mode == Mode::AddForm {
-        widgets::add_form::render(frame, &app.add_title, app.add_queue);
+    if let Mode::AddForm { title, queue } = &app.mode {
+        widgets::add_form::render(frame, title, *queue);
     }
 }
 
@@ -66,6 +66,7 @@ fn draw_normal(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
         selected_index,
         focused == FocusedPanel::TaskList,
     );
+
     widgets::detail::render(
         frame,
         detail_area,
@@ -76,12 +77,21 @@ fn draw_normal(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
 }
 
 fn draw_triage(frame: &mut Frame, area: Rect, app: &TuiApp) {
-    let progress = format!("{}/{}", app.triage_index + 1, app.triage_task_ids.len());
+    let progress = format!("{}/{}", app.triage.index + 1, app.triage.task_ids.len());
     let task = app.current_triage_task();
     widgets::triage::render(frame, area, task, &progress);
 }
 
 fn draw_search(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
+    let Mode::Search {
+        query,
+        results,
+        list_state,
+    } = &mut app.mode
+    else {
+        return;
+    };
+
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(1)])
@@ -91,20 +101,19 @@ fn draw_search(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
     let input = Paragraph::new(Line::from(vec![
         Span::styled("/ ", Style::default().fg(Color::Yellow)),
         Span::styled(
-            format!("{}\u{2588}", app.search_query),
+            format!("{}\u{2588}", query),
             Style::default().add_modifier(Modifier::BOLD),
         ),
     ]))
     .block(
         Block::default()
             .borders(Borders::BOTTOM)
-            .title(format!(" Search ({} results) ", app.search_results.len())),
+            .title(format!(" Search ({} results) ", results.len())),
     );
     frame.render_widget(input, rows[0]);
 
     // Results list
-    let items: Vec<ListItem> = app
-        .search_results
+    let items: Vec<ListItem> = results
         .iter()
         .filter_map(|(task_id, queue)| {
             let task = app.tasks.iter().find(|t| t.id == *task_id)?;
@@ -128,7 +137,7 @@ fn draw_search(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
         .highlight_style(highlight_style)
         .highlight_symbol("> ");
 
-    frame.render_stateful_widget(list, rows[1], &mut app.search_list_state);
+    frame.render_stateful_widget(list, rows[1], list_state);
 }
 
 fn is_triage_context(mode: &Mode) -> bool {

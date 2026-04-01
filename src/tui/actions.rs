@@ -48,17 +48,17 @@ pub fn move_to_queue(app: &mut TuiApp, queue: Queue) -> Result<SideEffect, AppEr
 }
 
 pub fn confirm_delete(app: &mut TuiApp) -> Result<SideEffect, AppError> {
-    let (task_id, from_triage) = match app.mode.clone() {
+    let (task_id, from_triage) = match &app.mode {
         Mode::ConfirmDelete {
             task_id,
             from_triage,
-        } => (task_id, from_triage),
+        } => (task_id.clone(), *from_triage),
         _ => return Ok(SideEffect::None),
     };
 
     if from_triage {
         app.repo.delete(&task_id)?;
-        app.triage_summary.deleted += 1;
+        app.triage.summary.deleted += 1;
         app.refresh()?;
         app.mode = Mode::Triage;
         app.advance_triage_or_finish();
@@ -79,10 +79,10 @@ pub fn triage_move(app: &mut TuiApp, queue: Queue) -> Result<SideEffect, AppErro
 
     if queue == Queue::Done {
         operations::mark_done(&app.repo, &app.config, &task_id)?;
-        app.triage_summary.record_move(Queue::Done);
+        app.triage.summary.record_move(Queue::Done);
     } else {
         app.repo.move_to_queue(&task_id, queue, Utc::now())?;
-        app.triage_summary.record_move(queue);
+        app.triage.summary.record_move(queue);
     }
 
     app.refresh()?;
@@ -91,7 +91,7 @@ pub fn triage_move(app: &mut TuiApp, queue: Queue) -> Result<SideEffect, AppErro
 }
 
 pub fn triage_skip(app: &mut TuiApp) -> Result<SideEffect, AppError> {
-    app.triage_summary.skipped += 1;
+    app.triage.summary.skipped += 1;
     app.advance_triage_or_finish();
     Ok(SideEffect::None)
 }
@@ -106,7 +106,11 @@ pub fn triage_edit(app: &mut TuiApp) -> Result<SideEffect, AppError> {
 }
 
 pub fn submit_add_form(app: &mut TuiApp) -> Result<SideEffect, AppError> {
-    let title = app.add_title.trim().to_string();
+    let (title, queue) = match &app.mode {
+        Mode::AddForm { title, queue } => (title.trim().to_string(), *queue),
+        _ => return Ok(SideEffect::None),
+    };
+
     if title.is_empty() {
         app.mode = Mode::Normal;
         return Ok(SideEffect::None);
@@ -115,12 +119,10 @@ pub fn submit_add_form(app: &mut TuiApp) -> Result<SideEffect, AppError> {
     let allocator = SharedIdAllocator::new(&app.config);
     let id = allocator.generate(&app.repo)?;
     let mut task = Task::new(id, &title, Utc::now());
-    task.queue = app.add_queue;
+    task.queue = queue;
     app.repo.create(&task)?;
 
     app.mode = Mode::Normal;
-    app.add_title.clear();
-    app.add_queue = Queue::Inbox;
     app.refresh()?;
     app.set_status(format!("Added: {title}"));
     Ok(SideEffect::None)

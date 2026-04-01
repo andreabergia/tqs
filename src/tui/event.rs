@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
+use ratatui::widgets::ListState;
 
 use crate::app::app_error::AppError;
 use crate::domain::task::Queue;
@@ -22,10 +23,10 @@ pub fn poll_event(timeout: Duration) -> std::io::Result<Option<Event>> {
 pub fn handle_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
     match &app.mode {
         Mode::Normal => handle_normal_key(app, key),
-        Mode::AddForm => handle_add_form_key(app, key),
+        Mode::AddForm { .. } => handle_add_form_key(app, key),
         Mode::ConfirmDelete { .. } => handle_confirm_delete_key(app, key),
         Mode::MoveTarget { .. } => handle_move_target_key(app, key),
-        Mode::Search => handle_search_key(app, key),
+        Mode::Search { .. } => handle_search_key(app, key),
         Mode::Triage => handle_triage_key(app, key),
     }
 }
@@ -90,10 +91,11 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
 
         // Search
         KeyCode::Char('/') => {
-            app.search_query.clear();
-            app.search_results.clear();
-            app.search_list_state.select(None);
-            app.mode = Mode::Search;
+            app.mode = Mode::Search {
+                query: String::new(),
+                results: Vec::new(),
+                list_state: ListState::default(),
+            };
             app.update_search_results();
         }
 
@@ -102,8 +104,10 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
 
         // Add task
         KeyCode::Char('a') => {
-            app.add_title.clear();
-            app.mode = Mode::AddForm;
+            app.mode = Mode::AddForm {
+                title: String::new(),
+                queue: Queue::Inbox,
+            };
         }
 
         // Edit in $EDITOR
@@ -133,19 +137,26 @@ fn handle_add_form_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, Ap
         KeyCode::Enter => return actions::submit_add_form(app),
         KeyCode::Esc => {
             app.mode = Mode::Normal;
-            app.add_title.clear();
         }
         KeyCode::Tab => {
-            app.add_queue = add_form::cycle_queue(app.add_queue);
+            if let Mode::AddForm { queue, .. } = &mut app.mode {
+                *queue = add_form::cycle_queue(*queue);
+            }
         }
         KeyCode::BackTab => {
-            app.add_queue = add_form::cycle_queue_back(app.add_queue);
+            if let Mode::AddForm { queue, .. } = &mut app.mode {
+                *queue = add_form::cycle_queue_back(*queue);
+            }
         }
         KeyCode::Backspace => {
-            app.add_title.pop();
+            if let Mode::AddForm { title, .. } = &mut app.mode {
+                title.pop();
+            }
         }
         KeyCode::Char(c) => {
-            app.add_title.push(c);
+            if let Mode::AddForm { title, .. } = &mut app.mode {
+                title.push(c);
+            }
         }
         _ => {}
     }
@@ -156,7 +167,6 @@ fn handle_confirm_delete_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffe
     match key.code {
         KeyCode::Char('y') | KeyCode::Enter => actions::confirm_delete(app),
         _ => {
-            // Return to the mode we came from
             let from_triage = matches!(
                 app.mode,
                 Mode::ConfirmDelete {
@@ -183,27 +193,45 @@ fn handle_search_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
             app.select_search_result();
         }
         KeyCode::Down | KeyCode::Tab => {
-            let count = app.search_results.len();
-            if count > 0 {
-                let current = app.search_list_state.selected().unwrap_or(0);
-                let next = if current + 1 >= count { 0 } else { current + 1 };
-                app.search_list_state.select(Some(next));
+            if let Mode::Search {
+                results,
+                list_state,
+                ..
+            } = &mut app.mode
+            {
+                let count = results.len();
+                if count > 0 {
+                    let current = list_state.selected().unwrap_or(0);
+                    let next = if current + 1 >= count { 0 } else { current + 1 };
+                    list_state.select(Some(next));
+                }
             }
         }
         KeyCode::Up | KeyCode::BackTab => {
-            let count = app.search_results.len();
-            if count > 0 {
-                let current = app.search_list_state.selected().unwrap_or(0);
-                let prev = if current == 0 { count - 1 } else { current - 1 };
-                app.search_list_state.select(Some(prev));
+            if let Mode::Search {
+                results,
+                list_state,
+                ..
+            } = &mut app.mode
+            {
+                let count = results.len();
+                if count > 0 {
+                    let current = list_state.selected().unwrap_or(0);
+                    let prev = if current == 0 { count - 1 } else { current - 1 };
+                    list_state.select(Some(prev));
+                }
             }
         }
         KeyCode::Backspace => {
-            app.search_query.pop();
+            if let Mode::Search { query, .. } = &mut app.mode {
+                query.pop();
+            }
             app.update_search_results();
         }
         KeyCode::Char(c) => {
-            app.search_query.push(c);
+            if let Mode::Search { query, .. } = &mut app.mode {
+                query.push(c);
+            }
             app.update_search_results();
         }
         _ => {}
@@ -236,7 +264,7 @@ fn handle_triage_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
         // Triage-specific
         KeyCode::Char(' ') => actions::triage_skip(app),
         KeyCode::Char('q') | KeyCode::Esc => {
-            let summary = app.triage_summary.to_string();
+            let summary = app.triage.summary.to_string();
             app.mode = Mode::Normal;
             app.set_status(format!("Triage: {summary}"));
             Ok(SideEffect::None)
@@ -268,7 +296,6 @@ fn handle_move_target_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect,
 fn do_move(app: &mut TuiApp, queue: Queue, from_triage: bool) -> Result<SideEffect, AppError> {
     if from_triage {
         app.mode = Mode::Triage;
-        // triage_move -> advance_triage_or_finish may override to Normal if done
         actions::triage_move(app, queue)
     } else {
         app.mode = Mode::Normal;
@@ -359,33 +386,43 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let mut app = test_app(&temp);
         handle_key(&mut app, key(KeyCode::Char('a'))).unwrap();
-        assert_eq!(app.mode, Mode::AddForm);
+        assert!(matches!(app.mode, Mode::AddForm { .. }));
     }
 
     #[test]
     fn add_form_esc_cancels() {
         let temp = TempDir::new().unwrap();
         let mut app = test_app(&temp);
-        app.mode = Mode::AddForm;
-        app.add_title = "partial".to_string();
+        app.mode = Mode::AddForm {
+            title: "partial".to_string(),
+            queue: Queue::Inbox,
+        };
 
         handle_key(&mut app, key(KeyCode::Esc)).unwrap();
-        assert_eq!(app.mode, Mode::Normal);
-        assert!(app.add_title.is_empty());
+        assert!(matches!(app.mode, Mode::Normal));
     }
 
     #[test]
     fn add_form_typing_appends_chars() {
         let temp = TempDir::new().unwrap();
         let mut app = test_app(&temp);
-        app.mode = Mode::AddForm;
+        app.mode = Mode::AddForm {
+            title: String::new(),
+            queue: Queue::Inbox,
+        };
 
         handle_key(&mut app, key(KeyCode::Char('H'))).unwrap();
         handle_key(&mut app, key(KeyCode::Char('i'))).unwrap();
-        assert_eq!(app.add_title, "Hi");
+        assert!(matches!(
+            &app.mode,
+            Mode::AddForm { title, .. } if title == "Hi"
+        ));
 
         handle_key(&mut app, key(KeyCode::Backspace)).unwrap();
-        assert_eq!(app.add_title, "H");
+        assert!(matches!(
+            &app.mode,
+            Mode::AddForm { title, .. } if title == "H"
+        ));
     }
 
     #[test]
@@ -393,34 +430,43 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let mut app = test_app(&temp);
         handle_key(&mut app, key(KeyCode::Char('/'))).unwrap();
-        assert_eq!(app.mode, Mode::Search);
+        assert!(matches!(app.mode, Mode::Search { .. }));
     }
 
     #[test]
     fn search_esc_returns_to_normal() {
         let temp = TempDir::new().unwrap();
         let mut app = test_app(&temp);
-        app.mode = Mode::Search;
+        app.mode = Mode::Search {
+            query: String::new(),
+            results: Vec::new(),
+            list_state: ListState::default(),
+        };
         handle_key(&mut app, key(KeyCode::Esc)).unwrap();
-        assert_eq!(app.mode, Mode::Normal);
+        assert!(matches!(app.mode, Mode::Normal));
     }
 
     #[test]
     fn search_typing_updates_query() {
         let temp = TempDir::new().unwrap();
         let mut app = test_app_with_task(&temp);
-        app.mode = Mode::Search;
+        app.mode = Mode::Search {
+            query: String::new(),
+            results: Vec::new(),
+            list_state: ListState::default(),
+        };
 
         handle_key(&mut app, key(KeyCode::Char('T'))).unwrap();
-        assert_eq!(app.search_query, "T");
-        assert!(!app.search_results.is_empty());
+        assert!(matches!(
+            &app.mode,
+            Mode::Search { query, results, .. } if query == "T" && !results.is_empty()
+        ));
     }
 
     #[test]
     fn e_suspends_for_editor_when_task_selected() {
         let temp = TempDir::new().unwrap();
         let mut app = test_app_with_task(&temp);
-        // Task list should have a task selected by default
         let result = handle_key(&mut app, key(KeyCode::Char('e'))).unwrap();
         assert!(matches!(result, SideEffect::SuspendForEditor { .. }));
     }
@@ -443,7 +489,7 @@ mod tests {
         };
 
         handle_key(&mut app, key(KeyCode::Char('n'))).unwrap();
-        assert_eq!(app.mode, Mode::Normal);
+        assert!(matches!(app.mode, Mode::Normal));
     }
 
     #[test]
@@ -461,7 +507,7 @@ mod tests {
         app.mode = Mode::MoveTarget { from_triage: false };
 
         handle_key(&mut app, key(KeyCode::Char('n'))).unwrap();
-        assert_eq!(app.mode, Mode::Normal);
+        assert!(matches!(app.mode, Mode::Normal));
 
         // Task should have moved to now queue
         let tasks: Vec<_> = app.tasks.iter().filter(|t| t.queue == Queue::Now).collect();

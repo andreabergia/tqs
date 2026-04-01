@@ -90,17 +90,37 @@ impl FocusedPanel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+pub use crate::app::operations::TriageSummary;
+
 pub enum Mode {
     Normal,
-    AddForm,
-    ConfirmDelete { task_id: String, from_triage: bool },
-    MoveTarget { from_triage: bool },
-    Search,
+    AddForm {
+        title: String,
+        queue: Queue,
+    },
+    ConfirmDelete {
+        task_id: String,
+        from_triage: bool,
+    },
+    MoveTarget {
+        from_triage: bool,
+    },
+    Search {
+        query: String,
+        results: Vec<(String, Queue)>,
+        list_state: ListState,
+    },
     Triage,
 }
 
-pub use crate::app::operations::TriageSummary;
+/// Triage state lives outside Mode because it must survive transitions
+/// to ConfirmDelete and MoveTarget sub-modes.
+#[derive(Default)]
+pub struct TriageState {
+    pub task_ids: Vec<String>,
+    pub index: usize,
+    pub summary: TriageSummary,
+}
 
 pub struct TuiApp {
     pub config: ResolvedConfig,
@@ -120,19 +140,8 @@ pub struct TuiApp {
     // Mode
     pub mode: Mode,
 
-    // Add form state
-    pub add_title: String,
-    pub add_queue: Queue,
-
-    // Search state
-    pub search_query: String,
-    pub search_results: Vec<(String, Queue)>, // (task_id, queue) pairs
-    pub search_list_state: ListState,
-
-    // Triage state
-    pub triage_task_ids: Vec<String>,
-    pub triage_index: usize,
-    pub triage_summary: TriageSummary,
+    // Triage state (persists across ConfirmDelete/MoveTarget sub-modes)
+    pub triage: TriageState,
 
     // Transient status message
     pub status_message: Option<(String, Instant)>,
@@ -153,14 +162,7 @@ impl TuiApp {
             focused_panel: FocusedPanel::TaskList,
             detail_scroll: 0,
             mode: Mode::Normal,
-            add_title: String::new(),
-            add_queue: Queue::Inbox,
-            search_query: String::new(),
-            search_results: Vec::new(),
-            search_list_state: ListState::default(),
-            triage_task_ids: Vec::new(),
-            triage_index: 0,
-            triage_summary: TriageSummary::default(),
+            triage: TriageState::default(),
             status_message: None,
             needs_redraw: true,
         };
@@ -236,7 +238,6 @@ impl TuiApp {
     }
 
     pub fn select_queue_by_index(&mut self, index: usize) {
-        // Map 1-5 to the first 5 selectable entries
         let selectable: Vec<usize> = SIDEBAR_ENTRIES
             .iter()
             .enumerate()
@@ -283,24 +284,40 @@ impl TuiApp {
 
     pub fn update_search_results(&mut self) {
         use crate::domain::filter::matches_query;
-        self.search_results = self
+        let Mode::Search {
+            query,
+            results,
+            list_state,
+        } = &mut self.mode
+        else {
+            return;
+        };
+        *results = self
             .tasks
             .iter()
-            .filter(|t| matches_query(t, &self.search_query))
+            .filter(|t| matches_query(t, query))
             .map(|t| (t.id.clone(), t.queue))
             .collect();
-        if self.search_results.is_empty() {
-            self.search_list_state.select(None);
+        if results.is_empty() {
+            list_state.select(None);
         } else {
-            self.search_list_state.select(Some(0));
+            list_state.select(Some(0));
         }
     }
 
     pub fn select_search_result(&mut self) {
-        let Some(idx) = self.search_list_state.selected() else {
+        let Mode::Search {
+            results,
+            list_state,
+            ..
+        } = &self.mode
+        else {
             return;
         };
-        let Some((task_id, queue)) = self.search_results.get(idx).cloned() else {
+        let Some(idx) = list_state.selected() else {
+            return;
+        };
+        let Some((task_id, queue)) = results.get(idx).cloned() else {
             return;
         };
         self.jump_to_queue(queue);
@@ -316,7 +333,7 @@ impl TuiApp {
     }
 
     pub fn current_triage_task(&self) -> Option<&Task> {
-        let task_id = self.triage_task_ids.get(self.triage_index)?;
+        let task_id = self.triage.task_ids.get(self.triage.index)?;
         self.tasks.iter().find(|t| t.id == *task_id)
     }
 
@@ -331,16 +348,18 @@ impl TuiApp {
             self.set_status("Inbox is empty — nothing to triage");
             return;
         }
-        self.triage_task_ids = inbox_ids;
-        self.triage_index = 0;
-        self.triage_summary = TriageSummary::default();
+        self.triage = TriageState {
+            task_ids: inbox_ids,
+            index: 0,
+            summary: TriageSummary::default(),
+        };
         self.mode = Mode::Triage;
     }
 
     pub fn advance_triage_or_finish(&mut self) {
-        self.triage_index += 1;
-        if self.triage_index >= self.triage_task_ids.len() {
-            let summary = self.triage_summary.to_string();
+        self.triage.index += 1;
+        if self.triage.index >= self.triage.task_ids.len() {
+            let summary = self.triage.summary.to_string();
             self.mode = Mode::Normal;
             self.set_status(format!("Triage: {summary}"));
         }
