@@ -10,7 +10,7 @@ use crate::tui::app_state::{Mode, TuiApp};
 
 pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp) {
     let line = match &app.mode {
-        Mode::Normal => normal_line(app),
+        Mode::Normal => normal_line(app, area.width),
         Mode::AddForm | Mode::Triage | Mode::Search => return, // these modes have their own hints
         Mode::ConfirmDelete { task_id, .. } => confirm_delete_line(task_id),
         Mode::MoveTarget { .. } => move_target_line(),
@@ -20,7 +20,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp) {
     frame.render_widget(bar, area);
 }
 
-fn normal_line(app: &TuiApp) -> Line<'static> {
+fn normal_line(app: &TuiApp, area_width: u16) -> Line<'static> {
     if let Some(msg) = app.active_status_message() {
         return Line::from(vec![
             mode_badge("Normal"),
@@ -59,7 +59,8 @@ fn normal_line(app: &TuiApp) -> Line<'static> {
     ];
 
     // Remove extra hints if terminal is narrow — just keep the essentials
-    if area_too_narrow(spans.iter().map(|s| s.width()).sum()) {
+    let total_width: usize = spans.iter().map(|s| s.width()).sum();
+    if total_width > area_width as usize {
         spans.truncate(3); // mode badge + space + first hint
     }
 
@@ -104,9 +105,4 @@ fn mode_badge(label: &str) -> Span<'static> {
 
 fn hint(key: &str) -> Span<'static> {
     Span::styled(key.to_string(), Style::default().fg(Color::Yellow))
-}
-
-fn area_too_narrow(total_width: usize) -> bool {
-    // This is a simple heuristic; in practice the status bar area width is checked
-    total_width > 120
 }
