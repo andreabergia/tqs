@@ -20,10 +20,12 @@ pub fn draw(frame: &mut Frame, app: &mut TuiApp) {
     let main_area = outer[0];
     let status_area = outer[1];
 
-    match &app.mode {
-        Mode::Triage => draw_triage(frame, main_area, app),
-        Mode::Search => draw_search(frame, main_area, app),
-        _ => draw_normal(frame, main_area, app),
+    if is_triage_context(&app.mode) {
+        draw_triage(frame, main_area, app);
+    } else if app.mode == Mode::Search {
+        draw_search(frame, main_area, app);
+    } else {
+        draw_normal(frame, main_area, app);
     }
 
     widgets::status_bar::render(frame, status_area, app);
@@ -132,4 +134,16 @@ fn draw_search(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
         .highlight_symbol("> ");
 
     frame.render_stateful_widget(list, rows[1], &mut app.search_list_state);
+}
+
+fn is_triage_context(mode: &Mode) -> bool {
+    matches!(
+        mode,
+        Mode::Triage
+            | Mode::MoveTarget { from_triage: true }
+            | Mode::ConfirmDelete {
+                from_triage: true,
+                ..
+            }
+    )
 }
