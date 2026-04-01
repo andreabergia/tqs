@@ -229,11 +229,25 @@ impl TuiApp {
 
     pub fn next_queue(&mut self) {
         self.active_sidebar_index = next_selectable(self.active_sidebar_index, 1);
+        debug_assert!(
+            !matches!(
+                SIDEBAR_ENTRIES[self.active_sidebar_index],
+                SidebarEntry::Separator
+            ),
+            "next_queue landed on a separator"
+        );
         self.select_first_task();
     }
 
     pub fn prev_queue(&mut self) {
         self.active_sidebar_index = next_selectable(self.active_sidebar_index, -1);
+        debug_assert!(
+            !matches!(
+                SIDEBAR_ENTRIES[self.active_sidebar_index],
+                SidebarEntry::Separator
+            ),
+            "prev_queue landed on a separator"
+        );
         self.select_first_task();
     }
 

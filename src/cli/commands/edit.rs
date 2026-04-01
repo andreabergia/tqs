@@ -1,9 +1,9 @@
 use std::{fs, path::PathBuf, process::Command};
 
-use chrono::Utc;
 use clap::Parser;
 
 use crate::app::app_error::AppError;
+use crate::app::operations::{self, EditOutcome};
 use crate::cli::commands::helpers;
 use crate::io::output;
 
@@ -29,29 +29,22 @@ pub fn handle_edit(Edit { task }: Edit, root: Option<PathBuf>) -> Result<(), App
         return Err(AppError::message("editor command failed"));
     }
 
-    let edited_content = fs::read_to_string(&stored.path)?;
-    if edited_content.trim().is_empty() {
-        fs::write(&stored.path, original_content)?;
-        return Err(AppError::message("task file cannot be empty"));
-    }
-
-    if edited_content == original_content {
-        output::print_info(&format!(
-            "No changes made: {} ({})",
-            stored.task.id,
-            stored.path.display()
-        ));
-        return Ok(());
-    }
-
-    match repo.replace_edited(&stored.task.id, &edited_content, Utc::now()) {
-        Ok((task, path)) => {
-            output::print_info(&format!("Edited task: {} ({})", task.id, path.display()));
-            Ok(())
+    match operations::apply_edit(&repo, &stored.task.id, &stored.path, &original_content)? {
+        EditOutcome::Unchanged => {
+            output::print_info(&format!(
+                "No changes made: {} ({})",
+                stored.task.id,
+                stored.path.display()
+            ));
         }
-        Err(error) => {
-            fs::write(&stored.path, original_content)?;
-            Err(error)
+        EditOutcome::Applied => {
+            let updated = repo.find_by_id(&stored.task.id)?;
+            output::print_info(&format!(
+                "Edited task: {} ({})",
+                updated.task.id,
+                updated.path.display()
+            ));
         }
     }
+    Ok(())
 }

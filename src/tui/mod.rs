@@ -9,7 +9,6 @@ use std::io::Write as _;
 use std::process::Command;
 use std::time::Duration;
 
-use chrono::Utc;
 use crossterm::{
     event::Event,
     execute,
@@ -115,7 +114,8 @@ fn suspend_for_editor(
 }
 
 fn run_editor(app: &TuiApp, task_id: &str) -> Result<(), AppError> {
-    let (original_content, path) = app.repo.read_raw(task_id)?;
+    let stored = app.repo.find_by_id(task_id)?;
+    let original_content = std::fs::read_to_string(&stored.path)?;
 
     let editor = ResolvedEditor::resolve()?;
     // Flush stdout before spawning editor
@@ -123,24 +123,14 @@ fn run_editor(app: &TuiApp, task_id: &str) -> Result<(), AppError> {
 
     let status = Command::new(&editor.program)
         .args(&editor.args)
-        .arg(&path)
+        .arg(&stored.path)
         .status()?;
 
     if !status.success() {
         return Err(AppError::message("editor command failed"));
     }
 
-    let (edited_content, _) = app.repo.read_raw(task_id)?;
-    if edited_content.trim().is_empty() {
-        app.repo.write_raw(task_id, &original_content)?;
-        return Err(AppError::message("task file cannot be empty"));
-    }
-
-    if edited_content != original_content {
-        app.repo
-            .replace_edited(task_id, &edited_content, Utc::now())?;
-    }
-
+    crate::app::operations::apply_edit(&app.repo, task_id, &stored.path, &original_content)?;
     Ok(())
 }
 
