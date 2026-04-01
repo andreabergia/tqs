@@ -9,7 +9,6 @@ use crate::app::operations;
 use crate::cli::commands::helpers;
 use crate::domain::task::Queue;
 use crate::io::output;
-use crate::storage::repo::TaskRepo;
 
 #[derive(Debug, Parser)]
 #[command(about = "Mark a task as done")]
@@ -22,7 +21,7 @@ pub struct Done {
 
 pub fn handle_done(Done { task, no_edit }: Done, root: Option<PathBuf>) -> Result<(), AppError> {
     let resolved = helpers::resolve_config(root)?;
-    let repo = TaskRepo::new(resolved.tasks_root.clone(), resolved.queue_dirs.clone());
+    let repo = helpers::repo_from_config(&resolved);
     let Some(stored) = helpers::resolve_task_ref(task, &repo, "Select task to complete")? else {
         return Ok(());
     };
