@@ -61,7 +61,6 @@ pub fn confirm_delete(app: &mut TuiApp) -> Result<SideEffect, AppError> {
         app.triage_summary.deleted += 1;
         app.refresh()?;
         app.mode = Mode::Triage;
-        // advance_triage_or_finish may override to Normal if done
         app.advance_triage_or_finish();
     } else {
         app.repo.delete(&task_id)?;
