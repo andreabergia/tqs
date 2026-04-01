@@ -52,12 +52,17 @@ fn draw_normal(frame: &mut Frame, area: Rect, app: &mut TuiApp) {
 
     widgets::sidebar::render(frame, sidebar_area, app, focused == FocusedPanel::Sidebar);
 
-    let queue = app.active_queue();
-    let tasks: Vec<_> = app.tasks.iter().filter(|t| t.queue == queue).collect();
+    let filter = app.active_filter();
+    let tasks: Vec<_> = match filter {
+        super::app_state::QueueFilter::Single(queue) => {
+            app.tasks.iter().filter(|t| t.queue == queue).collect()
+        }
+        super::app_state::QueueFilter::All => app.tasks.iter().collect(),
+    };
     widgets::task_list::render(
         frame,
         task_list_area,
-        queue,
+        filter,
         &tasks,
         &mut app.task_list_state,
         focused == FocusedPanel::TaskList,

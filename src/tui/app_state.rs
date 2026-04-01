@@ -1,3 +1,4 @@
+use std::fmt;
 use std::time::Instant;
 
 use ratatui::widgets::ListState;
@@ -7,14 +8,41 @@ use crate::domain::task::{Queue, Task};
 use crate::storage::config::ResolvedConfig;
 use crate::storage::repo::TaskRepo;
 
-/// Display order for queues in the sidebar.
-const SIDEBAR_QUEUES: [Queue; 5] = [
-    Queue::Now,
-    Queue::Next,
-    Queue::Later,
-    Queue::Inbox,
-    Queue::Done,
+/// What the sidebar can show: a queue, a separator line, or "all".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SidebarEntry {
+    Queue(Queue),
+    Separator,
+    All,
+}
+
+/// The sidebar layout with visual separators between groups.
+const SIDEBAR_ENTRIES: &[SidebarEntry] = &[
+    SidebarEntry::Queue(Queue::Now),
+    SidebarEntry::Queue(Queue::Next),
+    SidebarEntry::Queue(Queue::Later),
+    SidebarEntry::Separator,
+    SidebarEntry::Queue(Queue::Inbox),
+    SidebarEntry::Queue(Queue::Done),
+    SidebarEntry::Separator,
+    SidebarEntry::All,
 ];
+
+/// Which tasks to show in the task list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueueFilter {
+    Single(Queue),
+    All,
+}
+
+impl fmt::Display for QueueFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Single(q) => write!(f, "{q}"),
+            Self::All => write!(f, "all"),
+        }
+    }
+}
 
 /// How long status messages stay visible.
 const STATUS_MESSAGE_TTL_SECS: u64 = 3;
@@ -111,7 +139,7 @@ pub struct TuiApp {
     pub tasks: Vec<Task>,
 
     // Navigation
-    pub active_queue_index: usize,
+    pub active_sidebar_index: usize,
     pub task_list_state: ListState,
 
     // Panel focus
@@ -146,7 +174,7 @@ impl TuiApp {
             config,
             repo,
             tasks,
-            active_queue_index: 0,
+            active_sidebar_index: 0,
             task_list_state: ListState::default(),
             focused_panel: FocusedPanel::TaskList,
             detail_scroll: 0,
@@ -167,7 +195,6 @@ impl TuiApp {
 
     pub fn refresh(&mut self) -> Result<(), AppError> {
         self.tasks = self.repo.list()?;
-        // Clamp selection to current queue's task count
         let count = self.current_queue_tasks().len();
         if count == 0 {
             self.task_list_state.select(None);
@@ -179,21 +206,31 @@ impl TuiApp {
         Ok(())
     }
 
-    pub fn sidebar_queues(&self) -> &[Queue] {
-        &SIDEBAR_QUEUES
+    pub fn sidebar_entries(&self) -> &[SidebarEntry] {
+        SIDEBAR_ENTRIES
     }
 
-    pub fn active_queue(&self) -> Queue {
-        SIDEBAR_QUEUES[self.active_queue_index]
+    pub fn active_filter(&self) -> QueueFilter {
+        match SIDEBAR_ENTRIES[self.active_sidebar_index] {
+            SidebarEntry::Queue(q) => QueueFilter::Single(q),
+            SidebarEntry::All => QueueFilter::All,
+            SidebarEntry::Separator => QueueFilter::All, // shouldn't happen
+        }
     }
 
     pub fn queue_count(&self, queue: Queue) -> usize {
         self.tasks.iter().filter(|t| t.queue == queue).count()
     }
 
+    pub fn total_count(&self) -> usize {
+        self.tasks.len()
+    }
+
     pub fn current_queue_tasks(&self) -> Vec<&Task> {
-        let queue = self.active_queue();
-        self.tasks.iter().filter(|t| t.queue == queue).collect()
+        match self.active_filter() {
+            QueueFilter::Single(queue) => self.tasks.iter().filter(|t| t.queue == queue).collect(),
+            QueueFilter::All => self.tasks.iter().collect(),
+        }
     }
 
     pub fn selected_task(&self) -> Option<&Task> {
@@ -204,22 +241,35 @@ impl TuiApp {
     }
 
     pub fn next_queue(&mut self) {
-        self.active_queue_index = (self.active_queue_index + 1) % SIDEBAR_QUEUES.len();
+        self.active_sidebar_index = next_selectable(self.active_sidebar_index, 1);
         self.select_first_task();
     }
 
     pub fn prev_queue(&mut self) {
-        self.active_queue_index = if self.active_queue_index == 0 {
-            SIDEBAR_QUEUES.len() - 1
-        } else {
-            self.active_queue_index - 1
-        };
+        self.active_sidebar_index = next_selectable(self.active_sidebar_index, -1);
         self.select_first_task();
     }
 
-    pub fn select_queue(&mut self, index: usize) {
-        if index < SIDEBAR_QUEUES.len() {
-            self.active_queue_index = index;
+    pub fn select_queue_by_index(&mut self, index: usize) {
+        // Map 1-5 to the first 5 selectable entries
+        let selectable: Vec<usize> = SIDEBAR_ENTRIES
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| matches!(e, SidebarEntry::Queue(_) | SidebarEntry::All))
+            .map(|(i, _)| i)
+            .collect();
+        if let Some(&sidebar_idx) = selectable.get(index) {
+            self.active_sidebar_index = sidebar_idx;
+            self.select_first_task();
+        }
+    }
+
+    pub fn jump_to_queue(&mut self, queue: Queue) {
+        if let Some(idx) = SIDEBAR_ENTRIES
+            .iter()
+            .position(|e| *e == SidebarEntry::Queue(queue))
+        {
+            self.active_sidebar_index = idx;
             self.select_first_task();
         }
     }
@@ -268,18 +318,15 @@ impl TuiApp {
         let Some((task_id, queue)) = self.search_results.get(idx).cloned() else {
             return;
         };
-        // Jump to the queue and select the task
-        if let Some(qi) = self.sidebar_queues().iter().position(|q| *q == queue) {
-            self.active_queue_index = qi;
-            let task_index = self
-                .tasks
-                .iter()
-                .filter(|t| t.queue == queue)
-                .position(|t| t.id == task_id)
-                .unwrap_or(0);
-            self.task_list_state.select(Some(task_index));
-            self.detail_scroll = 0;
-        }
+        self.jump_to_queue(queue);
+        let task_index = self
+            .tasks
+            .iter()
+            .filter(|t| t.queue == queue)
+            .position(|t| t.id == task_id)
+            .unwrap_or(0);
+        self.task_list_state.select(Some(task_index));
+        self.detail_scroll = 0;
         self.mode = Mode::Normal;
     }
 
@@ -335,5 +382,17 @@ impl TuiApp {
             self.task_list_state.select(Some(0));
         }
         self.detail_scroll = 0;
+    }
+}
+
+/// Find the next selectable sidebar index (skipping separators), wrapping around.
+fn next_selectable(current: usize, direction: i32) -> usize {
+    let len = SIDEBAR_ENTRIES.len();
+    let mut idx = current;
+    loop {
+        idx = ((idx as i32 + direction).rem_euclid(len as i32)) as usize;
+        if !matches!(SIDEBAR_ENTRIES[idx], SidebarEntry::Separator) {
+            return idx;
+        }
     }
 }

@@ -6,26 +6,40 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState},
 };
 
-use crate::domain::task::{Queue, Task};
+use crate::domain::task::Task;
+use crate::tui::app_state::QueueFilter;
 
 pub fn render(
     frame: &mut Frame,
     area: Rect,
-    queue: Queue,
+    filter: QueueFilter,
     tasks: &[&Task],
     state: &mut ListState,
     focused: bool,
 ) {
-    let title = format!(" Tasks in queue {} ({}) ", queue, tasks.len());
+    let title = match filter {
+        QueueFilter::Single(queue) => format!(" Tasks in queue {queue} ({}) ", tasks.len()),
+        QueueFilter::All => format!(" All tasks ({}) ", tasks.len()),
+    };
+
+    let show_queue_tag = matches!(filter, QueueFilter::All);
 
     let items: Vec<ListItem> = tasks
         .iter()
         .map(|task| {
-            let line = Line::from(vec![
-                Span::styled(format!("{:<8}", task.id), Style::default().fg(Color::Cyan)),
-                Span::raw(&task.title),
-            ]);
-            ListItem::new(line)
+            let mut spans = Vec::new();
+            if show_queue_tag {
+                spans.push(Span::styled(
+                    format!("[{:<5}] ", task.queue),
+                    Style::default().fg(Color::Magenta),
+                ));
+            }
+            spans.push(Span::styled(
+                format!("{:<8}", task.id),
+                Style::default().fg(Color::Cyan),
+            ));
+            spans.push(Span::raw(&task.title));
+            ListItem::new(Line::from(spans))
         })
         .collect();
 

@@ -65,10 +65,10 @@ fn handle_normal_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
         KeyCode::Tab => app.next_queue(),
         KeyCode::BackTab => app.prev_queue(),
 
-        // Direct queue jump (1-5) regardless of panel focus
-        KeyCode::Char(c @ '1'..='5') => {
+        // Direct queue jump (1-6) regardless of panel focus
+        KeyCode::Char(c @ '1'..='6') => {
             let index = (c as usize) - ('1' as usize);
-            app.select_queue(index);
+            app.select_queue_by_index(index);
         }
 
         // Task actions
