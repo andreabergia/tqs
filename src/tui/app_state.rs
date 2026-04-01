@@ -23,8 +23,8 @@ const SIDEBAR_ENTRIES: &[SidebarEntry] = &[
     SidebarEntry::Queue(Queue::Later),
     SidebarEntry::Separator,
     SidebarEntry::Queue(Queue::Inbox),
-    SidebarEntry::Queue(Queue::Done),
     SidebarEntry::Separator,
+    SidebarEntry::Queue(Queue::Done),
     SidebarEntry::All,
 ];
 
