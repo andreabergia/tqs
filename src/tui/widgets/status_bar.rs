@@ -58,10 +58,15 @@ fn normal_line(app: &TuiApp, area_width: u16) -> Line<'static> {
         Span::raw(":quit"),
     ];
 
-    // Remove extra hints if terminal is narrow — just keep the essentials
-    let total_width: usize = spans.iter().map(|s| s.width()).sum();
-    if total_width > area_width as usize {
-        spans.truncate(3); // mode badge + space + first hint
+    // Progressively drop hint pairs from the right until the line fits
+    while spans.len() > 2 {
+        let total_width: usize = spans.iter().map(|s| s.width()).sum();
+        if total_width <= area_width as usize {
+            break;
+        }
+        // Each hint is a pair: hint("key") + Span::raw(":label ")
+        spans.pop();
+        spans.pop();
     }
 
     Line::from(spans)
