@@ -214,7 +214,7 @@ impl TuiApp {
         match SIDEBAR_ENTRIES[self.active_sidebar_index] {
             SidebarEntry::Queue(q) => QueueFilter::Single(q),
             SidebarEntry::All => QueueFilter::All,
-            SidebarEntry::Separator => QueueFilter::All, // shouldn't happen
+            SidebarEntry::Separator => unreachable!("separator cannot be active sidebar entry"),
         }
     }
 
