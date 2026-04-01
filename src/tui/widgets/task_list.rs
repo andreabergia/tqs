@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState},
 };
 
+use super::panel_border_style;
 use crate::domain::task::Task;
 use crate::tui::app_state::QueueFilter;
 
@@ -43,16 +44,10 @@ pub fn render(
         })
         .collect();
 
-    let border_style = if focused {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
-
     let block = Block::default()
         .borders(Borders::ALL)
         .title(title)
-        .border_style(border_style);
+        .border_style(panel_border_style(focused));
 
     let highlight_style = Style::default()
         .add_modifier(Modifier::BOLD)

@@ -1,11 +1,11 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph, Wrap},
 };
 
+use super::panel_border_style;
 use crate::domain::task::Task;
 
 pub fn render(
@@ -15,11 +15,7 @@ pub fn render(
     scroll_offset: u16,
     focused: bool,
 ) {
-    let border_style = if focused {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
+    let border_style = panel_border_style(focused);
 
     let Some(task) = task else {
         let block = Block::default()

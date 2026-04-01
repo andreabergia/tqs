@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem},
 };
 
+use super::panel_border_style;
 use crate::tui::app_state::{SidebarEntry, TuiApp};
 
 pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp, focused: bool) {
@@ -31,16 +32,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &TuiApp, focused: bool) {
         })
         .collect();
 
-    let border_style = if focused {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
-
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Queues ")
-        .border_style(border_style);
+        .border_style(panel_border_style(focused));
     let list = List::new(items).block(block);
     frame.render_widget(list, area);
 }
