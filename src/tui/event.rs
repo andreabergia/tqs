@@ -247,33 +247,31 @@ fn handle_triage_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppE
 
 fn handle_move_target_key(app: &mut TuiApp, key: KeyEvent) -> Result<SideEffect, AppError> {
     let from_triage = matches!(app.mode, Mode::MoveTarget { from_triage: true });
+    let cancel_mode = if from_triage {
+        Mode::Triage
+    } else {
+        Mode::Normal
+    };
 
-    let result = match key.code {
+    match key.code {
         KeyCode::Char('i') | KeyCode::Char('1') => do_move(app, Queue::Inbox, from_triage),
         KeyCode::Char('n') | KeyCode::Char('2') => do_move(app, Queue::Now, from_triage),
         KeyCode::Char('x') | KeyCode::Char('3') => do_move(app, Queue::Next, from_triage),
         KeyCode::Char('l') | KeyCode::Char('4') => do_move(app, Queue::Later, from_triage),
         _ => {
-            app.mode = if from_triage {
-                Mode::Triage
-            } else {
-                Mode::Normal
-            };
-            return Ok(SideEffect::None);
+            app.mode = cancel_mode;
+            Ok(SideEffect::None)
         }
-    };
-    app.mode = if from_triage {
-        Mode::Triage
-    } else {
-        Mode::Normal
-    };
-    result
+    }
 }
 
 fn do_move(app: &mut TuiApp, queue: Queue, from_triage: bool) -> Result<SideEffect, AppError> {
     if from_triage {
+        app.mode = Mode::Triage;
+        // triage_move -> advance_triage_or_finish may override to Normal if done
         actions::triage_move(app, queue)
     } else {
+        app.mode = Mode::Normal;
         actions::move_to_queue(app, queue)
     }
 }
