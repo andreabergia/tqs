@@ -9,15 +9,20 @@ A terminal-native task manager. Tasks are Markdown files organized in queues. Ru
 Just run `tqs`. You get a three-panel view: queues on the left, tasks in the middle, detail on the right.
 
 ```text
-┌ Queues ──┬ Tasks in queue now (2) ──┬ Task detail: Ship v2 ──┐
-│ > now  2 │ > 0f3  Ship v2           │ # Ship v2              │
-│   next 1 │   a7k  Plan release      │                        │
-│   later 3│                          │ Body text goes here    │
-│   inbox 5│                          │                        │
-│   done 12│                          │                        │
-└──────────┴──────────────────────────┴────────────────────────┘
+┌ Queues ───┬ Tasks in queue now (2) ──┬ Task detail: Ship v2 ──┐
+│ > now   2 │ > 0f3  Ship v2           │ # Ship v2              │
+│   next  1 │   a7k  Plan release      │                        │
+│   later 3 │                          │ Body text goes here    │
+│  ──────── │                          │                        │
+│   inbox 5 │                          │                        │
+│  ──────── │                          │                        │
+│   done 12 │                          │                        │
+│   all  23 │                          │                        │
+└───────────┴──────────────────────────┴────────────────────────┘
  [Normal] h/l:panel j/k:nav Tab:queue a:add d:done s:start q:quit
 ```
+
+The sidebar groups queues into three sections: active work (now/next/later), triage (inbox), and archive (done/all).
 
 Navigate with `h/l` between panels, `j/k` within them. Everything else is a single keypress away:
 

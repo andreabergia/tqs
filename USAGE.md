@@ -38,6 +38,13 @@ Running `tqs` with no arguments on a TTY launches a full-screen interactive TUI.
 
 The dashboard has three panels: a queue sidebar, a task list, and a task detail pane. The focused panel is highlighted with a cyan border.
 
+The sidebar groups queues into three sections separated by dividers:
+- **Active work**: now, next, later
+- **Triage**: inbox
+- **Archive & overview**: done, all
+
+The "all" view shows every task across all queues, with a `[queue]` tag on each entry.
+
 ### Navigation
 
 | Key | Action |
@@ -45,7 +52,7 @@ The dashboard has three panels: a queue sidebar, a task list, and a task detail 
 | `h` / `l` / Left / Right | Move focus between panels |
 | `j` / `k` / Up / Down | Navigate within focused panel (queues, tasks, or scroll detail) |
 | `Tab` / `Shift-Tab` | Cycle to next / previous queue (from any panel) |
-| `1`–`5` | Jump directly to a queue (from any panel) |
+| `1`–`6` | Jump directly to a queue or all (from any panel) |
 
 ### Task Actions
 
