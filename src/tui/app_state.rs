@@ -118,6 +118,9 @@ pub struct TuiApp {
 
     // Transient status message
     pub status_message: Option<(String, Instant)>,
+
+    // Redraw flag — set when state changes, cleared after draw
+    pub needs_redraw: bool,
 }
 
 impl TuiApp {
@@ -141,6 +144,7 @@ impl TuiApp {
             triage_index: 0,
             triage_summary: TriageSummary::default(),
             status_message: None,
+            needs_redraw: true,
         };
         app.select_first_task();
         Ok(app)

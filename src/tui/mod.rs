@@ -54,11 +54,22 @@ fn run_loop(
     app: &mut TuiApp,
 ) -> Result<(), AppError> {
     loop {
-        terminal
-            .draw(|frame| ui::draw(frame, app))
-            .map_err(|e| AppError::message(format!("failed to draw: {e}")))?;
+        // Check if a visible status message has expired since last draw
+        let status_expired = app.status_message.is_some() && app.active_status_message().is_none();
+        if status_expired {
+            app.status_message = None;
+            app.needs_redraw = true;
+        }
+
+        if app.needs_redraw {
+            terminal
+                .draw(|frame| ui::draw(frame, app))
+                .map_err(|e| AppError::message(format!("failed to draw: {e}")))?;
+            app.needs_redraw = false;
+        }
 
         if let Some(Event::Key(key)) = poll_event()? {
+            app.needs_redraw = true;
             match event::handle_key(app, key)? {
                 SideEffect::None => {}
                 SideEffect::Quit => return Ok(()),
@@ -93,6 +104,7 @@ fn suspend_for_editor(
 
     // Refresh regardless of editor outcome
     app.refresh()?;
+    app.needs_redraw = true;
 
     match result {
         Ok(()) => app.set_status(format!("Edited: {task_id}")),
