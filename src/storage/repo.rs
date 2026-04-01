@@ -65,6 +65,18 @@ impl TaskRepo {
         Ok(self.find_by_id(id)?.task)
     }
 
+    pub fn read_raw(&self, id: &str) -> Result<(String, PathBuf), AppError> {
+        let stored = self.find_by_id(id)?;
+        let content = fs::read_to_string(&stored.path)?;
+        Ok((content, stored.path))
+    }
+
+    pub fn write_raw(&self, id: &str, content: &str) -> Result<(), AppError> {
+        let stored = self.find_by_id(id)?;
+        fs::write(&stored.path, content)?;
+        Ok(())
+    }
+
     pub fn find_by_id(&self, id: &str) -> Result<StoredTask, AppError> {
         validate_user_id(id)?;
         let mut matches = self
