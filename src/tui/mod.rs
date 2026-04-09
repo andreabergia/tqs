@@ -67,15 +67,24 @@ fn run_loop(
             app.needs_redraw = false;
         }
 
-        if let Some(Event::Key(key)) = poll_event()? {
-            app.needs_redraw = true;
-            match event::handle_key(app, key)? {
-                SideEffect::None => {}
-                SideEffect::Quit => return Ok(()),
-                SideEffect::SuspendForEditor { task_id } => {
-                    suspend_for_editor(terminal, app, &task_id)?;
+        match poll_event()? {
+            Some(Event::Key(key)) => {
+                app.needs_redraw = true;
+                match event::handle_key(app, key)? {
+                    SideEffect::None => {}
+                    SideEffect::Quit => return Ok(()),
+                    SideEffect::SuspendForEditor { task_id } => {
+                        suspend_for_editor(terminal, app, &task_id)?;
+                    }
                 }
             }
+            Some(Event::Resize(_, _)) => {
+                terminal
+                    .clear()
+                    .map_err(|e| AppError::message(format!("failed to clear terminal: {e}")))?;
+                app.needs_redraw = true;
+            }
+            _ => {}
         }
     }
 }

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project uses SemVer tags (`vX.Y.Z`).
 
+## [Unreleased]
+
+### Fixed
+
+- TUI now redraws correctly when the terminal window is resized, fixing broken layout and leftover characters on screen.
+
 ## [0.3.0]
 
 ### Added
